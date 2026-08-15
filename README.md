@@ -21,7 +21,7 @@ Claude can explicitly hand a bounded task to Pi with `/pi`. This is never automa
 
 ## Quick start
 
-Requirements: macOS, Git, Python 3, Bun, Claude Code, and Pi. Install and authenticate those tools first; this repository does not install runtimes or credentials.
+Requirements: macOS, Git, Python 3.9+, Bun, Claude Code, and Pi. Install those tools and authenticate Claude Code first; model-provider and Linear authentication remain interactive. This repository does not install runtimes, credentials, or optional plugins. See the [new-machine checklist](docs/new-machine.md).
 
 ```bash
 git clone https://github.com/vrennat/other-ninety.git
@@ -30,6 +30,8 @@ cd other-ninety
 ./bootstrap.sh          # preflight and exact config plan; writes nothing
 ./bootstrap.sh --apply  # dependencies, plugin, and shared config
 ```
+
+After a successful apply, bootstrap prints concise manual next steps: restart Claude Code and Pi, authenticate providers (Linear OAuth is interactive), and run smoke checks with `/mode` and explicit `/pi`.
 
 The apply command:
 

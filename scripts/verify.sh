@@ -10,7 +10,9 @@ for script in install.sh bootstrap.sh check-drift.sh check-leaks.sh scripts/*.sh
   [[ -f "$script" ]] && bash -n "$script"
 done
 
-node --check claude/plugin/hooks/session-start.js
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+bun build claude/plugin/hooks/session-start.js --target=bun --outdir "$tmp" >/dev/null
 test -x scripts/lint-plugin.sh
 test -x check-leaks.sh
 git check-ignore -q .pi/private-session.json

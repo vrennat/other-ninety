@@ -29,6 +29,10 @@ done
 for command in git python3 bun claude pi; do
   command -v "$command" >/dev/null || { echo "Missing prerequisite: $command" >&2; exit 1; }
 done
+if ! python3 -c 'import sys; raise SystemExit(sys.version_info < (3, 9))'; then
+  echo "Python 3.9 or newer is required." >&2
+  exit 1
+fi
 
 installer_display=""
 if (( ${#installer_args[@]} )); then installer_display=" ${installer_args[*]}"; fi
@@ -85,3 +89,5 @@ if python3 -c 'import json,sys; raise SystemExit(not any(item.get("id") == "othe
 else
   claude plugin install other-ninety@other-ninety --scope user
 fi
+
+echo "Next: restart Claude/Pi, authenticate providers (Linear OAuth is interactive), then run /mode and /pi for smoke checks."

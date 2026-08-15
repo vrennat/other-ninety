@@ -18,12 +18,12 @@ set -uo pipefail
 payload=$(cat)
 
 # Only act on Bash tool calls
-tool_name=$(echo "$payload" | jq -r '.tool_name // empty')
+tool_name=$(python3 -c 'import json, sys; print(json.load(sys.stdin).get("tool_name") or "")' <<<"$payload")
 if [[ "$tool_name" != "Bash" ]]; then
   exit 0
 fi
 
-cmd=$(echo "$payload" | jq -r '.tool_input.command // empty')
+cmd=$(python3 -c 'import json, sys; data=json.load(sys.stdin).get("tool_input") or {}; print(data.get("command") or "")' <<<"$payload")
 if [[ -z "$cmd" ]]; then
   exit 0
 fi
@@ -34,7 +34,7 @@ if ! [[ "$cmd" =~ (^|[[:space:]\;\&\|])git[[:space:]]+push([[:space:]]|$) ]]; th
 fi
 
 # Resolve the working directory for the tool call
-workdir=$(echo "$payload" | jq -r '.tool_input.cwd // empty')
+workdir=$(python3 -c 'import json, sys; data=json.load(sys.stdin).get("tool_input") or {}; print(data.get("cwd") or "")' <<<"$payload")
 if [[ -z "$workdir" ]]; then
   workdir=$(pwd)
 fi

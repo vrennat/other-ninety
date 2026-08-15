@@ -7,15 +7,15 @@
 # heads-up, not correctness.
 set -euo pipefail
 
-file="$HOME/.claude/sessions-active.md"
+file="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sessions-active.md"
 input=$(cat)
-event=$(jq -r '.hook_event_name // empty' <<<"$input")
-sid=$(jq -r '.session_id // empty' <<<"$input")
-cwd=$(jq -r '.cwd // empty' <<<"$input")
+event=$(python3 -c 'import json, sys; print(json.load(sys.stdin).get("hook_event_name") or "")' <<<"$input")
+sid=$(python3 -c 'import json, sys; print(json.load(sys.stdin).get("session_id") or "")' <<<"$input")
+cwd=$(python3 -c 'import json, sys; print(json.load(sys.stdin).get("cwd") or "")' <<<"$input")
 [[ -n "$sid" ]] || exit 0
 
 touch "$file"
-cutoff=$(date -u -v-24H +%Y-%m-%dT%H:%M:%SZ)
+cutoff=$(python3 -c 'from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ"))')
 tmp=$(mktemp)
 # keep other sessions' lines newer than 24h; drop this session's old line
 awk -v sid="$sid" -v cutoff="$cutoff" -F ' \\| ' \

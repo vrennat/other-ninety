@@ -14,7 +14,7 @@ class BootstrapTests(unittest.TestCase):
         self.log = Path(self.tmp.name) / "calls"
         for name, body in {
             "git": "exit 0",
-            "python3": "exec /usr/bin/python3 \"$@\"",
+            "python3": "if [ \"${FAKE_OLD_PYTHON:-}\" = 1 ] && [ \"${1:-}\" = -c ]; then exit 1; fi\nexec /usr/bin/python3 \"$@\"",
             "bun": "echo bun >>\"$CALLS\"",
             "pi": "echo pi:$* >>\"$CALLS\"",
             "claude": """echo claude:$* >>\"$CALLS\"
@@ -62,6 +62,7 @@ fi""",
         self.assertIn("pi:install npm:pi-mcp-adapter@2.26.0", calls)
         self.assertIn("claude:plugin marketplace add vrennat/other-ninety", calls)
         self.assertIn("claude:plugin install other-ninety@other-ninety --scope user", calls)
+        self.assertIn("Next: restart Claude/Pi", result.stdout)
 
     def test_apply_updates_existing_plugin(self):
         self.env["FAKE_EXISTING"] = "1"
@@ -78,6 +79,12 @@ fi""",
         calls = self.log.read_text()
         self.assertIn("claude:plugin marketplace add vrennat/other-ninety", calls)
         self.assertNotIn("claude:plugin marketplace update other-ninety", calls)
+
+    def test_old_python_fails(self):
+        self.env["FAKE_OLD_PYTHON"] = "1"
+        result = self.run_bootstrap()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("Python 3.9 or newer is required", result.stderr)
 
     def test_missing_prerequisite_fails(self):
         (self.bin / "bun").unlink()
