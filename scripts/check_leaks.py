@@ -40,11 +40,18 @@ def compile_private_pattern(value: str) -> re.Pattern[str]:
     return re.compile(escaped, re.IGNORECASE)
 
 
+def has_finding(text: str, name: str, pattern: re.Pattern[str]) -> bool:
+    matches = pattern.finditer(text)
+    if name == "email address":
+        return any(not match.group().lower().endswith("@users.noreply.github.com") for match in matches)
+    return any(matches)
+
+
 def scan_text(text: str, rules: dict[str, re.Pattern[str]], location: str) -> list[str]:
     findings: list[str] = []
     for line_number, line in enumerate(text.splitlines(), 1):
         for name, pattern in rules.items():
-            if pattern.search(line):
+            if has_finding(line, name, pattern):
                 findings.append(f"{location}:{line_number}: {name}")
     return findings
 
@@ -106,7 +113,7 @@ def main() -> int:
         committed = history(root)
         if committed:
             for name, pattern in rules.items():
-                if pattern.search(committed):
+                if has_finding(committed, name, pattern):
                     findings.append(f"git-history: {name}")
 
     if findings:
