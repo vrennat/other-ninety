@@ -1,0 +1,8 @@
+{
+  "provider": "auto",
+  "workflow": "none",
+  "allowBrowserCookies": false,
+  "webSearch": {
+    "enabled": true
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "theme": "tokyo-night",
+  "defaultThinkingLevel": "medium",
+  "showCacheMissNotices": true,
+  "enableInstallTelemetry": true,
+  "steeringMode": "all",
+  "followUpMode": "all",
+  "transport": "auto",
+  "editorPaddingX": 1,
+  "outputPad": 1,
+  "showHardwareCursor": true,
+  "terminal": {
+    "imageWidthCells": 80,
+    "showTerminalProgress": true
+  },
+  "packages": [
+    "npm:pi-mcp-adapter@2.26.0",
+    "npm:@quintinshaw/pi-dynamic-workflows@3.5.1",
+    "npm:@xynogen/pix-display@0.1.16",
+    "npm:cc-safety-net@2.0.5",
+    "npm:@hypabolic/pi-hypa@0.1.14",
+    "npm:pi-web-access@0.23.0",
+    "npm:@narumitw/pi-goal@0.51.0",
+    "npm:@juicesharp/rpiv-ask-user-question@2.5.2",
+    "npm:@dietrichgebert/ponytail@4.9.0",
+    "npm:pi-background-tasks@2.4.2"
+  ],
+  "tuiMode": "fullscreen"
+}

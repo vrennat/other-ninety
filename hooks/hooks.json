@@ -1,0 +1,16 @@
+{
+  "description": "The Other Ninety — injects the three-axis routing rubric (clarity / complexity / stakes) as ambient context on every session start, so the confirm-only-when-ambiguous philosophy is active even without /impl.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.js\""
+          }
+        ]
+      }
+    ]
+  }
+}

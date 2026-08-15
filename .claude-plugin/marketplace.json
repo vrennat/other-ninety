@@ -1,0 +1,27 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "other-ninety",
+  "metadata": {
+    "description": "Lean workflow tools for Claude Code."
+  },
+  "owner": {
+    "name": "vrennat"
+  },
+  "plugins": [
+    {
+      "name": "other-ninety",
+      "description": "Lean, opinionated workflow plugin. Confirm-only-when-ambiguous routing. Replaces obra/superpowers.",
+      "version": "0.1.0",
+      "source": "./",
+      "author": {
+        "name": "vrennat"
+      },
+      "homepage": "https://github.com/vrennat/other-ninety",
+      "tags": [
+        "workflow",
+        "skills",
+        "lean"
+      ]
+    }
+  ]
+}

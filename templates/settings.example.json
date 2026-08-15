@@ -1,0 +1,16 @@
+{
+  "_comment": "Example .claude/settings.json with the git-sync-pre-edit hook pre-wired. Copy this into .claude/settings.json (or merge the hooks block into your existing settings.json). Format/lint enforcement is intentionally not hooked here — handle that via your project's existing pre-commit setup, where it costs once per commit instead of once per edit.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "(tool == \"Edit\" || tool == \"Write\")",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/git-sync-pre-edit.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

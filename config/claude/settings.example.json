@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "defaultMode": "default"
+  },
+  "enabledPlugins": {
+    "other-ninety@other-ninety": true
+  },
+  "extraKnownMarketplaces": {
+    "other-ninety": {
+      "source": {
+        "source": "github",
+        "repo": "vrennat/other-ninety"
+      }
+    }
+  }
+}

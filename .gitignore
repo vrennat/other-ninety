@@ -1,0 +1,9 @@
+.DS_Store
+.pi/
+.pi-workflow/
+node_modules/
+__pycache__/
+*.pyc
+*.local
+.leakcheck.local
+backups/
