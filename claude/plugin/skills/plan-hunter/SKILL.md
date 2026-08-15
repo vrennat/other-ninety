@@ -1,6 +1,6 @@
 ---
 name: plan-hunter
-description: Tournament-style planning that produces one polished plan from an idea by drafting from four lenses (MVP-first, risk-first, dependency-first, user-first) in parallel, scoring with four judges, and synthesizing the winner with grafted moves from runner-ups. Use when the user asks for a substantive implementation plan, project roadmap, build sequence, or "how should I approach building X" — multi-week scope, real tradeoffs, sequencing decisions. User-invoked only: trigger on an explicit "/plan-hunter". Skip for tactical questions, single-file edits, debugging, or anything answerable in two paragraphs.
+description: 'Tournament-style planning that produces one polished plan from an idea by drafting from four lenses (MVP-first, risk-first, dependency-first, user-first) in parallel, scoring with four judges, and synthesizing the winner with grafted moves from runner-ups. Use when the user asks for a substantive implementation plan, project roadmap, build sequence, or "how should I approach building X" — multi-week scope, real tradeoffs, sequencing decisions. User-invoked only: trigger on an explicit "/plan-hunter". Skip for tactical questions, single-file edits, debugging, or anything answerable in two paragraphs.'
 disable-model-invocation: true
 ---
 

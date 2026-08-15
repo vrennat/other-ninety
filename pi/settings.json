@@ -22,7 +22,6 @@
     "npm:pi-web-access@0.23.0",
     "npm:@narumitw/pi-goal@0.51.0",
     "npm:@juicesharp/rpiv-ask-user-question@2.5.2",
-    "npm:@dietrichgebert/ponytail@4.9.0",
     "npm:pi-background-tasks@2.4.2"
   ],
   "tuiMode": "fullscreen"

@@ -53,8 +53,8 @@ def main() -> int:
     args = parser.parse_args()
 
     repo = Path(__file__).resolve().parents[1]
-    claude_base = repo / "config" / "claude"
-    pi_base = repo / "adapters" / "pi"
+    claude_base = repo / "claude" / "config"
+    pi_base = repo / "pi"
     overlay = args.overlay.expanduser().resolve() if args.overlay else None
     claude_overlay = overlay / "claude" if overlay else None
     pi_overlay = overlay / "pi" if overlay else None

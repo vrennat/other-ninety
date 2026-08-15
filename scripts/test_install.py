@@ -11,6 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "scripts" / "install.py"
+DRIFT_CHECKER = ROOT / "scripts" / "check_drift.py"
 
 
 class InstallerTest(unittest.TestCase):
@@ -62,6 +63,18 @@ class InstallerTest(unittest.TestCase):
             self.assertFalse(pi.exists())
             self.assertEqual(json.loads(manifest.read_text())["status"], "rolled-back")
             self.assertTrue(state.exists())
+
+    def test_fresh_apply_has_no_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.run_installer("--apply", *self.arguments(root))
+            drift = subprocess.run(
+                ["python3", str(DRIFT_CHECKER), *map(str, self.arguments(root)[:-2])],
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(drift.returncode, 0, drift.stdout + drift.stderr)
+            self.assertIn("RESULT: clean", drift.stdout)
 
     def test_overlay_replaces_mutable_settings_and_rolls_back(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

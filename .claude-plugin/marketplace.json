@@ -11,8 +11,8 @@
     {
       "name": "other-ninety",
       "description": "Lean, opinionated workflow plugin. Confirm-only-when-ambiguous routing. Replaces obra/superpowers.",
-      "version": "0.1.0",
-      "source": "./",
+      "version": "0.2.0",
+      "source": "./claude/plugin",
       "author": {
         "name": "vrennat"
       },

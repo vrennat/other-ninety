@@ -4,14 +4,15 @@ Parity means the public toolkit preserves reusable behavior from the two source 
 
 ## Claude plugin
 
-- [ ] Manifests parse and agree on name `other-ninety` and version `0.1.0`.
-- [ ] Commands load: `bootstrap`, `brainstorm`, `debt`, `impl`, `mode`, `plan`, `research`, `tdd`, `trim`.
+- [ ] Manifests parse and agree on name `other-ninety` and version `0.2.0`.
+- [ ] Commands load: `bootstrap`, `brainstorm`, `debt`, `impl`, `mode`, `pi`, `plan`, `research`, `tdd`, `trim`.
 - [ ] Agents load: `adversarial-reviewer`, `brutal-code-reviewer`, `debug-genius`, `fast-impl`, `validator`.
 - [ ] Skills load: `onboarding`, `plan-hunter`, `systematic-debugging`, `verification-before-completion`.
 - [ ] SessionStart emits valid JSON and injects the `other-ninety` routing context.
 - [ ] `/mode` writes `.claude/other-ninety-mode`.
-- [ ] `/debt` recognizes `on:` and legacy `dD:` markers.
+- [ ] `/debt` recognizes current `o90:` plus legacy `on:` and `dD:` markers.
 - [ ] `/bootstrap` resolves the `other-ninety/other-ninety` plugin cache path.
+- [ ] `/pi` launches one ephemeral leaf worker, defaults to read-only tools, and requires explicit `--write` for edits.
 
 ## Global Claude configuration
 
@@ -41,6 +42,7 @@ Parity means the public toolkit preserves reusable behavior from the two source 
 - [ ] Drift check reports a non-zero number of checked paths.
 - [ ] Leak scanner detects its positive control before accepting a clean scan.
 - [ ] Every migrated prose/config file receives manual privacy review.
+- [ ] `bootstrap.sh` remains write-free by default and installs dependencies, config, and plugins only with `--apply`.
 
 ## Intentional differences
 

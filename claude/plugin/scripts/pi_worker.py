@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""Run one constrained, ephemeral Pi leaf worker."""
+
+import os
+import shutil
+import subprocess
+import sys
+
+
+LEAF_RULES = """
+You are a leaf worker. Do not spawn nested agents. Do not commit, push, deploy,
+or perform destructive actions. Work only on the requested task and report what
+you found or changed. Do not expand scope.
+""".strip()
+
+
+def main() -> int:
+    write = len(sys.argv) == 2 and sys.argv[1] == "--write"
+    if len(sys.argv) not in (1, 2) or (len(sys.argv) == 2 and not write):
+        print("usage: pi_worker.py [--write]", file=sys.stderr)
+        return 2
+    task = sys.stdin.read().strip()
+    if not task:
+        print("empty task", file=sys.stderr)
+        return 2
+    if os.environ.get("PI_CODING_AGENT") or os.environ.get("OTHER_NINETY_PI_LEAF"):
+        print("refusing recursive Pi leaf invocation", file=sys.stderr)
+        return 2
+    pi = shutil.which("pi")
+    if not pi:
+        print("pi executable not found", file=sys.stderr)
+        return 127
+
+    tools = "read,grep,find,ls" + (",edit,write" if write else "")
+    args = [
+        pi, "--print", "--no-session", "--no-context-files", "--no-extensions",
+        "--no-skills", "--no-prompt-templates", "--no-themes", "--no-approve",
+        "--tools", tools, "--append-system-prompt", LEAF_RULES,
+    ]
+    for variable, flag in (("OTHER_NINETY_PI_PROVIDER", "--provider"),
+                           ("OTHER_NINETY_PI_MODEL", "--model"),
+                           ("OTHER_NINETY_PI_THINKING", "--thinking")):
+        if os.environ.get(variable):
+            args += [flag, os.environ[variable]]
+    env = os.environ.copy()
+    env["OTHER_NINETY_PI_LEAF"] = "1"
+    env["PI_SKIP_VERSION_CHECK"] = "1"
+    try:
+        result = subprocess.run(
+            args + ["Complete the task supplied on stdin."],
+            input=task,
+            text=True,
+            env=env,
+            timeout=600,
+        )
+    except subprocess.TimeoutExpired:
+        print("Pi leaf timed out", file=sys.stderr)
+        return 124
+    return result.returncode
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

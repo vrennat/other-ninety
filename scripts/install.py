@@ -41,8 +41,8 @@ def copy(source: Path, target: Path) -> None:
 
 def add_base_operations(repo: Path, claude_dir: Path, pi_dir: Path, pi_root: Path) -> list[Operation]:
     operations: list[Operation] = []
-    claude = repo / "config" / "claude"
-    pi = repo / "adapters" / "pi"
+    claude = repo / "claude" / "config"
+    pi = repo / "pi"
 
     for name in ("CLAUDE.md", "post-compact-rules.md", "rules", "hooks", "agents"):
         source = claude / name

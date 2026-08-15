@@ -1,6 +1,6 @@
 ---
 name: brainstorm
-description: Idea -> spec doc. Lean: clarifying questions only when ambiguous, default to recommendation, no per-section approval gates. Output to docs/specs/.
+description: "Idea -> spec doc. Lean: clarifying questions only when ambiguous, default to recommendation, no per-section approval gates. Output to docs/specs/."
 ---
 
 # /brainstorm

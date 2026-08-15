@@ -42,4 +42,4 @@ Run the repository's typecheck and build before deployment. After deployment, ve
 
 ## Workflow
 
-The Other Ninety provides `/brainstorm`, `/impl`, `/research`, `/trim`, `/debt`, `/plan`, and `/tdd`. `systematic-debugging` triggers on observed failures and `verification-before-completion` applies before success claims. Use `conductor` only for long-running delegated sessions that need named ownership.
+The Other Ninety (o90) provides `/brainstorm`, `/impl`, `/research`, `/trim`, `/debt`, `/plan`, `/tdd`, and the explicit `/pi` leaf-worker bridge. `systematic-debugging` triggers on observed failures and `verification-before-completion` applies before success claims. Use `conductor` only for long-running delegated sessions that need named ownership.

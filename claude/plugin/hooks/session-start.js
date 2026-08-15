@@ -43,7 +43,7 @@ const context = [
   "",
   "Confirm only when clarity is ambiguous, or for destructive/irreversible operations. Do not seek rubber-stamp approval on routine work.",
   "",
-  "Mark deliberate borderline routing calls in-code with a `// on:` comment (`# on:` for Python/shell) that names the upgrade trigger, e.g. `// on: routed simple, escalate if sorting grows past this file`. /debt audits these.",
+  "Mark deliberate borderline routing calls in-code with a `// o90:` comment (`# o90:` for Python/shell) that names the upgrade trigger, e.g. `// o90: routed simple, escalate if sorting grows past this file`. /debt audits these.",
   "",
   `Mode: ${mode} — ${MODE_BLURBS[mode]}. (/mode changes it.)`,
   "",

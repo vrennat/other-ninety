@@ -6,11 +6,11 @@ cd "$root"
 python3 -m py_compile scripts/*.py
 python3 -m unittest discover -s scripts -p 'test_*.py'
 
-for script in install.sh check-drift.sh check-leaks.sh scripts/*.sh config/claude/hooks/*.sh templates/hooks/*.sh .githooks/*; do
+for script in install.sh bootstrap.sh check-drift.sh check-leaks.sh scripts/*.sh claude/config/hooks/*.sh claude/plugin/templates/hooks/*.sh .githooks/*; do
   [[ -f "$script" ]] && bash -n "$script"
 done
 
-node --check hooks/session-start.js
+node --check claude/plugin/hooks/session-start.js
 test -x scripts/lint-plugin.sh
 test -x check-leaks.sh
 git check-ignore -q .pi/private-session.json
@@ -26,7 +26,7 @@ PY
 
 scripts/lint-plugin.sh
 (
-  cd adapters/pi
+  cd pi
   bun install --frozen-lockfile
   bun run verify
 )
