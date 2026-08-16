@@ -14,7 +14,7 @@ INSTALLER = ROOT / "scripts" / "install.py"
 DRIFT_CHECKER = ROOT / "scripts" / "check_drift.py"
 
 
-class InstallerTest(unittest.TestCase):
+class InstallerHarness(unittest.TestCase):
     def run_installer(self, *args: object, check: bool = True) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             ["python3", str(INSTALLER), *(str(arg) for arg in args)],
@@ -30,6 +30,8 @@ class InstallerTest(unittest.TestCase):
         claude, pi, pi_root, state = self.targets(root)
         return ["--claude-dir", claude, "--pi-dir", pi, "--pi-root", pi_root, "--state-dir", state]
 
+
+class InstallerTest(InstallerHarness):
     def test_dry_run_writes_nothing(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -157,6 +159,49 @@ class InstallerTest(unittest.TestCase):
             repeated = self.run_installer("--rollback", manifest, check=False)
             self.assertNotEqual(repeated.returncode, 0)
             self.assertEqual(added_after_rollback.read_text(), "new user file\n")
+
+
+class DriftCheckerTest(InstallerHarness):
+    def run_drift(self, root: Path, *extra: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["python3", str(DRIFT_CHECKER), *map(str, self.arguments(root)[:-2]), *(str(item) for item in extra)],
+            capture_output=True,
+            text=True,
+        )
+
+    def test_symlink_pointing_outside_managed_sources_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            claude, _, _, _ = self.targets(root)
+            self.run_installer("--apply", *self.arguments(root))
+
+            retired = root / "retired-repo"
+            retired.mkdir()
+            (retired / "AGENTS.md").write_text("stale instructions\n")
+            (claude / "leftover.md").symlink_to(retired / "AGENTS.md")
+
+            drift = self.run_drift(root)
+            self.assertNotEqual(drift.returncode, 0, drift.stdout)
+            self.assertIn("points outside every managed source", drift.stdout)
+            self.assertIn("leftover.md", drift.stdout)
+
+    def test_overlay_only_path_is_checked(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            claude, _, _, _ = self.targets(root)
+            overlay = root / "overlay"
+            (overlay / "claude" / "bin").mkdir(parents=True)
+            (overlay / "claude" / "bin" / "statusline").write_text("#!/bin/sh\n")
+
+            self.run_installer("--apply", "--overlay", overlay, *self.arguments(root))
+            self.assertTrue((claude / "bin").is_symlink())
+            self.assertEqual(self.run_drift(root, "--overlay", overlay).returncode, 0)
+
+            (claude / "bin").unlink()
+            (claude / "bin").mkdir()
+            drift = self.run_drift(root, "--overlay", overlay)
+            self.assertNotEqual(drift.returncode, 0, drift.stdout)
+            self.assertIn("expected symlink", drift.stdout)
 
 
 if __name__ == "__main__":

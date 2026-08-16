@@ -12,6 +12,41 @@ from pathlib import Path
 
 VOLATILE = {"lastChangelogVersion", "model"}
 
+CLAUDE_LINKS = ("CLAUDE.md", "post-compact-rules.md", "rules", "hooks", "agents")
+CLAUDE_COPIES = {"settings.json", "keybindings.json"}
+PI_LINKS = ("AGENTS.md", "APPEND_SYSTEM.md", "agents", "extensions", "prompts", "themes")
+PI_COPIES = {"settings.json", "mcp.json"}
+
+
+def linked_names(base: tuple[str, ...], overlay_dir: Path | None, copied: set[str]) -> list[str]:
+    """Names install.py symlinks: the base set plus whatever else the overlay carries."""
+    names = list(base)
+    if overlay_dir and overlay_dir.is_dir():
+        extra = (item.name for item in overlay_dir.iterdir() if item.name != "skills" and item.name not in copied)
+        names.extend(name for name in sorted(extra) if name not in names)
+    return names
+
+
+def stray_links(directories: list[Path], sources: list[Path]) -> tuple[list[str], int]:
+    """Symlinks living in a managed directory that resolve outside every managed source.
+
+    The name-by-name checks below only inspect paths we expect, so a leftover pointer at a
+    retired repo reads as clean. This sweep is what catches those.
+    """
+    findings: list[str] = []
+    scanned = 0
+    for directory in directories:
+        if not directory.is_dir():
+            continue
+        for item in sorted(directory.iterdir()):
+            if not item.is_symlink():
+                continue
+            scanned += 1
+            target = item.resolve()
+            if not any(target == source or target.is_relative_to(source) for source in sources):
+                findings.append(f"{item}: points outside every managed source ({target})")
+    return findings, scanned
+
 
 def same_tree(left: Path, right: Path) -> bool:
     if left.is_file() and right.is_file():
@@ -97,7 +132,7 @@ def main() -> int:
         if not matches:
             drift.append(f"{dst}: differs from {src}")
 
-    for name in ("CLAUDE.md", "post-compact-rules.md", "rules", "hooks", "agents"):
+    for name in linked_names(CLAUDE_LINKS, claude_overlay, CLAUDE_COPIES):
         check_link(source(claude_base, claude_overlay, name), claude_dir / name)
 
     claude_settings = source(claude_base, claude_overlay, "settings.json") if claude_overlay and (claude_overlay / "settings.json").exists() else claude_base / "settings.example.json"
@@ -110,7 +145,7 @@ def main() -> int:
     for name, src in sorted(expected_claude_skills.items()):
         check_copy(src, claude_dir / "skills" / name)
 
-    for name in ("AGENTS.md", "APPEND_SYSTEM.md", "agents", "extensions", "prompts", "themes"):
+    for name in linked_names(PI_LINKS, pi_overlay, PI_COPIES):
         check_link(source(pi_base, pi_overlay, name), pi_dir / name)
     for name in ("settings.json", "mcp.json"):
         src = source(pi_base, pi_overlay, name)
@@ -124,7 +159,14 @@ def main() -> int:
     for name, src in sorted(expected_pi_skills.items()):
         check_link(src, pi_dir / "skills" / name)
 
+    strays, scanned = stray_links(
+        [claude_dir, claude_dir / "skills", pi_dir, pi_dir / "skills"],
+        [repo, *([overlay] if overlay else [])],
+    )
+    drift.extend(strays)
+
     print(f"checked: {checked} managed paths")
+    print(f"scanned: {scanned} symlinks in managed directories")
     if drift:
         for item in drift:
             print(f"DRIFT: {item}")
