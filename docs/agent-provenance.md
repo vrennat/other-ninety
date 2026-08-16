@@ -108,9 +108,85 @@ is not read by the next agent as "a peer said this." It is read as "the user
 requires this." Watch for repos where `AGENTS.md` is a symlink to `CLAUDE.md` —
 two engines then share one instruction channel.
 
+## Review: what identity is actually worth on one account
+
+Provenance is a record. Review is the one place where identity does work, and
+it is worth separating the two.
+
+Mixed-up attribution in a comment thread is confusing. A **self-review that
+reads as an independent one is a broken quality gate** — it produces confidence
+that nothing earned. That is the failure worth designing against, and it is
+already visible in the wild: agents write "External review (not self-review)"
+into their own review bodies. The instinct is right. The execution is a claim
+the agent makes about itself, which is exactly the kind of claim a reader
+cannot check.
+
+**Make independence a property of how the reviewer was started, not a sentence
+it writes about itself.** Two rules, both free:
+
+- **The reviewer gets the change, not the author's reasoning.** A reviewer
+  handed the author's context inherits its blind spots and, more often, its
+  conclusions — it reads a rationale it is supposed to be testing and grades
+  the rationale instead of the code.
+- **Where stakes justify it, the reviewer runs a different model than the
+  author.** Same-model review is not worthless, but it is correlated. Spend the
+  decorrelation where a miss costs something: auth, money, data integrity,
+  privacy, anything hard to undo.
+
+Neither rule needs an account, a bot, or a seat. Both are decisions made at
+spawn time.
+
+### Recording it
+
+Nothing new to learn. The review carries the same one-line record, with
+`review` or `adversarial` as the role:
+
+```
+Agent: claude/review · opus-5
+```
+
+An author line and a reviewer line on the same change *are* the decorrelation
+record — two models named, or the same model named twice, which tells you what
+the review was worth.
+
+One seam worth stating plainly: commits are the substrate for work, and **a
+review that approves without changing anything produces no commit.** Then the
+line goes wherever the review itself landed — the PR review body, the issue
+comment. Same format, different home. Reviews that do change something ride the
+fix commit like any other work.
+
+### The honest limit
+
+A fresh context of the same model is not an independent mind. It shares the
+training, the priors, and therefore the blind spots. What identity buys on one
+account is **decorrelation you can record, not independence you can assume.**
+
+Treat a same-model review as a second look, not a second opinion. Both are
+useful. Only one of them is evidence.
+
+### Proving the ritual can fail
+
+A review lane is an instrument, and an instrument that can only report "looks
+good" is indistinguishable from one that is not looking.
+
+Before trusting a lane, plant a defect of the class you care about on a scratch
+branch, run the ritual against it, and confirm the reviewer catches it. Re-run
+that check when you change the reviewer's model or its brief — those are the
+edits that quietly turn a reviewer into a rubber stamp. This is the same
+positive-control discipline any other check here gets; a review lane does not
+earn an exemption for being made of prose.
+
+If no review has ever come back with anything, that is a prompt to run the
+planted-defect check. It is not a metric to drive: an agent told that
+disagreement is the health signal will produce disagreement.
+
 ## Deliberately not built
 
 No hook, no CI check, no registry, no directory service. The record is one
 trailer line on work that already produces a commit. If entries start going
 missing often enough to matter, that is the moment to add enforcement — not
 before.
+
+The review rules above are the same kind of thing: a practice, not a gate.
+Nothing blocks a merge, no check fails. An unreviewed change is a change
+nobody reviewed, which the log will show as plainly as it shows anything else.
