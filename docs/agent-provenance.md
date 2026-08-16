@@ -18,33 +18,71 @@ is not.
 This is a **record, not a gate**. Nothing blocks on it, no check enforces it,
 and a missing entry is a gap rather than a failure.
 
+It is also **text, not identity infrastructure**. No second account, no bot
+user, no separate commit email, no plus-addressed alias. Every commit stays
+authored by you and every comment stays posted by you, which keeps your
+contribution history intact and your account list at one. The whole convention
+is a line inside a message body — which is exactly why it costs nothing to
+adopt and nothing to abandon.
+
 ## The trailer
 
 Add one trailer to commits an agent produces, alongside `Co-Authored-By`:
 
 ```
-Agent: <engine>/<role> · <model>
+Agent: <harness>/<role> · <model> · <host>
 ```
 
 Examples:
 
 ```
-Agent: claude/impl · opus-5
-Agent: pi/fast-impl · laguna-s-2.1
-Agent: codex/review · gpt-5.6
+Agent: claude/impl · opus-5 · laptop
+Agent: pi/fast-impl · laguna-s-2.1 · laptop
+Agent: codex/review · gpt-5.6 · server
 ```
 
-- `engine` — the harness that ran. `claude`, `pi`, `codex`, or whatever you add.
-- `role` — what the agent was doing: `impl`, `review`, `scout`, `planner`,
-  `validator`, `adversarial`, `debug`. Required where a worker is spawned
-  per-role and therefore pinned to one; optional where a single long-lived
-  session shifts between roles as the conversation moves, because a
-  self-reported role drifts and a drifting field is worse than an absent one.
+Four fields, each answering a question the others cannot:
+
+- `harness` — the program that ran the model. `claude`, `pi`, `codex`, or
+  whatever you add. Same model under two harnesses is not the same thing: the
+  tools, the context assembly, and the loop all differ.
+- `role` — what produced this unit of work: `impl`, `review`, `scout`,
+  `planner`, `validator`, `adversarial`, `debug`. **Name the role that produced
+  the commit, not everything the session did that day.** A long session may
+  design, implement, then review; each commit still has one honest answer, and
+  scoping the field to the commit is what keeps it from drifting into fiction.
 - `model` — the model that generated the content.
+- `host` — the short hostname of the machine it ran on, from `hostname -s`.
+
+Nothing here is a separate account, address, or login. Every commit is still
+authored and attributed to you; this is one line of text inside the message.
 
 Commits are the substrate on purpose. Every harness already produces them, they
 need no issue tracker or forge API, and `git log` outlives whatever tool you are
 evaluating this month.
+
+### Why host earns a slot
+
+The other three describe a configuration. `host` describes where it actually
+ran, and it is the field that catches the failures the other three make look
+mysterious: a stale toolchain on one box, a different network, a worktree only
+one machine has. When results cluster by machine rather than by model, no amount
+of harness-and-model data will show it and the host column shows it immediately.
+
+Use `hostname -s`, not `hostname` — the latter returns `laptop.local` on macOS,
+and the `.local` suffix is noise that splits every tally in two.
+
+**The one field here that can leak.** Harness, role, and model are public
+product names. A hostname is a fact about your infrastructure, and this writes
+it into every commit message permanently, including in public repositories. A
+personal machine named for its hardware gives nothing away; a work-managed one
+named after its owner or its employer does. No scanner catches this
+generically, because "a hostname" has no distinguishing shape.
+
+If a machine's real name is identifying, give it a short alias and use that
+instead — the field's value is telling machines apart, and any stable token does
+that. Add the real name to the private literals you already feed
+`check-leaks.sh --patterns-file`, so a slip gets caught rather than published.
 
 ## Record the producer, not the process that committed
 
@@ -54,8 +92,13 @@ When one agent relays another's work — an orchestrator committing on behalf of
 worker it spawned — the trailer names the **worker**, then appends the relay:
 
 ```
-Agent: pi/fast-impl · laguna-s-2.1 · via claude/opus-5
+Agent: pi/fast-impl · laguna-s-2.1 · laptop · via claude/opus-5
 ```
+
+The `via` clause goes last, and `host` names where the **producer** ran. If the
+relay ran on a different machine — an orchestrator on your laptop driving a
+worker on a server — say so in the clause (`via claude/opus-5 on laptop`) rather
+than silently recording one machine for both.
 
 Get this backwards and cheap-tier output is recorded as frontier-model output.
 Every comparison you later draw from the log is then inverted, and it is
@@ -79,8 +122,46 @@ git log --since=2026-08-01 --format='%(trailers:key=Agent,valueonly)' \
   | sort | uniq -c | sort -rn
 ```
 
+Because the fields are positional, one `awk` slices the tally to a single
+question — field 1 harness/role, 2 model, 3 host:
+
+```sh
+git log --format='%(trailers:key=Agent,valueonly)' \
+  | awk -F' · ' '{print $3}' | sort | uniq -c | sort -rn    # by host
+```
+
+Use `awk`, not `cut`. The separator is a middle dot, which is two bytes in
+UTF-8, and macOS `cut -d` takes only single-byte delimiters — it exits with
+`bad delimiter` rather than a wrong answer, but it does not work. `awk -F' · '`
+also splits on the full ` · ` separator, so a trailing `via` clause lands in
+field 4 and stays out of the tally.
+
 Verified on git 2.54.0. `%(trailers:...)` needs a reasonably current git; on
 older versions, `git log --format=%B | grep '^Agent: '` gets the same data.
+
+## The same line in comments
+
+Commits are the substrate, but not everything an agent produces becomes one. A
+review that approves, a triage note, a status update on a ticket — these land as
+comments, under your account like everything else. Same line, last line of the
+body:
+
+```
+Agent: claude/review · opus-5 · laptop
+```
+
+Two honest differences from commits. There is no `%(trailers:...)` for a
+comment thread, so this is a marker a person reads while scrolling, not a
+dataset you query — do not plan analysis around it. And a comment has no
+`Co-Authored-By` alongside it, so the line is the only thing distinguishing
+agent-written text from something you typed yourself.
+
+One integration caveat worth knowing before you sign issue descriptions rather
+than comments: trackers that mirror an issue description into a linked pull
+request will echo whatever the description contains into every mirrored
+comment. A line in a description is duplicated across the thread; a line in a
+comment is not. Sign comments, and let the tracker's own "created by" field
+carry the description.
 
 ## Addressing: a separate problem the trailer does not fix
 
@@ -150,7 +231,7 @@ Nothing new to learn. The review carries the same one-line record, with
 `review` or `adversarial` as the role:
 
 ```
-Agent: claude/review · opus-5
+Agent: claude/review · opus-5 · laptop
 ```
 
 An author line and a reviewer line on the same change *are* the decorrelation
