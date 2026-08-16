@@ -244,6 +244,47 @@ tracker whose author field is bound to real user accounts has nowhere to put
 back to the one human the accounts belong to — reintroducing the problem in the
 one place you thought you had solved it.
 
+### Send the chatter there too
+
+Agents are chatty, and the volume has to land somewhere. A pull request thread
+is the worst available choice: it buries the few comments a human needs to read
+under progress notes written by one agent for another, and on a public
+repository it publishes all of it.
+
+`bd comment <id> "..."` is a better home for that traffic. It attaches to the
+work item instead of the review thread, it carries a real author rather than
+your account, and it stays queryable. The reviews and decisions a person needs
+still go where people look; the running commentary goes where it can be
+retrieved but is not in the way.
+
+**This supersedes the dated-notes-file advice below wherever beads is in use.**
+A note file is unattached, unauthored, and unqueryable — it was the best
+available answer for repositories with no tracker, and it still is for those.
+A beads comment satisfies the rule the notes file existed to satisfy, since
+nothing loads beads comments as standing instructions.
+
+Three operational things, all worth checking before you lean on this:
+
+- Chatter is committed. `.beads/issues.jsonl` is git-tracked, so comment volume
+  lands in diffs and in history like any other file.
+- `.gitattributes` may declare `.beads/issues.jsonl merge=beads`, but that only
+  takes effect if a `merge.beads.*` driver is defined in git config. **When it
+  is not, git silently falls back to its default text merge** — I found exactly
+  that state in one working repository. With parallel sessions appending
+  comments to one JSONL, that is where corruption would come from, and it will
+  not announce itself.
+- `bd hooks install` repoints `core.hooksPath` at `.beads/hooks`. If something
+  else already owns that path — husky, or a repo's own `.githooks` — one of the
+  two silently stops running, and `bd hooks list` still reports its hooks as
+  installed because it checks for the files rather than for whether git uses
+  them.
+
+One thing I could not verify: `bd hooks --help` advertises `prepare-commit-msg:
+Add agent identity trailers for forensics`, but with hooks installed,
+`BEADS_ACTOR` set, and an in-progress issue held, no trailer appeared on the
+resulting commit. It may need configuration I did not find. Treat the git
+trailer as something you write, and confirm the built-in before delegating it.
+
 One integration caveat worth knowing before you sign issue descriptions rather
 than comments: trackers that mirror an issue description into a linked pull
 request will echo whatever the description contains into every mirrored
@@ -271,6 +312,11 @@ Two rules:
 If one agent leaves a note for another, put it in a path nothing reads as
 instructions — `.claude/notes/<date>-<engine>.md` or similar. Never in
 `CLAUDE.md`, `AGENTS.md`, or any file a harness loads as standing context.
+
+Where a tracker is available, prefer a comment on the work item over a note
+file: it is attached to the thing being discussed, it carries an author, and it
+can be searched later. The dated file is the fallback for repositories that
+have no tracker at all.
 
 The failure is quiet and specific: a note written into a shared instruction file
 is not read by the next agent as "a peer said this." It is read as "the user
