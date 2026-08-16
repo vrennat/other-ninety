@@ -1,7 +1,7 @@
 # Agent provenance
 
-A one-line convention for recording which harness and model produced a piece of
-work, when every agent runs under the same human's credentials.
+A one-line convention for recording which harness, model, and machine produced a
+piece of work, when every agent runs under the same human's credentials.
 
 ## The problem it solves
 
@@ -79,10 +79,37 @@ personal machine named for its hardware gives nothing away; a work-managed one
 named after its owner or its employer does. No scanner catches this
 generically, because "a hostname" has no distinguishing shape.
 
-If a machine's real name is identifying, give it a short alias and use that
-instead — the field's value is telling machines apart, and any stable token does
-that. Add the real name to the private literals you already feed
-`check-leaks.sh --patterns-file`, so a slip gets caught rather than published.
+The default in the next section handles most of this: if the line is not going
+anywhere public unless you say so, an identifying machine name mostly stops
+being a problem. For the public repositories you do opt in, give the machine a
+short alias and use that — the field's value is telling machines apart, and any
+stable token does that. Add the real name to the private literals you already
+feed `check-leaks.sh --patterns-file`, so a slip gets caught rather than
+published.
+
+## Where to turn it on
+
+The record is worth most where it has readers and costs nothing, and that is
+not everywhere. A default worth starting from:
+
+- **Private repositories — on.** The audience is already inside, and nothing
+  permanent is exposed to anyone who is not.
+- **Internal trackers — on.** Linear, beads, or whatever holds your issues.
+  Agent-written comments accumulate there faster than anywhere else, and it is
+  where telling them apart pays off soonest.
+- **Public repositories — off unless you turn it on.** Commit messages are
+  permanent and world-readable, while the audience for "which harness produced
+  this" is very nearly just you. Publishing your model roster, your role names,
+  and your machine names to strangers is a standing cost against a benefit that
+  is almost entirely yours to collect privately.
+
+Turn it on for a public repository deliberately, when there is a reason: the
+provenance is part of what the repository is demonstrating, contributors need to
+separate agent work from human work, or you are running an experiment whose
+results you intend to publish.
+
+The asymmetry is the point. Off in public is not secrecy — the same information
+is in your private history, where you are the one reading it.
 
 ## Record the producer, not the process that committed
 
