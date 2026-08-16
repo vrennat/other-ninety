@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { loadSkillsFromDir, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 function markdownFiles(dir: string, base = ""): string[] {
   if (!fs.existsSync(dir)) return [];
@@ -23,6 +23,24 @@ function nearestDirectory(cwd: string, relative: string): string | undefined {
     if (parent === current) return undefined;
     current = parent;
   }
+}
+
+export function claudeSkillPaths(projectDir: string | undefined, globalDir: string): string[] {
+  if (!projectDir || !fs.existsSync(projectDir)) return fs.existsSync(globalDir) ? [globalDir] : [];
+  if (!fs.existsSync(globalDir)) return [projectDir];
+
+  const projectNames = new Set(
+    loadSkillsFromDir({ dir: projectDir, source: "project" }).skills.map((skill) => skill.name),
+  );
+  const global = loadSkillsFromDir({ dir: globalDir, source: "user" });
+  const unshadowed = global.skills
+    .filter((skill) => !projectNames.has(skill.name))
+    .map((skill) => skill.filePath);
+  const diagnosticPaths = global.diagnostics
+    .map((diagnostic) => diagnostic.path)
+    .filter((skillPath): skillPath is string => Boolean(skillPath));
+
+  return [projectDir, ...new Set([...unshadowed, ...diagnosticPaths])];
 }
 
 function nearestClaudeMemoryIndex(cwd: string): string | undefined {
@@ -58,13 +76,15 @@ export default function claudeCompat(pi: ExtensionAPI) {
   });
 
   pi.on("resources_discover", (event) => {
-    const skillPaths = [
-      path.join(os.homedir(), ".claude", "skills"),
+    // Pi keeps the first resource when names collide. Load the project directory
+    // first, then only global skills that the project does not override.
+    const skillPaths = claudeSkillPaths(
       nearestDirectory(event.cwd, path.join(".claude", "skills")),
-    ].filter((value): value is string => typeof value === "string" && fs.existsSync(value));
+      path.join(os.homedir(), ".claude", "skills"),
+    );
     const promptPaths = [
-      path.join(os.homedir(), ".claude", "commands"),
       nearestDirectory(event.cwd, path.join(".claude", "commands")),
+      path.join(os.homedir(), ".claude", "commands"),
     ].filter((value): value is string => typeof value === "string" && fs.existsSync(value));
     return { skillPaths: [...new Set(skillPaths)], promptPaths: [...new Set(promptPaths)] };
   });

@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import re
 import subprocess
 import sys
@@ -40,11 +42,23 @@ def compile_private_pattern(value: str) -> re.Pattern[str]:
     return re.compile(escaped, re.IGNORECASE)
 
 
-def has_finding(text: str, name: str, pattern: re.Pattern[str]) -> bool:
-    matches = pattern.finditer(text)
+SAFE_EMAILS = {"noreply@anthropic.com"}
+
+
+def rule_matches(text: str, name: str, pattern: re.Pattern[str]) -> list[str]:
+    matches = [match.group() for match in pattern.finditer(text)]
     if name == "email address":
-        return any(not match.group().lower().endswith("@users.noreply.github.com") for match in matches)
-    return any(matches)
+        return [
+            value
+            for value in matches
+            if value.lower() not in SAFE_EMAILS
+            and not value.lower().endswith("@users.noreply.github.com")
+        ]
+    return matches
+
+
+def has_finding(text: str, name: str, pattern: re.Pattern[str]) -> bool:
+    return bool(rule_matches(text, name, pattern))
 
 
 def scan_text(text: str, rules: dict[str, re.Pattern[str]], location: str) -> list[str]:
@@ -56,13 +70,59 @@ def scan_text(text: str, rules: dict[str, re.Pattern[str]], location: str) -> li
     return findings
 
 
-def history(root: Path) -> str:
+def history(root: Path) -> list[tuple[str, str]]:
     result = subprocess.run(
-        ["git", "-C", str(root), "log", "--all", "--format=fuller", "--patch", "--no-color"],
+        [
+            "git",
+            "-C",
+            str(root),
+            "log",
+            "--all",
+            "--format=%x1e%H%x1f%an <%ae>%n%cn <%ce>%n%B",
+            "--patch",
+            "--no-color",
+        ],
         capture_output=True,
         check=True,
     )
-    return result.stdout.decode("utf-8", errors="replace")
+    sections = result.stdout.decode("utf-8", errors="replace").split("\x1e")
+    commits: list[tuple[str, str]] = []
+    for section in sections:
+        if "\x1f" not in section:
+            continue
+        commit, text = section.split("\x1f", 1)
+        commits.append((commit.strip(), text))
+    return commits
+
+
+def fingerprint(value: str) -> str:
+    return "sha256:" + hashlib.sha256(value.lower().encode()).hexdigest()
+
+
+def load_history_baseline(root: Path) -> dict[str, dict[str, set[str]]]:
+    path = root / ".leak-baseline.json"
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text())
+    return {
+        commit: {rule: set(values) for rule, values in rules.items()}
+        for commit, rules in data.get("history", {}).items()
+    }
+
+
+def scan_history(
+    commits: list[tuple[str, str]],
+    rules: dict[str, re.Pattern[str]],
+    baseline: dict[str, dict[str, set[str]]],
+) -> list[str]:
+    findings: list[str] = []
+    for commit, text in commits:
+        allowed = baseline.get(commit, {})
+        for name, pattern in rules.items():
+            matches = rule_matches(text, name, pattern)
+            if any(fingerprint(value) not in allowed.get(name, set()) for value in matches):
+                findings.append(f"git-history:{commit[:12]}: {name}")
+    return findings
 
 
 def main() -> int:
@@ -110,11 +170,7 @@ def main() -> int:
         findings.extend(scan_text(text, rules, str(path.relative_to(root))))
 
     if not args.no_history:
-        committed = history(root)
-        if committed:
-            for name, pattern in rules.items():
-                if has_finding(committed, name, pattern):
-                    findings.append(f"git-history: {name}")
+        findings.extend(scan_history(history(root), rules, load_history_baseline(root)))
 
     if findings:
         print("FAIL: possible private data found", file=sys.stderr)
