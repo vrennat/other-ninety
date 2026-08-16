@@ -183,6 +183,19 @@ dataset you query — do not plan analysis around it. And a comment has no
 `Co-Authored-By` alongside it, so the line is the only thing distinguishing
 agent-written text from something you typed yourself.
 
+Comments make the relay case more common, not less: the agent that posts is
+often not the agent that did the work, because workers frequently cannot reach
+the tracker at all. The rule is the same one commits use — `host` names the
+**producer's** machine — but there is no `Co-Authored-By` here to hint that two
+parties were involved, so name both explicitly when they differ:
+
+```
+Agent: pi/fast-impl · laguna-s-2.1 · server · via claude/opus-5 on laptop
+```
+
+Recording the poster's machine as the producer's is the same inversion the
+relay rule exists to prevent, and it is easier to commit by accident here.
+
 One integration caveat worth knowing before you sign issue descriptions rather
 than comments: trackers that mirror an issue description into a linked pull
 request will echo whatever the description contains into every mirrored
