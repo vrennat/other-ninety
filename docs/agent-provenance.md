@@ -122,19 +122,27 @@ the agent makes about itself, which is exactly the kind of claim a reader
 cannot check.
 
 **Make independence a property of how the reviewer was started, not a sentence
-it writes about itself.** Two rules, both free:
+it writes about itself.** Two rules — and this toolkit already implements both,
+so they are a description of the defaults rather than a proposal:
 
 - **The reviewer gets the change, not the author's reasoning.** A reviewer
   handed the author's context inherits its blind spots and, more often, its
-  conclusions — it reads a rationale it is supposed to be testing and grades
-  the rationale instead of the code.
+  conclusions — it reads a rationale it is supposed to be testing and ends up
+  grading the rationale instead of the code. The `adversarial-reviewer` agent
+  is built this way: its brief tells it to read the changed code fresh and to
+  *not* trust the diff summary, the commit message, or the author's account of
+  what the code does. Its tool list is `Glob, Grep, Read, Bash` — no `Edit`,
+  no `Write` — so it could not have authored what it reviews.
 - **Where stakes justify it, the reviewer runs a different model than the
-  author.** Same-model review is not worthless, but it is correlated. Spend the
-  decorrelation where a miss costs something: auth, money, data integrity,
-  privacy, anything hard to undo.
+  author.** Same-model review is not worthless, but it is correlated. The model
+  table in `claude/config/rules/agents.md` already spends the decorrelation:
+  implementation workers run the cheap tier, while review and debugging
+  specialists run a step above them. `adversarial-reviewer` is dispatched on
+  stakes rather than file count — auth, money, data, security, privacy,
+  anything hard to undo.
 
-Neither rule needs an account, a bot, or a seat. Both are decisions made at
-spawn time.
+Neither rule needs an account, a bot, or a seat. Both are settled when the
+agent is spawned, which is exactly why they work under a single login.
 
 ### Recording it
 
@@ -152,8 +160,9 @@ the review was worth.
 One seam worth stating plainly: commits are the substrate for work, and **a
 review that approves without changing anything produces no commit.** Then the
 line goes wherever the review itself landed — the PR review body, the issue
-comment. Same format, different home. Reviews that do change something ride the
-fix commit like any other work.
+comment. Same format, different home, and still optional like every other
+record here; this is not a sign-off requirement returning through a side door.
+Reviews that do change something ride the fix commit like any other work.
 
 ### The honest limit
 
