@@ -4,7 +4,7 @@
 >
 > — Tom Cargill, Bell Labs
 
-Tools for the other 90% of software development: planning, delegation, review, verification, and the configuration that keeps those workflows consistent. **o90** is the short name.
+Your agent writes the code. **o90** does everything else: planning, delegation, review, verification, and the configuration that keeps those workflows consistent. The name is from the quote above; o90 is the short form.
 
 ## One toolkit, two runtimes
 
