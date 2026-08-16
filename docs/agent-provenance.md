@@ -177,11 +177,12 @@ body:
 Agent: claude/review · opus-5 · laptop
 ```
 
-Two honest differences from commits. There is no `%(trailers:...)` for a
-comment thread, so this is a marker a person reads while scrolling, not a
-dataset you query — do not plan analysis around it. And a comment has no
-`Co-Authored-By` alongside it, so the line is the only thing distinguishing
-agent-written text from something you typed yourself.
+Two honest differences from commits. On GitHub and Linear there is no
+`%(trailers:...)` equivalent for a comment thread, so the line is a marker a
+person reads while scrolling rather than a dataset you query — do not plan
+analysis around it there. And a comment has no `Co-Authored-By` alongside it,
+so the line is the only thing distinguishing agent-written text from something
+you typed yourself.
 
 Comments make the relay case more common, not less: the agent that posts is
 often not the agent that did the work, because workers frequently cannot reach
@@ -195,6 +196,53 @@ Agent: pi/fast-impl · laguna-s-2.1 · server · via claude/opus-5 on laptop
 
 Recording the poster's machine as the producer's is the same inversion the
 relay rule exists to prevent, and it is easier to commit by accident here.
+
+### When the tracker has a real field for it, use the field
+
+Appending a line is what you do when nothing better exists. Some trackers have
+an actual slot for the actor, and there the convention should stop being a
+convention.
+
+[beads](https://github.com/gastownhall/beads) is the case in point. Every
+command takes `--actor`, or reads `$BEADS_ACTOR`, and the value lands in a
+structured `author` field rather than in prose:
+
+```sh
+export BEADS_ACTOR='claude/review · opus-5 · laptop'
+```
+
+Same four fields, set once when the agent starts, with nothing for it to
+remember at write time and no line to forget. **Left unset, the author falls
+back to `git user.name`** — which is you, on every issue and comment, which is
+the exact problem this document exists to solve. An unset variable here is not
+a missing record; it is a wrong one.
+
+beads also has a purpose-built log for the artifact binding:
+
+```sh
+bd provenance record --issue <id> --kind commit --source orchestrator \
+  --actor "$BEADS_ACTOR" --ref <40-char-sha> --ref-kind git-sha
+```
+
+It is append-only and idempotent — re-recording the same event is reported as
+already recorded rather than duplicated, so a hook that fires twice is
+harmless. `handoff` is one of its event kinds, which makes the relay case a
+typed event instead of a prose `via` clause. And `bd provenance by-ref <sha>`
+answers the question `git log` cannot: *which agents touched this commit*,
+read from the artifact back to the actors.
+
+Three things to know before wiring it up. `--ref-kind git-sha` requires a full
+40-character lowercase SHA and rejects a short one. **beads is not a private
+side channel** — `.beads/issues.jsonl` is tracked in git, so beads records are
+exactly as public as the repository holding them, and the default in "Where to
+turn it on" applies here unchanged.
+
+And if your beads instance mirrors another tracker rather than being the source
+of truth, check that the actor survives the round trip before relying on it. A
+tracker whose author field is bound to real user accounts has nowhere to put
+`claude/review · opus-5 · laptop`, so a sync can quietly flatten every agent
+back to the one human the accounts belong to — reintroducing the problem in the
+one place you thought you had solved it.
 
 One integration caveat worth knowing before you sign issue descriptions rather
 than comments: trackers that mirror an issue description into a linked pull
