@@ -4,7 +4,7 @@ Parity means the public toolkit preserves reusable behavior from the two source 
 
 ## Claude plugin
 
-- [ ] Manifests parse and agree on name `other-ninety` and version `0.3.1`.
+- [ ] Manifests parse and agree on name `other-ninety` and version `0.3.2`.
 - [ ] Commands load: `bootstrap`, `brainstorm`, `debt`, `impl`, `mode`, `pi`, `plan`, `research`, `tdd`, `trim`.
 - [ ] Agents load: `adversarial-reviewer`, `brutal-code-reviewer`, `debug-genius`, `fast-impl`, `validator`.
 - [ ] Skills load: `clean-writing`, `onboarding`, `plan-hunter`, `systematic-debugging`, `verification-before-completion`.

@@ -1,6 +1,6 @@
 ---
 name: clean-writing
-description: Draft or revise user-facing prose, documentation, instructions, reports, or messages with the right balance of precision and voice.
+description: Draft or revise user-facing prose, documentation, instructions, reports, or messages with the right balance of precision and voice, including requests to tighten or remove formulaic AI writing.
 ---
 
 # Clean writing
