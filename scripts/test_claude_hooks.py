@@ -2,6 +2,7 @@ import json
 import os
 from datetime import datetime, timezone
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,6 +10,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 HOOKS = ROOT / "claude" / "config" / "hooks"
+PLUGIN_HOOK = ROOT / "claude" / "plugin" / "hooks" / "session-start.py"
+CANONICAL_OUTPUT_STYLE = (ROOT / "shared" / "output-style.md").read_text().strip()
 
 
 class HookTests(unittest.TestCase):
@@ -103,6 +106,33 @@ esac
         with tempfile.TemporaryDirectory() as directory:
             result = self.run_hook("pre-push-guard.sh", {"tool_name": "Read"}, Path(directory))
             self.assertEqual(result.returncode, 0)
+
+    def test_plugin_session_start_needs_no_bun_and_injects_output_policy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            mode_dir = project / ".claude"
+            mode_dir.mkdir()
+            (mode_dir / "other-ninety-mode").write_text("autonomous\n")
+            result = subprocess.run(
+                [sys.executable, str(PLUGIN_HOOK)],
+                capture_output=True,
+                text=True,
+                env={
+                    "PATH": "/usr/bin:/bin",
+                    "CLAUDE_PROJECT_DIR": str(project),
+                },
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+            self.assertIn("Mode: autonomous", context)
+            self.assertIn(CANONICAL_OUTPUT_STYLE, context)
+
+            hook_config = json.loads(
+                (ROOT / "claude" / "plugin" / "hooks" / "hooks.json").read_text()
+            )
+            command = hook_config["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+            self.assertTrue(command.startswith("python3 "), command)
+            self.assertNotIn("bun", command)
 
 
 if __name__ == "__main__":

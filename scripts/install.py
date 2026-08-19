@@ -39,10 +39,36 @@ def copy(source: Path, target: Path) -> None:
         shutil.copy2(source, target, follow_symlinks=False)
 
 
-def add_base_operations(repo: Path, claude_dir: Path, pi_dir: Path, pi_root: Path) -> list[Operation]:
+COMPONENTS = ("pi", "claude", "codex", "cursor")
+
+
+def add_pi_operations(repo: Path, pi_dir: Path, pi_root: Path, bin_dir: Path) -> list[Operation]:
+    operations: list[Operation] = []
+    pi = repo / "pi"
+
+    for name in ("settings.json", "mcp.json"):
+        source = pi / name
+        if source.exists():
+            operations.append(Operation("copy-if-missing", source, pi_dir / name))
+    web_search = pi / "web-search.json"
+    if web_search.exists():
+        operations.append(Operation("copy-if-missing", web_search, pi_root / "web-search.json"))
+    for name in ("AGENTS.md", "APPEND_SYSTEM.md", "agents", "extensions", "prompts", "themes"):
+        source = pi / name
+        if source.exists():
+            operations.append(Operation("link", source, pi_dir / name))
+    pi_skills = {source.name: source for source in (pi / "skills").glob("*")}
+    shared_skills = {source.name: source for source in (repo / "skills").glob("*")}
+    for name, source in sorted({**shared_skills, **pi_skills}.items()):
+        operations.append(Operation("link", source, pi_dir / "skills" / source.name))
+    operations.append(Operation("link", repo / "bin" / "o90-pi", bin_dir / "o90-pi"))
+
+    return operations
+
+
+def add_claude_operations(repo: Path, claude_dir: Path) -> list[Operation]:
     operations: list[Operation] = []
     claude = repo / "claude" / "config"
-    pi = repo / "pi"
 
     for name in ("CLAUDE.md", "post-compact-rules.md", "rules", "hooks", "agents"):
         source = claude / name
@@ -58,31 +84,52 @@ def add_base_operations(repo: Path, claude_dir: Path, pi_dir: Path, pi_root: Pat
     for source in sorted((claude / "skills").glob("*")):
         operations.append(Operation("copy-if-missing", source, claude_dir / "skills" / source.name))
 
-    for name in ("settings.json", "mcp.json"):
-        source = pi / name
-        if source.exists():
-            operations.append(Operation("copy-if-missing", source, pi_dir / name))
-    web_search = pi / "web-search.json"
-    if web_search.exists():
-        operations.append(Operation("copy-if-missing", web_search, pi_root / "web-search.json"))
-    for name in ("AGENTS.md", "APPEND_SYSTEM.md", "agents", "extensions", "prompts", "themes"):
-        source = pi / name
-        if source.exists():
-            operations.append(Operation("link", source, pi_dir / name))
-    for source in sorted((pi / "skills").glob("*")):
-        operations.append(Operation("link", source, pi_dir / "skills" / source.name))
+    return operations
 
+
+def add_codex_operations(repo: Path, codex_dir: Path, agents_dir: Path) -> list[Operation]:
+    operations = [Operation("link", repo / "codex" / "AGENTS.md", codex_dir / "AGENTS.md")]
+    for source in sorted((repo / "codex" / "agents").glob("*.toml")):
+        operations.append(Operation("link", source, codex_dir / "agents" / source.name))
+    for source in sorted((repo / "skills").glob("*")):
+        operations.append(Operation("link", source, agents_dir / "skills" / source.name))
+    return operations
+
+
+def add_cursor_operations(repo: Path, cursor_projects: list[Path]) -> list[Operation]:
+    operations: list[Operation] = []
+    rule = repo / "cursor" / "rules" / "o90.mdc"
+    for project in cursor_projects:
+        operations.append(Operation("copy-replace", rule, project / ".cursor" / "rules" / "o90.mdc"))
+        for agent in sorted((repo / "cursor" / "agents").glob("*.md")):
+            operations.append(Operation("link", agent, project / ".cursor" / "agents" / agent.name))
+        for skill in sorted((repo / "skills").glob("*")):
+            operations.append(Operation("link", skill, project / ".cursor" / "skills" / skill.name))
+    return operations
+
+
+def add_pi_integration_operations(
+    repo: Path, components: set[str], agents_dir: Path, cursor_projects: list[Path]
+) -> list[Operation]:
+    operations: list[Operation] = []
+    skill = repo / "integrations" / "pi-worker"
+    if "codex" in components:
+        operations.append(Operation("link", skill, agents_dir / "skills" / "o90-pi-worker"))
+    if "cursor" in components:
+        for project in cursor_projects:
+            operations.append(Operation("link", skill, project / ".cursor" / "skills" / "o90-pi-worker"))
     return operations
 
 
 def add_overlay_operations(
-    operations: list[Operation], overlay: Path, claude_dir: Path, pi_dir: Path, pi_root: Path
+    operations: list[Operation], overlay: Path, components: set[str], claude_dir: Path,
+    pi_dir: Path, pi_root: Path
 ) -> None:
     if not overlay.is_dir():
         raise ValueError(f"overlay is not a directory: {overlay}")
 
     claude = overlay / "claude"
-    if claude.is_dir():
+    if "claude" in components and claude.is_dir():
         for source in sorted(claude.iterdir()):
             if source.name == "skills" and source.is_dir():
                 for skill in sorted(source.iterdir()):
@@ -93,7 +140,7 @@ def add_overlay_operations(
                 operations.append(Operation("link", source, claude_dir / source.name))
 
     pi = overlay / "pi"
-    if pi.is_dir():
+    if "pi" in components and pi.is_dir():
         for source in sorted(pi.iterdir()):
             if source.name == "skills" and source.is_dir():
                 for skill in sorted(source.iterdir()):
@@ -104,7 +151,7 @@ def add_overlay_operations(
                 operations.append(Operation("link", source, pi_dir / source.name))
 
     pi_root_overlay = overlay / "pi-root"
-    if pi_root_overlay.is_dir():
+    if "pi" in components and pi_root_overlay.is_dir():
         for source in sorted(pi_root_overlay.iterdir()):
             operations.append(Operation("copy-replace", source, pi_root / source.name))
 
@@ -295,10 +342,21 @@ def parse_args() -> argparse.Namespace:
     action = parser.add_mutually_exclusive_group()
     action.add_argument("--apply", action="store_true", help="apply the displayed changes")
     action.add_argument("--rollback", type=Path, metavar="MANIFEST", help="restore a prior apply")
+    parser.add_argument(
+        "--with", dest="components", action="append", choices=COMPONENTS, default=[],
+        metavar="COMPONENT", help="select an exact component set (repeat for pi, claude, codex, cursor)",
+    )
     parser.add_argument("--overlay", type=Path, help="external private overlay directory")
     parser.add_argument("--claude-dir", type=Path, help="Claude config target")
+    parser.add_argument("--codex-dir", type=Path, help="Codex home target")
+    parser.add_argument("--agents-dir", type=Path, help="user agent config root for Codex skills")
+    parser.add_argument(
+        "--cursor-project", type=Path, action="append", default=[],
+        help="project that receives the o90 Cursor rule (repeatable; requires --with cursor)",
+    )
     parser.add_argument("--pi-dir", type=Path, help="Pi agent config target")
     parser.add_argument("--pi-root", type=Path, help="Pi root target for web-search.json")
+    parser.add_argument("--bin-dir", type=Path, help="target for the o90-pi leaf-worker command")
     parser.add_argument("--state-dir", type=Path, help="backup and manifest directory")
     return parser.parse_args()
 
@@ -310,18 +368,54 @@ def main() -> int:
         return 0
 
     repo = Path(__file__).resolve().parents[1]
+    components = set(args.components) if args.components else {"pi"}
+    if "cursor" in components and not args.cursor_project:
+        raise ValueError("--with cursor requires at least one --cursor-project")
+    if args.cursor_project and "cursor" not in components:
+        raise ValueError("--cursor-project requires --with cursor")
+
     claude_dir = (args.claude_dir or Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))).expanduser().absolute()
+    codex_dir = (args.codex_dir or Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))).expanduser().absolute()
+    agents_dir = (args.agents_dir or Path(os.environ.get("OTHER_NINETY_AGENTS_DIR", Path.home() / ".agents"))).expanduser().absolute()
     pi_dir = (args.pi_dir or Path(os.environ.get("PI_CODING_AGENT_DIR", Path.home() / ".pi" / "agent"))).expanduser().absolute()
     pi_root = (args.pi_root or Path(os.environ.get("PI_ROOT_DIR", pi_dir.parent))).expanduser().absolute()
+    bin_dir = (args.bin_dir or Path(os.environ.get("OTHER_NINETY_BIN_DIR", Path.home() / ".local" / "bin"))).expanduser().absolute()
+    cursor_projects = [project.expanduser().absolute() for project in args.cursor_project]
+    for project in cursor_projects:
+        if not project.is_dir():
+            raise ValueError(f"cursor project is not a directory: {project}")
     state_dir = (args.state_dir or Path(os.environ.get("OTHER_NINETY_STATE_DIR", Path.home() / ".local" / "state" / "other-ninety"))).expanduser().absolute()
 
-    operations = add_base_operations(repo, claude_dir, pi_dir, pi_root)
+    operations: list[Operation] = []
+    if "pi" in components:
+        operations.extend(add_pi_operations(repo, pi_dir, pi_root, bin_dir))
+    if "claude" in components:
+        operations.extend(add_claude_operations(repo, claude_dir))
+    if "codex" in components:
+        operations.extend(add_codex_operations(repo, codex_dir, agents_dir))
+    if "cursor" in components:
+        operations.extend(add_cursor_operations(repo, cursor_projects))
+    if "pi" in components:
+        operations.extend(add_pi_integration_operations(repo, components, agents_dir, cursor_projects))
     if args.overlay:
-        add_overlay_operations(operations, args.overlay.expanduser().resolve(), claude_dir, pi_dir, pi_root)
+        add_overlay_operations(
+            operations, args.overlay.expanduser().resolve(), components, claude_dir, pi_dir, pi_root
+        )
 
-    print(f"Claude target: {claude_dir}")
-    print(f"Pi target:     {pi_dir}")
-    print(f"Pi root:       {pi_root}")
+    selected = [name for name in COMPONENTS if name in components]
+    print(f"Components:    {', '.join(selected)}")
+    if "pi" in components:
+        print(f"Pi target:     {pi_dir}")
+        print(f"Pi root:       {pi_root}")
+        print(f"Command target: {bin_dir / 'o90-pi'}")
+    if "claude" in components:
+        print(f"Claude target: {claude_dir}")
+    if "codex" in components:
+        print(f"Codex target:  {codex_dir}")
+        print(f"Agents target: {codex_dir / 'agents'}")
+        print(f"Skills target: {agents_dir / 'skills'}")
+    for project in cursor_projects:
+        print(f"Cursor project: {project}")
     print("Mode:          apply" if args.apply else "Mode:          dry-run (no writes)")
     for operation in operations:
         print(describe(operation))
@@ -330,7 +424,16 @@ def main() -> int:
         print("No changes made. Re-run with --apply after reviewing this plan.")
         return 0
 
-    manifest = apply(operations, state_dir, [claude_dir, pi_dir, pi_root])
+    roots: list[Path] = []
+    if "pi" in components:
+        roots.extend((pi_dir, pi_root, bin_dir))
+    if "claude" in components:
+        roots.append(claude_dir)
+    if "codex" in components:
+        roots.append(codex_dir)
+        roots.append(agents_dir)
+    roots.extend(project / ".cursor" for project in cursor_projects)
+    manifest = apply(operations, state_dir, roots)
     print(f"Rollback: {Path(__file__).resolve()} --rollback {manifest}")
     return 0
 

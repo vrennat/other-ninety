@@ -69,6 +69,7 @@ fi
 for file in "$plugin"/skills/*/SKILL.md; do [[ -f "$file" ]] && { check_length "$file" 80; check_frontmatter "$file"; check_banned "$file"; }; done
 for file in "$plugin"/commands/*.md; do [[ -f "$file" ]] && { check_length "$file" 150; check_frontmatter "$file"; check_banned "$file"; }; done
 for file in "$plugin"/agents/*.md; do [[ -f "$file" ]] && { check_length "$file" 60; check_frontmatter "$file"; check_banned "$file"; }; done
+for file in skills/*/SKILL.md cursor/agents/*.md; do [[ -f "$file" ]] && { check_frontmatter "$file"; check_banned "$file"; }; done
 for file in pi/prompts/*.md pi/skills/*/SKILL.md pi/agents/*.md; do [[ -f "$file" ]] && check_yaml_safety "$file"; done
 
 (( errors == 0 )) || { echo "Lint failed with $errors error(s)"; exit 1; }

@@ -5,6 +5,19 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
+PUBLIC_SKILLS = {
+    "onboarding",
+    "plan-hunter",
+    "systematic-debugging",
+    "verification-before-completion",
+}
+PUBLIC_AGENTS = {
+    "adversarial-reviewer",
+    "brutal-code-reviewer",
+    "debug-genius",
+    "fast-impl",
+    "validator",
+}
 
 class BootstrapTests(unittest.TestCase):
     def setUp(self):
@@ -17,6 +30,8 @@ class BootstrapTests(unittest.TestCase):
             "python3": "if [ \"${FAKE_OLD_PYTHON:-}\" = 1 ] && [ \"${1:-}\" = -c ]; then exit 1; fi\nexec /usr/bin/python3 \"$@\"",
             "bun": "echo bun >>\"$CALLS\"",
             "pi": "echo pi:$* >>\"$CALLS\"",
+            "codex": "echo codex:$* >>\"$CALLS\"",
+            "cursor": "echo cursor:$* >>\"$CALLS\"",
             "claude": """echo claude:$* >>\"$CALLS\"
 if [ \"$*\" = \"plugin marketplace list --json\" ]; then
   if [ \"${FAKE_EXISTING:-}\" = 1 ]; then echo '[{\"name\":\"other-ninety\",\"repo\":\"vrennat/other-ninety\"}]'
@@ -55,18 +70,22 @@ fi""",
         self.assertIn("Unsupported bootstrap option: --rollback", result.stderr)
 
     def test_apply_runs_dependencies_and_paths(self):
-        result = self.run_bootstrap("--apply", "--state-dir", str(Path(self.tmp.name) / "state"))
+        result = self.run_bootstrap(
+            "--apply", "--with", "claude", "--with", "pi",
+            "--state-dir", str(Path(self.tmp.name) / "state")
+        )
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = self.log.read_text()
         self.assertIn("bun", calls)
         self.assertIn("pi:install npm:pi-mcp-adapter@2.26.0", calls)
         self.assertIn("claude:plugin marketplace add vrennat/other-ninety", calls)
         self.assertIn("claude:plugin install other-ninety@other-ninety --scope user", calls)
-        self.assertIn("Next: restart Claude/Pi", result.stdout)
+        self.assertIn("Next: restart selected runtimes", result.stdout)
+        self.assertIn("Optional Pi smoke check", result.stdout)
 
     def test_apply_updates_existing_plugin(self):
         self.env["FAKE_EXISTING"] = "1"
-        result = self.run_bootstrap("--apply")
+        result = self.run_bootstrap("--apply", "--with", "claude")
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = self.log.read_text()
         self.assertIn("claude:plugin marketplace update other-ninety", calls)
@@ -74,7 +93,7 @@ fi""",
 
     def test_marketplace_name_collision_adds_expected_source(self):
         self.env["FAKE_COLLISION"] = "1"
-        result = self.run_bootstrap("--apply")
+        result = self.run_bootstrap("--apply", "--with", "claude")
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = self.log.read_text()
         self.assertIn("claude:plugin marketplace add vrennat/other-ninety", calls)
@@ -91,7 +110,98 @@ fi""",
         self.env["PATH"] = f"{self.bin}:/usr/bin:/bin"
         result = self.run_bootstrap()
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Missing prerequisite: bun", result.stderr)
+        self.assertIn("Missing prerequisite for Pi component: bun", result.stderr)
+
+    def test_default_apply_is_pi_only(self):
+        result = self.run_bootstrap("--apply")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.log.read_text()
+        self.assertIn("pi:install", calls)
+        self.assertNotIn("claude:", calls)
+        self.assertIn("Components: Pi", result.stdout)
+        self.assertNotIn("Claude marketplace", result.stdout)
+
+    def test_codex_and_cursor_components_install_without_claude(self):
+        project = Path(self.tmp.name) / "project"
+        project.mkdir()
+        result = self.run_bootstrap(
+            "--apply",
+            "--with", "codex",
+            "--with", "cursor",
+            "--cursor-project", str(project),
+            "--codex-dir", str(Path(self.tmp.name) / "codex"),
+            "--agents-dir", str(Path(self.tmp.name) / "agents"),
+            "--bin-dir", str(Path(self.tmp.name) / "bin-target"),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((Path(self.tmp.name) / "codex" / "AGENTS.md").is_symlink())
+        self.assertTrue((project / ".cursor" / "rules" / "o90.mdc").is_file())
+        calls = self.log.read_text() if self.log.exists() else ""
+        self.assertNotIn("claude:", calls)
+        self.assertNotIn("pi:", calls)
+        self.assertNotIn("bun", calls)
+        self.assertIn("Components: Codex + Cursor", result.stdout)
+
+    def test_claude_only_needs_no_pi_or_bun(self):
+        (self.bin / "pi").unlink()
+        (self.bin / "bun").unlink()
+        self.env["PATH"] = f"{self.bin}:/usr/bin:/bin"
+        result = self.run_bootstrap("--apply", "--with", "claude")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((Path(self.tmp.name) / "claude" / "CLAUDE.md").is_symlink())
+        self.assertFalse((Path(self.tmp.name) / "pi").exists())
+        self.assertNotIn("Optional Pi smoke check", result.stdout)
+        calls = self.log.read_text()
+        self.assertIn("claude:plugin install other-ninety@other-ninety --scope user", calls)
+        self.assertEqual(
+            {path.parent.name for path in (ROOT / "claude" / "plugin" / "skills").glob("*/SKILL.md")},
+            PUBLIC_SKILLS,
+        )
+        self.assertEqual(
+            {path.stem for path in (ROOT / "claude" / "plugin" / "agents").glob("*.md")},
+            PUBLIC_AGENTS,
+        )
+
+    def test_codex_only_needs_no_pi_or_bun(self):
+        (self.bin / "pi").unlink()
+        (self.bin / "bun").unlink()
+        self.env["PATH"] = f"{self.bin}:/usr/bin:/bin"
+        result = self.run_bootstrap(
+            "--apply", "--with", "codex",
+            "--codex-dir", str(Path(self.tmp.name) / "codex"),
+            "--agents-dir", str(Path(self.tmp.name) / "agents"),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for name in PUBLIC_SKILLS:
+            self.assertTrue((Path(self.tmp.name) / "agents" / "skills" / name).is_symlink(), name)
+        for name in PUBLIC_AGENTS:
+            self.assertTrue((Path(self.tmp.name) / "codex" / "agents" / f"{name}.toml").is_symlink(), name)
+        self.assertFalse((Path(self.tmp.name) / "agents" / "skills" / "o90-pi-worker").exists())
+        self.assertFalse((Path(self.tmp.name) / "pi").exists())
+
+    def test_cursor_only_needs_no_pi_or_bun(self):
+        (self.bin / "pi").unlink()
+        (self.bin / "bun").unlink()
+        self.env["PATH"] = f"{self.bin}:/usr/bin:/bin"
+        project = Path(self.tmp.name) / "cursor-project"
+        project.mkdir()
+        result = self.run_bootstrap(
+            "--apply", "--with", "cursor", "--cursor-project", str(project)
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for name in PUBLIC_SKILLS:
+            self.assertTrue((project / ".cursor" / "skills" / name).is_symlink(), name)
+        for name in PUBLIC_AGENTS:
+            self.assertTrue((project / ".cursor" / "agents" / f"{name}.md").is_symlink(), name)
+        self.assertFalse((project / ".cursor" / "skills" / "o90-pi-worker").exists())
+        self.assertFalse((Path(self.tmp.name) / "pi").exists())
+
+    def test_missing_selected_codex_prerequisite_fails(self):
+        (self.bin / "codex").unlink()
+        self.env["PATH"] = f"{self.bin}:/usr/bin:/bin"
+        result = self.run_bootstrap("--with", "codex")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Missing prerequisite for Codex component: codex", result.stderr)
 
 if __name__ == "__main__":
     unittest.main()

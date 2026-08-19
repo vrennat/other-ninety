@@ -25,6 +25,13 @@ This is the public/private boundary for the initial migration.
 | `claude-setup/pi/themes/` | `pi/themes/` | PUBLIC | Portable theme data |
 | `claude-setup/pi/settings.json` | `pi/settings.json` | ADAPT | Remove provider, model, and model-cycle preferences |
 | Pi auth, OAuth, sessions, trust, caches, browser profile | — | PRIVATE/OVERLAY | Mutable or sensitive machine state; never migrate |
+| Cross-harness Pi leaf launcher | `bin/o90-pi` | ADAPT | Reuse the constrained Claude bridge without a Claude-specific plugin path |
+| Shared global agent policy | `codex/AGENTS.md` | ADAPT | Keep generic working agreements; use Codex's documented global instruction path |
+| Portable native agent workflows | `skills/` | ADAPT | Share the complete public skill catalog without requiring Pi |
+| Public Claude agent roles | `codex/agents/` | ADAPT | Express every public role in Codex's documented personal custom-agent TOML format |
+| Optional Pi delegation workflow | `integrations/pi-worker/` | ADAPT | Add the constrained Pi leaf bridge only to explicitly selected host-plus-Pi installs |
+| Shared agent policy and roles | `cursor/rules/`, `cursor/agents/` | ADAPT | Use Cursor's documented project rule and custom-agent formats; do not mutate UI-managed User Rules |
+| Cross-runtime output policy | `shared/output-style.md` plus native guidance | ADAPT | Apply one STE-inspired output contract without claiming formal ASD-STE100 conformance |
 | Identity, employer, private projects, machine paths | external overlay | PRIVATE/OVERLAY | Must never enter this repository or its Git history |
 
 `PUBLIC` means copied as reusable source. `ADAPT` means behavior was retained while runtime, identity, or privacy-specific details changed. `PRIVATE/OVERLAY` never passes through this repository. `DROP` is intentionally not migrated.

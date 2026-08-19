@@ -18,3 +18,20 @@ Route on three independent axes: clarity decides whether to ask, complexity deci
 Use parallel subagents only for independent tasks with non-overlapping write ownership. Never let multiple agents edit the same file concurrently. The orchestrator must inspect delegated results, resolve conflicts, and run or delegate final verification before claiming completion. Subagents must not commit, push, deploy, spend money, or perform destructive operations.
 
 Claude-specific `Agent`, `TeamCreate`, `TaskCreate`, and plugin/MCP instructions should be translated to the `subagent` tool and available CLI tools; do not pretend those Claude primitives exist in pi.
+
+<!-- o90-output-style:start -->
+## Output style
+
+Use Simplified Technical English (STE) rules where they are compatible with the task. This policy is STE-inspired. It does not claim formal ASD-STE100 conformance.
+
+- Use active voice.
+- Keep instructional sentences at 20 words or fewer when practical.
+- Keep descriptions at 25 words or fewer when practical.
+- Put one instruction in each sentence.
+- Put one topic in each paragraph.
+- Use explicit subjects, verbs, and articles.
+- Use vertical lists for complex information.
+- Write each warning with a clear condition and a clear command.
+- Preserve exact code, identifiers, commands, paths, quotations, error text, API terms, schema terms, and necessary domain vocabulary.
+- Preserve technical accuracy when an STE rule conflicts with the task.
+<!-- o90-output-style:end -->

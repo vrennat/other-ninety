@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+"""Run one constrained, ephemeral Pi leaf worker from any agent harness."""
+
+from __future__ import annotations
+
+import os
+import shutil
+import subprocess
+import sys
+
+
+LEAF_RULES = """
+You are a leaf worker. Do not spawn nested agents. Do not commit, push, deploy,
+or perform destructive actions. Work only on the requested task and report what
+you found or changed. Do not expand scope.
+""".strip()
+
+
+def parse_task(arguments: list[str]) -> tuple[bool, str]:
+    write = False
+    if arguments and arguments[0] == "--write":
+        write = True
+        arguments = arguments[1:]
+    separated = bool(arguments and arguments[0] == "--")
+    if separated:
+        arguments = arguments[1:]
+    if arguments and arguments[0].startswith("-") and not separated:
+        raise ValueError("unknown option; use -- before task text that begins with a dash")
+    task = " ".join(arguments).strip() if arguments else sys.stdin.read().strip()
+    if not task:
+        raise ValueError("empty task")
+    return write, task
+
+
+def main() -> int:
+    try:
+        write, task = parse_task(sys.argv[1:])
+    except ValueError as error:
+        print(f"o90-pi: {error}", file=sys.stderr)
+        print("usage: o90-pi [--write] [--] [task]", file=sys.stderr)
+        return 2
+
+    if os.environ.get("PI_CODING_AGENT") or os.environ.get("OTHER_NINETY_PI_LEAF"):
+        print("o90-pi: refusing recursive Pi leaf invocation", file=sys.stderr)
+        return 2
+    pi = shutil.which("pi")
+    if not pi:
+        print("o90-pi: pi executable not found", file=sys.stderr)
+        return 127
+
+    tools = "read,grep,find,ls" + (",edit,write" if write else "")
+    command = [
+        pi,
+        "--print",
+        "--no-session",
+        "--no-context-files",
+        "--no-extensions",
+        "--no-skills",
+        "--no-prompt-templates",
+        "--no-themes",
+        "--no-approve",
+        "--tools",
+        tools,
+        "--append-system-prompt",
+        LEAF_RULES,
+    ]
+    for variable, flag in (
+        ("OTHER_NINETY_PI_PROVIDER", "--provider"),
+        ("OTHER_NINETY_PI_MODEL", "--model"),
+        ("OTHER_NINETY_PI_THINKING", "--thinking"),
+    ):
+        value = os.environ.get(variable)
+        if value:
+            command.extend((flag, value))
+
+    environment = os.environ.copy()
+    environment["OTHER_NINETY_PI_LEAF"] = "1"
+    environment["PI_SKIP_VERSION_CHECK"] = "1"
+    try:
+        result = subprocess.run(
+            command + ["Complete the task supplied on stdin."],
+            input=task,
+            text=True,
+            env=environment,
+            timeout=600,
+        )
+    except subprocess.TimeoutExpired:
+        print("o90-pi: Pi leaf timed out", file=sys.stderr)
+        return 124
+    return result.returncode
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
