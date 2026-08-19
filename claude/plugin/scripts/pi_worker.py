@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 
 LEAF_RULES = """
@@ -12,6 +13,22 @@ You are a leaf worker. Do not spawn nested agents. Do not commit, push, deploy,
 or perform destructive actions. Work only on the requested task and report what
 you found or changed. Do not expand scope.
 """.strip()
+
+
+def find_model_policy() -> Path:
+    override = os.environ.get("OTHER_NINETY_PI_MODEL_POLICY")
+    if override:
+        policy = Path(override).expanduser()
+    else:
+        config_dir = Path(
+            os.environ.get("PI_CODING_AGENT_DIR", Path.home() / ".pi" / "agent")
+        ).expanduser()
+        policy = config_dir / "extensions" / "model-policy.ts"
+    if not policy.is_file():
+        raise FileNotFoundError(
+            f"delegated-worker model policy not found at {policy}; install o90 with Pi"
+        )
+    return policy.resolve()
 
 
 def main() -> int:
@@ -30,10 +47,16 @@ def main() -> int:
     if not pi:
         print("pi executable not found", file=sys.stderr)
         return 127
+    try:
+        model_policy = find_model_policy()
+    except FileNotFoundError as error:
+        print(error, file=sys.stderr)
+        return 2
 
     tools = "read,grep,find,ls" + (",edit,write" if write else "")
     args = [
         pi, "--print", "--no-session", "--no-context-files", "--no-extensions",
+        "--extension", str(model_policy),
         "--no-skills", "--no-prompt-templates", "--no-themes", "--no-approve",
         "--tools", tools, "--append-system-prompt", LEAF_RULES,
     ]

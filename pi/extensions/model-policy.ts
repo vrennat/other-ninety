@@ -17,12 +17,18 @@ export const OPENROUTER_PRICE_CAP_USD_PER_MILLION = {
 	output: 0.3,
 } as const;
 
+export const DELEGATED_PI_ENV = "OTHER_NINETY_PI_LEAF";
+
 export const FALLBACK_MODEL = {
 	provider: "openai-codex",
 	id: "gpt-5.6-terra",
 } as const;
 
-export function isModelAllowed(model: Pick<PiModel, "provider" | "id" | "cost">): boolean {
+export function isDelegatedPi(env: Record<string, string | undefined> = process.env): boolean {
+	return env[DELEGATED_PI_ENV] === "1";
+}
+
+export function isDelegatedModelAllowed(model: Pick<PiModel, "provider" | "id" | "cost">): boolean {
 	if (model.provider !== "openrouter") return true;
 	return (
 		CHEAP_OPENROUTER_MODELS.has(model.id) &&
@@ -32,10 +38,14 @@ export function isModelAllowed(model: Pick<PiModel, "provider" | "id" | "cost">)
 }
 
 export default function modelPolicy(pi: ExtensionAPI) {
+	// Direct Pi sessions remain unrestricted. Cross-harness launchers set this
+	// marker and explicitly load the policy extension for their worker process.
+	if (!isDelegatedPi()) return;
+
 	let redirecting = false;
 
 	async function enforce(model: PiModel, ctx: ExtensionContext) {
-		if (isModelAllowed(model) || redirecting) return;
+		if (isDelegatedModelAllowed(model) || redirecting) return;
 
 		const rejected = `${model.provider}/${model.id}`;
 		const fallback = ctx.modelRegistry.find(FALLBACK_MODEL.provider, FALLBACK_MODEL.id);

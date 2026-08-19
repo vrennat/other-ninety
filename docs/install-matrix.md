@@ -39,7 +39,8 @@ a new project tree.
 `o90-pi` launches one ephemeral leaf worker. It disables sessions, context
 files, extensions, skills, prompt templates, themes, approvals, shell access,
 and nested delegation. Read-only tools are the default; `--write` adds only
-file edit/write tools.
+file edit/write tools. The launcher explicitly loads the delegated-worker model
+policy. Direct Pi sessions remain unrestricted and can use any available model.
 
 Pi is installed by default only when no explicit component selection is given.
 In an explicit selection, add `--with pi`.

@@ -1,14 +1,22 @@
 import { describe, expect, it } from "bun:test";
 import {
 	CHEAP_OPENROUTER_MODELS,
+	DELEGATED_PI_ENV,
 	FALLBACK_MODEL,
 	OPENROUTER_PRICE_CAP_USD_PER_MILLION,
-	isModelAllowed,
+	isDelegatedModelAllowed,
+	isDelegatedPi,
 } from "../extensions/model-policy";
 
 const cheapCost = { input: 0.1, output: 0.2, cacheRead: 0, cacheWrite: 0 };
 
 describe("Pi model policy", () => {
+	it("activates only for marked cross-harness workers", () => {
+		expect(isDelegatedPi({})).toBe(false);
+		expect(isDelegatedPi({ [DELEGATED_PI_ENV]: "0" })).toBe(false);
+		expect(isDelegatedPi({ [DELEGATED_PI_ENV]: "1" })).toBe(true);
+	});
+
 	it("allows the approved cheap OpenRouter routes", () => {
 		expect([...CHEAP_OPENROUTER_MODELS].sort()).toEqual([
 			"deepseek/deepseek-v4-flash",
@@ -20,7 +28,7 @@ describe("Pi model policy", () => {
 			"qwen/qwen3.7-flash",
 		]);
 		for (const id of CHEAP_OPENROUTER_MODELS) {
-			expect(isModelAllowed({ provider: "openrouter", id, cost: cheapCost })).toBe(true);
+			expect(isDelegatedModelAllowed({ provider: "openrouter", id, cost: cheapCost })).toBe(true);
 		}
 	});
 
@@ -33,13 +41,13 @@ describe("Pi model policy", () => {
 			"moonshotai/kimi-k3",
 			"qwen/qwen3.8-27b",
 		]) {
-			expect(isModelAllowed({ provider: "openrouter", id, cost: cheapCost })).toBe(false);
+			expect(isDelegatedModelAllowed({ provider: "openrouter", id, cost: cheapCost })).toBe(false);
 		}
 	});
 
 	it("blocks an approved route when its catalog price exceeds the cheap ceiling", () => {
 		expect(
-			isModelAllowed({
+			isDelegatedModelAllowed({
 				provider: "openrouter",
 				id: "qwen/qwen3.7-flash",
 				cost: {
@@ -51,10 +59,10 @@ describe("Pi model policy", () => {
 	});
 
 	it("does not interfere with subscription or direct providers", () => {
-		expect(isModelAllowed({ ...FALLBACK_MODEL, cost: cheapCost })).toBe(true);
-		expect(isModelAllowed({ provider: "zai", id: "glm-5.3", cost: cheapCost })).toBe(true);
+		expect(isDelegatedModelAllowed({ ...FALLBACK_MODEL, cost: cheapCost })).toBe(true);
+		expect(isDelegatedModelAllowed({ provider: "zai", id: "glm-5.3", cost: cheapCost })).toBe(true);
 		expect(
-			isModelAllowed({ provider: "deepseek", id: "deepseek-v4-pro", cost: cheapCost }),
+			isDelegatedModelAllowed({ provider: "deepseek", id: "deepseek-v4-pro", cost: cheapCost }),
 		).toBe(true);
 	});
 });

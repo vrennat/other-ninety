@@ -29,7 +29,8 @@ completion.
 When Pi and a host runtime are selected together, Pi delegation is an optional
 enhancement. Claude exposes `/pi`; Codex and Cursor receive the `o90-pi-worker`
 skill and `o90-pi` command. The leaf worker is read-only by default and has no
-shell or nested delegation. No native host workflow depends on this bridge.
+shell or nested delegation. It uses the cheap-model boundary; direct Pi sessions
+remain unrestricted. No native host workflow depends on this bridge.
 
 ## Quick start
 
@@ -84,8 +85,9 @@ other credentials remain local and interactive. When Pi is selected, the
 The complete public skill and role mapping is in the
 [catalog parity matrix](docs/catalog-parity.md).
 
-Pi uses a strict [model policy](pi/MODEL_POLICY.md). OpenRouter routes need an
-exact allowlist entry and must remain below the runtime price ceiling.
+Pi uses a strict [delegated-worker model policy](pi/MODEL_POLICY.md). Direct Pi
+sessions can use any model. OpenRouter worker routes need an exact allowlist
+entry and must remain below the runtime price ceiling.
 
 Every selected runtime receives the same canonical, STE-inspired output policy
 from `shared/output-style.md`. It favors active voice, short sentences, one

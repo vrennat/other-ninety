@@ -5,7 +5,7 @@ Manager-mode workers are pi sessions on inexpensive models. Workers are named, l
 ## Invocation
 
 ```sh
-cd <worktree> && pi -p --mode json \
+cd <worktree> && OTHER_NINETY_PI_LEAF=1 pi -p --mode json \
   --session-id <repository>-<role> \
   --provider <provider> --model <model> --thinking <level> \
   --append-system-prompt <role-brief-file> \
@@ -13,6 +13,8 @@ cd <worktree> && pi -p --mode json \
 ```
 
 - Run through the shell; long tasks may run in the background.
+- The worker marker activates o90's cheap-model policy. Never set it for a
+  direct interactive Pi session.
 - Resuming uses the same `--session-id`.
 - Read-only roles can exclude edit and write tools.
 - The worker's final message is its return value.

@@ -15,5 +15,6 @@ without it and remains responsible for scope, review, and final verification.
 5. Review the report. In write mode, inspect the diff and verify the change
    yourself. A worker error or empty report is not success.
 
-The bridge disables sessions, context files, extensions, skills, prompt
-templates, themes, approvals, shell access, and nested delegation.
+The bridge disables sessions, context files, extension discovery, skills,
+prompt templates, themes, approvals, shell access, and nested delegation. It
+loads only the delegated-worker model policy. Direct Pi use remains unrestricted.

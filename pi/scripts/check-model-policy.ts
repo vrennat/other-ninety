@@ -1,56 +1,53 @@
-import { readdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
-import { CHEAP_OPENROUTER_MODELS } from "../extensions/model-policy";
+import {
+	CHEAP_OPENROUTER_MODELS,
+	OPENROUTER_PRICE_CAP_USD_PER_MILLION,
+} from "../extensions/model-policy";
 
-const THINKING_LEVELS = new Set(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
-
-function splitThinking(route: string): string {
-	const colon = route.lastIndexOf(":");
-	if (colon === -1) return route;
-	return THINKING_LEVELS.has(route.slice(colon + 1)) ? route.slice(0, colon) : route;
+interface CatalogModel {
+	id: string;
+	pricing: { prompt: string; completion: string };
 }
 
-function checkRoute(route: string, source: string, failures: string[]) {
-	const normalized = splitThinking(route);
-	if (!normalized.startsWith("openrouter/")) return;
-	const id = normalized.slice("openrouter/".length);
-	if (!CHEAP_OPENROUTER_MODELS.has(id)) {
-		failures.push(`${source}: disallowed OpenRouter route ${route}`);
-	}
+const endpoint = process.env.OPENROUTER_MODELS_URL ?? "https://openrouter.ai/api/v1/models";
+const response = await fetch(endpoint);
+if (!response.ok) {
+	throw new Error(`OpenRouter catalog request failed: ${response.status} ${response.statusText}`);
 }
 
-async function main() {
-	const settingsPath = process.argv[2];
-	const agentsDir = process.argv[3];
-	if (!settingsPath || !agentsDir) {
-		throw new Error("usage: bun scripts/check-model-policy.ts <settings.json> <agents-dir>");
-	}
+const payload = (await response.json()) as { data?: CatalogModel[] };
+const catalog = new Map((payload.data ?? []).map((model) => [model.id, model]));
+const failures: string[] = [];
+const formatPrice = (price: number) => Number(price.toFixed(6)).toString();
 
-	const failures: string[] = [];
-	const settings = JSON.parse(await readFile(settingsPath, "utf8")) as {
-		defaultProvider?: string;
-		defaultModel?: string;
-		enabledModels?: string[];
-	};
-	if (settings.defaultProvider && settings.defaultModel) {
-		checkRoute(`${settings.defaultProvider}/${settings.defaultModel}`, settingsPath, failures);
+for (const id of [...CHEAP_OPENROUTER_MODELS].sort()) {
+	if (id.startsWith("~") || id.endsWith("-latest")) {
+		failures.push(`${id}: moving aliases are not allowed`);
+		continue;
 	}
-	for (const route of settings.enabledModels ?? []) checkRoute(route, settingsPath, failures);
-
-	for (const name of (await readdir(agentsDir)).filter((entry) => entry.endsWith(".md")).sort()) {
-		const path = join(agentsDir, name);
-		const text = await readFile(path, "utf8");
-		const match = text.match(/^model:\s*(\S+)\s*$/m);
-		if (!match?.[1]) failures.push(`${path}: missing model route`);
-		else checkRoute(match[1], path, failures);
+	const model = catalog.get(id);
+	if (!model) {
+		failures.push(`${id}: missing from the OpenRouter catalog`);
+		continue;
 	}
-
-	if (failures.length > 0) {
-		for (const failure of failures) console.error(failure);
-		process.exitCode = 1;
-		return;
+	const input = Number(model.pricing.prompt) * 1_000_000;
+	const output = Number(model.pricing.completion) * 1_000_000;
+	if (!Number.isFinite(input) || !Number.isFinite(output)) {
+		failures.push(`${id}: invalid catalog pricing`);
+		continue;
 	}
-	console.log(`model policy OK: ${CHEAP_OPENROUTER_MODELS.size} approved OpenRouter routes`);
+	if (
+		input > OPENROUTER_PRICE_CAP_USD_PER_MILLION.input ||
+		output > OPENROUTER_PRICE_CAP_USD_PER_MILLION.output
+	) {
+		failures.push(`${id}: $${input}/M input, $${output}/M output exceeds the worker cap`);
+		continue;
+	}
+	console.log(`${id}\t$${formatPrice(input)}/M input\t$${formatPrice(output)}/M output`);
 }
 
-await main();
+if (failures.length > 0) {
+	for (const failure of failures) console.error(failure);
+	process.exitCode = 1;
+} else {
+	console.log(`delegated-worker model policy OK: ${CHEAP_OPENROUTER_MODELS.size} routes`);
+}

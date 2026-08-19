@@ -17,13 +17,17 @@ class PiWorkerTest(unittest.TestCase):
     def run_worker(self, task="inspect", write=False, env=None):
         with tempfile.TemporaryDirectory() as directory:
             fake = Path(directory) / "pi"
-            fake.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\"\nprintf 'STDIN\\n'\n/bin/cat\nexit ${FAKE_EXIT:-0}\n")
+            fake.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\"\nprintf 'LEAF=%s\\n' \"$OTHER_NINETY_PI_LEAF\"\nprintf 'STDIN\\n'\n/bin/cat\nexit ${FAKE_EXIT:-0}\n")
             fake.chmod(fake.stat().st_mode | stat.S_IXUSR)
             child_env = os.environ.copy()
             child_env.pop("PI_CODING_AGENT", None)
             child_env.pop("OTHER_NINETY_PI_LEAF", None)
             child_env.update(env or {})
             child_env["PATH"] = directory
+            child_env.setdefault(
+                "OTHER_NINETY_PI_MODEL_POLICY",
+                str(ROOT / "pi/extensions/model-policy.ts"),
+            )
             return subprocess.run(
                 [sys.executable, str(WORKER)] + (["--write"] if write else []),
                 input=task, text=True, capture_output=True, env=child_env,
@@ -33,6 +37,8 @@ class PiWorkerTest(unittest.TestCase):
         result = self.run_worker()
         self.assertEqual(result.returncode, 0)
         self.assertIn("--tools\nread,grep,find,ls\n", result.stdout)
+        self.assertIn("--extension\n", result.stdout)
+        self.assertIn("LEAF=1\n", result.stdout)
         self.assertNotIn("edit,write", result.stdout)
         self.assertIn("STDIN\ninspect", result.stdout)
 
@@ -40,7 +46,8 @@ class PiWorkerTest(unittest.TestCase):
         task = "--extension /tmp/evil.ts @~/.ssh/id_ed25519"
         result = self.run_worker(task=task)
         argv, stdin = result.stdout.split("STDIN\n", 1)
-        self.assertNotIn("--extension", argv)
+        self.assertEqual(argv.count("--extension\n"), 1)
+        self.assertNotIn("/tmp/evil.ts", argv)
         self.assertNotIn("@~/.ssh/id_ed25519", argv)
         self.assertEqual(stdin, task)
 
@@ -64,6 +71,11 @@ class PiWorkerTest(unittest.TestCase):
         result = self.run_worker(env={"FAKE_EXIT": "7"})
         self.assertEqual(result.returncode, 7)
 
+    def test_missing_model_policy_is_rejected(self):
+        result = self.run_worker(env={"OTHER_NINETY_PI_MODEL_POLICY": "/missing/policy.ts"})
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("model policy not found", result.stderr)
+
 
 class CrossHarnessPiWorkerTest(unittest.TestCase):
     def run_worker(self, *arguments, stdin="", env=None):
@@ -79,6 +91,10 @@ class CrossHarnessPiWorkerTest(unittest.TestCase):
             child_env.pop("OTHER_NINETY_PI_LEAF", None)
             child_env.update(env or {})
             child_env["PATH"] = directory
+            child_env.setdefault(
+                "OTHER_NINETY_PI_MODEL_POLICY",
+                str(ROOT / "pi/extensions/model-policy.ts"),
+            )
             return subprocess.run(
                 [sys.executable, str(O90_WORKER), *arguments],
                 input=stdin,
@@ -95,6 +111,7 @@ class CrossHarnessPiWorkerTest(unittest.TestCase):
         self.assertNotIn(task, argv)
         self.assertEqual(stdin, task)
         self.assertIn("--tools\nread,grep,find,ls\n", argv)
+        self.assertIn("--extension\n", argv)
 
     def test_stdin_and_write_mode(self):
         result = self.run_worker("--write", stdin="make the bounded edit")
@@ -116,6 +133,13 @@ class CrossHarnessPiWorkerTest(unittest.TestCase):
         self.assertEqual(recursive.returncode, 2)
         failed = self.run_worker("task", env={"FAKE_EXIT": "9"})
         self.assertEqual(failed.returncode, 9)
+
+    def test_missing_model_policy_is_rejected(self):
+        result = self.run_worker(
+            "task", env={"OTHER_NINETY_PI_MODEL_POLICY": "/missing/policy.ts"}
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("model policy not found", result.stderr)
 
 
 if __name__ == "__main__":
