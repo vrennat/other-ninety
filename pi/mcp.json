@@ -5,5 +5,8 @@
       "auth": "oauth",
       "lifecycle": "lazy"
     }
+  },
+  "settings": {
+    "mcpFooterStatus": "off"
   }
 }

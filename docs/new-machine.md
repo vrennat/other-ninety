@@ -36,9 +36,9 @@
    ```
 
 7. Smoke-check each selected runtime natively. In Claude, run `/mode` and confirm
-   the plugin lists the public skills and roles. In Codex, confirm all four o90
+   the plugin lists the public skills and roles. In Codex, confirm all five o90
    skills and five custom agents are discoverable. In Cursor, confirm the o90
-   project rule, four skills, and five agents appear in Customize. The exact
+   project rule, five skills, and five agents appear in Customize. The exact
    inventory is in [public catalog parity](catalog-parity.md). If Pi was
    selected, run `o90-pi -- "summarize the repository layout"`; host-to-Pi
    delegation is optional.

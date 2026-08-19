@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "check": "tsc --noEmit -p tsconfig.json",
-    "test": "bun test extensions/chrome-browser/src tests",
+    "test": "bun test extensions tests",
     "check:model-policy": "bun scripts/check-model-policy.ts",
     "verify": "bun run check && bun run test",
     "update:pi": "bun update @earendil-works/pi-coding-agent@latest && bun run verify"

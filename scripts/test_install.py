@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "scripts" / "install.py"
 DRIFT_CHECKER = ROOT / "scripts" / "check_drift.py"
 PUBLIC_SKILLS = {
+    "clean-writing",
     "onboarding",
     "plan-hunter",
     "systematic-debugging",
@@ -369,8 +370,8 @@ class CatalogParityTest(unittest.TestCase):
         for path in host_guidance:
             self.assertEqual(path.read_text().count(CANONICAL_OUTPUT_STYLE), 1, str(path))
 
-        self.assertIn("STE-inspired", CANONICAL_OUTPUT_STYLE)
-        self.assertIn("does not claim formal ASD-STE100 conformance", CANONICAL_OUTPUT_STYLE)
+        self.assertIn("Write clear, compact prose", CANONICAL_OUTPUT_STYLE)
+        self.assertIn("Skip generic introductions and conclusions", CANONICAL_OUTPUT_STYLE)
         self.assertIn("Preserve exact code", CANONICAL_OUTPUT_STYLE)
 
     def test_every_public_skill_has_shared_native_source(self) -> None:
@@ -380,6 +381,12 @@ class CatalogParityTest(unittest.TestCase):
         shared = {path.parent.name for path in (ROOT / "skills").glob("*/SKILL.md")}
         self.assertEqual(claude, PUBLIC_SKILLS)
         self.assertEqual(shared, PUBLIC_SKILLS)
+        clean_writing = ROOT / "skills" / "clean-writing"
+        for path in clean_writing.rglob("*"):
+            if not path.is_file():
+                continue
+            plugin_path = ROOT / "claude" / "plugin" / "skills" / "clean-writing" / path.relative_to(clean_writing)
+            self.assertEqual(path.read_text(), plugin_path.read_text())
         self.assertTrue((ROOT / "skills" / "plan-hunter" / "REFERENCE.md").is_file())
         pi_native = {path.parent.name for path in (ROOT / "pi" / "skills").glob("*/SKILL.md")}
         self.assertTrue(pi_native <= PUBLIC_SKILLS)

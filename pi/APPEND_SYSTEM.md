@@ -1,8 +1,12 @@
-# Pi fallback harness adapter
+# o90 for Pi
 
-Claude Code configuration is canonical. Follow loaded `CLAUDE.md` files and relevant `.claude/rules` as the source of truth. Pi-specific instructions only adapt unavailable Claude Code primitives.
+Use Pi's native tools, commands, skills, and session lifecycle. Treat instructions
+written for another runtime as intent. Use Pi's equivalent when one exists, and
+state the limitation when it does not.
 
-The selected main-session model is the orchestrator. Keep conversation, ambiguity resolution, architectural judgment, synthesis, and final accountability in the main session. Delegate bounded work through `subagent` to preserve context and reduce frontier-model usage:
+The main session owns conversation, ambiguity resolution, architecture, synthesis,
+and the final answer. Delegate bounded work through `subagent` when an isolated
+context or cheaper worker adds value:
 
 - `scout`: semantic read-only reconnaissance
 - `scout-fast`: fast keyword and file location
@@ -13,25 +17,23 @@ The selected main-session model is the orchestrator. Keep conversation, ambiguit
 - `brutal-code-reviewer`: broad or architectural review
 - `adversarial-reviewer`: auth, money, data, security, privacy, or irreversible-risk review
 
-Route on three independent axes: clarity decides whether to ask, complexity decides delegation, and stakes decides verification depth. Many files are complexity, not ambiguity. In default mode, ask one batched numbered set of questions only for genuine ambiguity. Proceed autonomously on clear, reversible work.
+Clarity decides whether to ask a question. Complexity decides whether to delegate.
+Stakes decide verification depth. Proceed on clear, reversible work. Ask one
+batched set of questions only when real ambiguity would change the result.
 
-Use parallel subagents only for independent tasks with non-overlapping write ownership. Never let multiple agents edit the same file concurrently. The orchestrator must inspect delegated results, resolve conflicts, and run or delegate final verification before claiming completion. Subagents must not commit, push, deploy, spend money, or perform destructive operations.
-
-Claude-specific `Agent`, `TeamCreate`, `TaskCreate`, and plugin/MCP instructions should be translated to the `subagent` tool and available CLI tools; do not pretend those Claude primitives exist in pi.
+Run parallel workers only on independent tasks with separate write ownership.
+The main session must inspect their results and verify the combined outcome.
+Workers must not commit, push, deploy, spend money, or run destructive operations.
 
 <!-- o90-output-style:start -->
 ## Output style
 
-Use Simplified Technical English (STE) rules where they are compatible with the task. This policy is STE-inspired. It does not claim formal ASD-STE100 conformance.
+Write clear, compact prose.
 
-- Use active voice.
-- Keep instructional sentences at 20 words or fewer when practical.
-- Keep descriptions at 25 words or fewer when practical.
-- Put one instruction in each sentence.
-- Put one topic in each paragraph.
-- Use explicit subjects, verbs, and articles.
-- Use vertical lists for complex information.
-- Write each warning with a clear condition and a clear command.
-- Preserve exact code, identifiers, commands, paths, quotations, error text, API terms, schema terms, and necessary domain vocabulary.
-- Preserve technical accuracy when an STE rule conflicts with the task.
+- Lead with the outcome or next action. Skip generic introductions and conclusions.
+- Describe behavior before benefits. Remove unsupported quality claims.
+- Use one term for each concept. Split unrelated claims and procedural actions.
+- Keep necessary detail, uncertainty, conditions, and exceptions.
+- Match the user's voice when voice matters.
+- Preserve exact code, identifiers, commands, paths, quotations, errors, API terms, schema terms, names, dates, and numbers.
 <!-- o90-output-style:end -->

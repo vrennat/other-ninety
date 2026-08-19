@@ -12,16 +12,17 @@ places the exact block in the always-loaded guidance for Pi, Claude, Codex, and
 Cursor. Claude's SessionStart hook also injects the block for plugin-only
 installs. Tests compare every host copy with the canonical text.
 
-The policy uses a pragmatic STE-inspired subset. It does not claim formal
-ASD-STE100 conformance because this repository does not include the controlled
-dictionary or the official specification. Exact code, identifiers, commands,
-paths, quotations, errors, API terms, schema terms, and required domain words
-take precedence over the style rules.
+The policy keeps ordinary output compact without forcing every task into one
+voice. It removes generic framing and unsupported claims while preserving exact
+technical text, facts, uncertainty, conditions, and exceptions. The optional
+`clean-writing` skill selects controlled, technical, or natural guidance when a
+writing task benefits from a more specific mode.
 
 ## Skills
 
 | Skill | Pi | Claude | Codex | Cursor |
 |---|---|---|---|---|
+| `clean-writing` | Shared skill | Plugin skill | `~/.agents/skills/clean-writing` | `<project>/.cursor/skills/clean-writing` |
 | `onboarding` | Shared skill | Plugin skill | `~/.agents/skills/onboarding` | `<project>/.cursor/skills/onboarding` |
 | `plan-hunter` | Pi-native skill | Plugin skill | `~/.agents/skills/plan-hunter` | `<project>/.cursor/skills/plan-hunter` |
 | `systematic-debugging` | Pi-native skill | Plugin skill | `~/.agents/skills/systematic-debugging` | `<project>/.cursor/skills/systematic-debugging` |

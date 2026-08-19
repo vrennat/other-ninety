@@ -5,9 +5,9 @@ flags, bootstrap defaults to Pi. If any `--with` flag is present, the repeated
 flags define the exact component set. Bootstrap is always a dry run unless
 `--apply` is present.
 
-Every component installs the same canonical STE-inspired output policy through
-its native always-loaded guidance. The policy is independent of Pi and does not
-select a model or provider.
+Every component installs the same compact writing policy through its native
+always-loaded guidance. The policy is independent of Pi and does not select a
+model or provider.
 
 | Desired setup | Dry run | Apply |
 |---|---|---|
@@ -30,7 +30,7 @@ a new project tree.
 ### Pi
 
 - The portable config under `PI_CODING_AGENT_DIR` (default `~/.pi/agent`).
-- The complete four-skill public catalog. Pi-native variants override shared
+- The complete five-skill public catalog. Pi-native variants override shared
   variants with the same name.
 - `web-search.json` under the Pi root.
 - Locked Bun dependencies and Pi packages.
@@ -58,8 +58,8 @@ only when Pi is also installed.
 ### Codex
 
 - Global guidance at `$CODEX_HOME/AGENTS.md`.
-- All four public o90 skills under `$HOME/.agents/skills`: `onboarding`,
-  `plan-hunter`, `systematic-debugging`, and
+- All five public o90 skills under `$HOME/.agents/skills`: `clean-writing`,
+  `onboarding`, `plan-hunter`, `systematic-debugging`, and
   `verification-before-completion`.
 - All five public o90 roles as native custom-agent TOML under
   `$CODEX_HOME/agents`: `adversarial-reviewer`, `brutal-code-reviewer`,
@@ -77,7 +77,7 @@ Install and authenticate the Codex CLI separately using the
 ### Cursor
 
 - `.cursor/rules/o90.mdc` in every selected project.
-- All four public o90 skills under `.cursor/skills` in every selected project.
+- All five public o90 skills under `.cursor/skills` in every selected project.
 - All five public o90 roles as native agents under `.cursor/agents` in every
   selected project.
 - The `o90-pi-worker` skill only when both Cursor and Pi are selected.

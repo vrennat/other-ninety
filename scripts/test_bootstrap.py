@@ -6,6 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 PUBLIC_SKILLS = {
+    "clean-writing",
     "onboarding",
     "plan-hunter",
     "systematic-debugging",

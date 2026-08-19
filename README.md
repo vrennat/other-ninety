@@ -89,11 +89,11 @@ Pi uses a strict [delegated-worker model policy](pi/MODEL_POLICY.md). Direct Pi
 sessions can use any model. OpenRouter worker routes need an exact allowlist
 entry and must remain below the runtime price ceiling.
 
-Every selected runtime receives the same canonical, STE-inspired output policy
-from `shared/output-style.md`. It favors active voice, short sentences, one
-instruction per sentence, clear warnings, and vertical lists. It preserves
-technical text exactly when required. This policy does not claim formal
-ASD-STE100 conformance.
+Every selected runtime receives the same compact writing policy from
+`shared/output-style.md`. It leads with outcomes, removes generic framing and
+unsupported claims, and preserves technical detail, uncertainty, conditions,
+and voice. The `clean-writing` skill adds controlled, technical, and natural
+writing modes without loading all three on every task.
 
 ## Rollback
 
@@ -205,6 +205,12 @@ The repository hook runs plugin lint and the leak scanner before pushes. The ver
 ## Migration policy
 
 The previous source repositories and live configuration remain untouched until this repository passes shadow apply, rollback rehearsal, manual privacy review, and normal-use burn-in. Publishing and live cutover are separate actions.
+
+## Acknowledgments
+
+The Pi timer, effort control, MCP health display, session alias, cache telemetry,
+and clean-writing modes were independently adapted from ideas in Michael Lam's
+[`mical-pi`](https://github.com/Michaelyklam/mical-pi).
 
 ## License
 

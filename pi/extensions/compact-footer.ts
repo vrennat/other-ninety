@@ -2,6 +2,11 @@ import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { relative, resolve, sep } from "node:path";
+import { computeCacheMetrics, formatCacheMetrics } from "./cache-metrics.ts";
+
+export function shouldShowStatus(key: string): boolean {
+	return key !== "mcp";
+}
 
 function formatCount(count: number): string {
 	if (count < 1_000) return `${count}`;
@@ -46,10 +51,11 @@ export default function (pi: ExtensionAPI) {
 				dispose: unsubscribe,
 				invalidate(): void {},
 				render(width: number): string[] {
+					const entries = ctx.sessionManager.getEntries();
 					let input = 0;
 					let output = 0;
 					let cost = 0;
-					for (const entry of ctx.sessionManager.getEntries()) {
+					for (const entry of entries) {
 						if (entry.type !== "message" || entry.message.role !== "assistant") continue;
 						const message: AssistantMessage = entry.message;
 						input += message.usage.input;
@@ -68,13 +74,15 @@ export default function (pi: ExtensionAPI) {
 
 					const model = ctx.model?.id ?? "no model";
 					const statuses = [...footerData.getExtensionStatuses()]
-						.filter(([key]) => !key.startsWith("mcp"))
+						.filter(([key]) => shouldShowStatus(key))
 						.map(([, text]) => text.replace(/[\r\n\t]+/g, " ").trim())
 						.filter(Boolean)
 						.join(" · ");
 					const modelLabel = [model, statuses].filter(Boolean).join(" · ");
 					const thinking = pi.getThinkingLevel();
-					const modelLine = fitLine(modelLabel, `${thinking} · ${context}`, width);
+					const cache = formatCacheMetrics(computeCacheMetrics(entries));
+					const modelStats = [thinking, context, cache].filter(Boolean).join(" · ");
+					const modelLine = fitLine(modelLabel, modelStats, width);
 
 					const branch = footerData.getGitBranch();
 					const sessionName = pi.getSessionName();
