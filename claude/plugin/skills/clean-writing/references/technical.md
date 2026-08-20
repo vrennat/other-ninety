@@ -13,6 +13,8 @@ Prefer concrete explanation over polished abstraction.
 - Remove unsupported adjectives and hedges that do not change the claim.
 - Let the content determine the structure. Do not force a contrast, range, or
   list length.
+- Remove an inline label or lead-in when it merely restates the sentence it
+  introduces. Preserve structural headings and labels that add context.
 - Split unrelated or dense claims.
 - Keep necessary terms, qualifications, causes, and consequences.
 - Skip generic introductions and conclusions.

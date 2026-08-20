@@ -246,7 +246,7 @@ The previous source repositories and live configuration remain untouched until t
 The Pi timer, effort control, MCP health display, session alias, cache telemetry,
 and original clean-writing modes were independently adapted from ideas in
 Michael Lam's [`mical-pi`](https://github.com/Michaelyklam/mical-pi). Later
-clean-writing refinements draw on Lauren Tan's
+clean-writing refinements draw on Michael's clean-writing guidance and Lauren Tan's
 [`unslop`](https://github.com/cursor/plugins/blob/main/pstack/skills/unslop/SKILL.md)
 skill.
 
