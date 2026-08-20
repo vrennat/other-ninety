@@ -20,6 +20,15 @@ class Operation:
     target: Path
 
 
+CODEX_PLUGIN_SKILLS = (
+    "clean-writing",
+    "onboarding",
+    "plan-hunter",
+    "systematic-debugging",
+    "verification-before-completion",
+)
+
+
 def lexists(path: Path) -> bool:
     return os.path.lexists(path)
 
@@ -37,6 +46,27 @@ def copy(source: Path, target: Path) -> None:
         shutil.copytree(source, target, symlinks=True)
     else:
         shutil.copy2(source, target, follow_symlinks=False)
+
+
+def lexical_path(path: Path) -> Path:
+    """Return an absolute normalized path without resolving symlinks."""
+    return Path(os.path.abspath(path))
+
+
+def symlink_points_to_source(target: Path, source: Path) -> bool:
+    """Match installer-owned links even when their destination is now dangling.
+
+    Older installs linked through the repository's top-level ``skills`` path.
+    The Codex plugin uses the canonical plugin skill path. Both spellings belong
+    to this checkout; resolving the final destination alone cannot recognize a
+    dangling legacy link safely.
+    """
+    if not target.is_symlink():
+        return False
+    link = Path(os.readlink(target))
+    destination = link if link.is_absolute() else target.parent / link
+    expected = {lexical_path(source), source.resolve(strict=False)}
+    return lexical_path(destination) in expected
 
 
 COMPONENTS = ("pi", "claude", "codex", "cursor")
@@ -87,12 +117,21 @@ def add_claude_operations(repo: Path, claude_dir: Path) -> list[Operation]:
     return operations
 
 
-def add_codex_operations(repo: Path, codex_dir: Path, agents_dir: Path) -> list[Operation]:
+def add_codex_operations(
+    repo: Path, codex_dir: Path, agents_dir: Path, *, plugin_ready: bool
+) -> list[Operation]:
     operations = [Operation("link", repo / "codex" / "AGENTS.md", codex_dir / "AGENTS.md")]
     for source in sorted((repo / "codex" / "agents").glob("*.toml")):
         operations.append(Operation("link", source, codex_dir / "agents" / source.name))
-    for source in sorted((repo / "skills").glob("*")):
-        operations.append(Operation("link", source, agents_dir / "skills" / source.name))
+    if plugin_ready:
+        for name in CODEX_PLUGIN_SKILLS:
+            operations.append(
+                Operation(
+                    "remove-owned-link",
+                    repo / "skills" / name,
+                    agents_dir / "skills" / name,
+                )
+            )
     return operations
 
 
@@ -211,7 +250,9 @@ def apply(operations: list[Operation], state_dir: Path, roots: list[Path]) -> Pa
         if root == Path(root.anchor):
             raise ValueError(f"refusing filesystem root as an install target: {root}")
     for operation in operations:
-        if not operation.source.exists():
+        if operation.action not in {"link", "copy-if-missing", "copy-replace", "remove-owned-link"}:
+            raise ValueError(f"unknown install action: {operation.action}")
+        if operation.action != "remove-owned-link" and not operation.source.exists():
             raise ValueError(f"source is missing: {operation.source}")
         if not within(operation.target, roots):
             raise ValueError(f"target is outside configured roots: {operation.target}")
@@ -239,7 +280,16 @@ def apply(operations: list[Operation], state_dir: Path, roots: list[Path]) -> Pa
     try:
         for operation in operations:
             target = operation.target
-            source = operation.source.resolve()
+            source = operation.source.resolve(strict=False)
+            if operation.action == "remove-owned-link":
+                if not symlink_points_to_source(target, operation.source):
+                    print(f"keep            {target} (not an owned legacy link)")
+                    continue
+                backup(target, backup_dir, manifest, seen)
+                save_manifest(manifest_path, manifest)
+                remove(target)
+                print(describe(operation))
+                continue
             if operation.action == "copy-if-missing" and lexists(target):
                 print(f"keep            {target}")
                 continue
@@ -349,7 +399,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--overlay", type=Path, help="external private overlay directory")
     parser.add_argument("--claude-dir", type=Path, help="Claude config target")
     parser.add_argument("--codex-dir", type=Path, help="Codex home target")
-    parser.add_argument("--agents-dir", type=Path, help="user agent config root for Codex skills")
+    parser.add_argument(
+        "--agents-dir",
+        type=Path,
+        help="user agent config root for optional integrations and legacy Codex skill cleanup",
+    )
+    parser.add_argument(
+        "--codex-plugin-ready",
+        action="store_true",
+        help="confirm the Codex plugin is installed before retiring checkout-owned legacy skill links",
+    )
     parser.add_argument(
         "--cursor-project", type=Path, action="append", default=[],
         help="project that receives the o90 Cursor rule (repeatable; requires --with cursor)",
@@ -369,6 +428,8 @@ def main() -> int:
 
     repo = Path(__file__).resolve().parents[1]
     components = set(args.components) if args.components else {"pi"}
+    if args.codex_plugin_ready and "codex" not in components:
+        raise ValueError("--codex-plugin-ready requires --with codex")
     if "cursor" in components and not args.cursor_project:
         raise ValueError("--with cursor requires at least one --cursor-project")
     if args.cursor_project and "cursor" not in components:
@@ -392,7 +453,14 @@ def main() -> int:
     if "claude" in components:
         operations.extend(add_claude_operations(repo, claude_dir))
     if "codex" in components:
-        operations.extend(add_codex_operations(repo, codex_dir, agents_dir))
+        operations.extend(
+            add_codex_operations(
+                repo,
+                codex_dir,
+                agents_dir,
+                plugin_ready=args.codex_plugin_ready,
+            )
+        )
     if "cursor" in components:
         operations.extend(add_cursor_operations(repo, cursor_projects))
     if "pi" in components:
@@ -413,7 +481,10 @@ def main() -> int:
     if "codex" in components:
         print(f"Codex target:  {codex_dir}")
         print(f"Agents target: {codex_dir / 'agents'}")
-        print(f"Skills target: {agents_dir / 'skills'}")
+        if args.codex_plugin_ready:
+            print(f"Legacy skills: retire owned links under {agents_dir / 'skills'}")
+        elif "pi" in components:
+            print(f"Skills target: {agents_dir / 'skills'} (Pi worker bridge only)")
     for project in cursor_projects:
         print(f"Cursor project: {project}")
     print("Mode:          apply" if args.apply else "Mode:          dry-run (no writes)")

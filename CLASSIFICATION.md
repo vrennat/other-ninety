@@ -27,7 +27,7 @@ This is the public/private boundary for the initial migration.
 | Pi auth, OAuth, sessions, trust, caches, browser profile | — | PRIVATE/OVERLAY | Mutable or sensitive machine state; never migrate |
 | Cross-harness Pi leaf launcher | `bin/o90-pi` | ADAPT | Reuse the constrained Claude bridge without a Claude-specific plugin path |
 | Shared global agent policy | `codex/AGENTS.md` | ADAPT | Keep generic working agreements; use Codex's documented global instruction path |
-| Portable native agent workflows | `skills/` | ADAPT | Share the complete public skill catalog without requiring Pi |
+| Portable agent workflows | `plugins/other-ninety/skills/` | ADAPT | Package the complete Codex catalog while retaining a root compatibility path for other runtimes |
 | Public Claude agent roles | `codex/agents/` | ADAPT | Express every public role in Codex's documented personal custom-agent TOML format |
 | Optional Pi delegation workflow | `integrations/pi-worker/` | ADAPT | Add the constrained Pi leaf bridge only to explicitly selected host-plus-Pi installs |
 | Shared agent policy and roles | `cursor/rules/`, `cursor/agents/` | ADAPT | Use Cursor's documented project rule and custom-agent formats; do not mutate UI-managed User Rules |

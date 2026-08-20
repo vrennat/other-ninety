@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -27,6 +29,9 @@ PUBLIC_AGENTS = {
     "validator",
 }
 CANONICAL_OUTPUT_STYLE = (ROOT / "shared" / "output-style.md").read_text().strip()
+
+sys.path.insert(0, str(ROOT / "scripts"))
+import install as installer_module  # noqa: E402
 
 
 class InstallerHarness(unittest.TestCase):
@@ -219,7 +224,7 @@ class InstallerTest(InstallerHarness):
                 PUBLIC_AGENTS,
             )
 
-    def test_codex_only_installs_native_skills_without_pi(self) -> None:
+    def test_codex_only_installs_companion_config_without_global_skills(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             result = self.run_installer("--apply", "--with", "codex", *self.arguments(root))
@@ -228,12 +233,93 @@ class InstallerTest(InstallerHarness):
             self.assertTrue((root / "codex" / "AGENTS.md").is_symlink())
             self.assertIn(CANONICAL_OUTPUT_STYLE, (root / "codex" / "AGENTS.md").read_text())
             for name in PUBLIC_SKILLS:
-                self.assertTrue((skills / name).is_symlink(), name)
+                self.assertFalse(os.path.lexists(skills / name), name)
             for name in PUBLIC_AGENTS:
                 self.assertTrue((root / "codex" / "agents" / f"{name}.toml").is_symlink(), name)
             self.assertFalse((skills / "o90-pi-worker").exists())
             self.assertFalse((root / "pi").exists())
             self.assertFalse((root / "bin").exists())
+
+    def test_codex_plugin_ready_removes_only_owned_links_and_rollback_restores_them(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            skills = root / "agents" / "skills"
+            skills.mkdir(parents=True)
+            owned = skills / "clean-writing"
+            owned.symlink_to(ROOT / "skills" / "clean-writing")
+            foreign_target = root / "foreign-skill"
+            foreign_target.mkdir()
+            foreign_link = skills / "onboarding"
+            foreign_link.symlink_to(foreign_target)
+            foreign_file = skills / "plan-hunter"
+            foreign_file.write_text("user-managed\n")
+
+            result = self.run_installer(
+                "--apply",
+                "--with", "codex",
+                "--codex-plugin-ready",
+                *self.arguments(root),
+            )
+            manifest = Path(
+                next(line for line in result.stdout.splitlines() if line.startswith("manifest")).split(maxsplit=1)[1]
+            )
+            self.assertFalse(os.path.lexists(owned))
+            self.assertTrue(foreign_link.is_symlink())
+            self.assertEqual(foreign_link.resolve(), foreign_target.resolve())
+            self.assertEqual(foreign_file.read_text(), "user-managed\n")
+            manifest_data = json.loads(manifest.read_text())
+            self.assertIn(
+                {"target": str(owned), "kind": "symlink", "link": str(ROOT / "skills" / "clean-writing")},
+                manifest_data["entries"],
+            )
+
+            self.run_installer("--rollback", manifest)
+            self.assertTrue(owned.is_symlink())
+            self.assertEqual(Path(os.readlink(owned)), ROOT / "skills" / "clean-writing")
+            self.assertTrue(foreign_link.is_symlink())
+            self.assertEqual(foreign_file.read_text(), "user-managed\n")
+
+    def test_codex_companion_without_plugin_proof_leaves_owned_legacy_link(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            legacy = root / "agents" / "skills" / "clean-writing"
+            legacy.parent.mkdir(parents=True)
+            legacy.symlink_to(ROOT / "skills" / "clean-writing")
+
+            self.run_installer("--apply", "--with", "codex", *self.arguments(root))
+
+            self.assertTrue(legacy.is_symlink())
+            self.assertEqual(Path(os.readlink(legacy)), ROOT / "skills" / "clean-writing")
+
+    def test_remove_owned_link_handles_dangling_destination_and_rollback(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            expected = root / "checkout" / "skills" / "clean-writing"
+            target = root / "agents" / "skills" / "clean-writing"
+            target.parent.mkdir(parents=True)
+            target.symlink_to(expected)
+            self.assertFalse(target.exists())
+
+            manifest = installer_module.apply(
+                [installer_module.Operation("remove-owned-link", expected, target)],
+                root / "state",
+                [root / "agents"],
+            )
+            self.assertFalse(os.path.lexists(target))
+
+            installer_module.rollback(manifest)
+            self.assertTrue(target.is_symlink())
+            self.assertFalse(target.exists())
+            self.assertEqual(Path(os.readlink(target)), expected)
+
+    def test_codex_plugin_ready_requires_codex_component(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            result = self.run_installer(
+                "--with", "pi", "--codex-plugin-ready", *self.arguments(root), check=False
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("requires --with codex", result.stderr)
 
     def test_cursor_only_installs_native_skills_without_pi(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -356,6 +442,27 @@ class DriftCheckerTest(InstallerHarness):
             drift = self.run_drift(root, "--with", "claude", "--overlay", overlay)
             self.assertNotEqual(drift.returncode, 0, drift.stdout)
             self.assertIn("expected symlink", drift.stdout)
+
+    def test_codex_reports_owned_legacy_skill_link_but_ignores_foreign_entries(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.run_installer("--apply", "--with", "codex", *self.arguments(root))
+            skills = root / "agents" / "skills"
+            skills.mkdir(parents=True)
+            owned = skills / "clean-writing"
+            owned.symlink_to(ROOT / "skills" / "clean-writing")
+            foreign_target = root / "foreign-skill"
+            foreign_target.mkdir()
+            (skills / "onboarding").symlink_to(foreign_target)
+            (skills / "plan-hunter").write_text("user-managed\n")
+
+            drift = self.run_drift(root, "--with", "codex")
+
+            self.assertNotEqual(drift.returncode, 0, drift.stdout)
+            self.assertIn("checkout-owned legacy global skill link remains", drift.stdout)
+            self.assertIn(str(owned), drift.stdout)
+            self.assertNotIn(str(skills / "onboarding"), drift.stdout)
+            self.assertNotIn(str(skills / "plan-hunter"), drift.stdout)
 
 
 class CatalogParityTest(unittest.TestCase):

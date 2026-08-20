@@ -59,7 +59,58 @@ check_banned() {
 plugin=claude/plugin
 plugin_version=$(python3 -c 'import json; print(json.load(open("claude/plugin/.claude-plugin/plugin.json"))["version"])')
 marketplace_version=$(python3 -c 'import json; print(json.load(open(".claude-plugin/marketplace.json"))["plugins"][0]["version"])')
-[[ "$plugin_version" == "$marketplace_version" ]] || { echo "FAIL: manifest versions differ"; errors=$((errors + 1)); }
+[[ "$plugin_version" == "$marketplace_version" ]] || { echo "FAIL: Claude manifest versions differ"; errors=$((errors + 1)); }
+
+if ! python3 <<'PY'
+import json
+from pathlib import Path
+
+codex_root = Path("plugins/other-ninety")
+manifest = json.loads((codex_root / ".codex-plugin/plugin.json").read_text())
+marketplace = json.loads(Path(".agents/plugins/marketplace.json").read_text())
+claude_manifest = json.loads(Path("claude/plugin/.claude-plugin/plugin.json").read_text())
+
+expected_manifest = {
+    "name": "other-ninety",
+    "skills": "./skills/",
+    "license": "MIT",
+}
+for key, expected in expected_manifest.items():
+    actual = manifest.get(key)
+    if actual != expected:
+        raise SystemExit(f"FAIL: Codex manifest {key!r} is {actual!r}, expected {expected!r}")
+
+if manifest.get("version") != claude_manifest.get("version"):
+    raise SystemExit("FAIL: Codex and Claude manifest versions differ")
+
+interface = manifest.get("interface", {})
+for key in ("displayName", "shortDescription", "longDescription", "developerName", "category"):
+    if not interface.get(key):
+        raise SystemExit(f"FAIL: Codex manifest interface.{key} is missing")
+
+if marketplace.get("name") != "other-ninety":
+    raise SystemExit("FAIL: Codex marketplace name must be 'other-ninety'")
+plugins = marketplace.get("plugins", [])
+if len(plugins) != 1:
+    raise SystemExit("FAIL: Codex marketplace must contain exactly one plugin")
+entry = plugins[0]
+if entry.get("name") != manifest["name"]:
+    raise SystemExit("FAIL: Codex marketplace plugin name differs from the manifest")
+if entry.get("source") != {"source": "local", "path": "./plugins/other-ninety"}:
+    raise SystemExit("FAIL: Codex marketplace source must point to ./plugins/other-ninety")
+if entry.get("policy") != {"installation": "AVAILABLE", "authentication": "ON_INSTALL"}:
+    raise SystemExit("FAIL: Codex marketplace policy is invalid")
+if entry.get("category") != interface["category"]:
+    raise SystemExit("FAIL: Codex marketplace category differs from the manifest")
+PY
+then
+  errors=$((errors + 1))
+fi
+
+if [[ ! -L skills || "$(readlink skills)" != "plugins/other-ninety/skills" ]]; then
+  echo "FAIL: skills must be a relative symlink to plugins/other-ninety/skills"
+  errors=$((errors + 1))
+fi
 
 last_tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
 if [[ -n "$last_tag" ]] && ! git diff --quiet "$last_tag" -- "$plugin"; then

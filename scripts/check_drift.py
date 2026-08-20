@@ -17,6 +17,28 @@ CLAUDE_COPIES = {"settings.json", "keybindings.json"}
 PI_LINKS = ("AGENTS.md", "APPEND_SYSTEM.md", "agents", "extensions", "prompts", "themes")
 PI_COPIES = {"settings.json", "mcp.json"}
 COMPONENTS = ("pi", "claude", "codex", "cursor")
+CODEX_PLUGIN_SKILLS = (
+    "clean-writing",
+    "onboarding",
+    "plan-hunter",
+    "systematic-debugging",
+    "verification-before-completion",
+)
+
+
+def lexical_path(path: Path) -> Path:
+    """Return an absolute normalized path without resolving symlinks."""
+    return Path(os.path.abspath(path))
+
+
+def symlink_points_to_source(target: Path, source: Path) -> bool:
+    """Recognize checkout-owned legacy links without requiring a live target."""
+    if not target.is_symlink():
+        return False
+    link = Path(os.readlink(target))
+    destination = link if link.is_absolute() else target.parent / link
+    expected = {lexical_path(source), source.resolve(strict=False)}
+    return lexical_path(destination) in expected
 
 
 def linked_names(base: tuple[str, ...], overlay_dir: Path | None, copied: set[str]) -> list[str]:
@@ -186,8 +208,14 @@ def main() -> int:
         check_link(codex_base / "AGENTS.md", codex_dir / "AGENTS.md")
         for agent in sorted((codex_base / "agents").glob("*.toml")):
             check_link(agent, codex_dir / "agents" / agent.name)
-        for skill in sorted((repo / "skills").glob("*")):
-            check_link(skill, agents_dir / "skills" / skill.name)
+        for name in CODEX_PLUGIN_SKILLS:
+            checked += 1
+            target = agents_dir / "skills" / name
+            if symlink_points_to_source(target, repo / "skills" / name):
+                drift.append(
+                    f"{target}: checkout-owned legacy global skill link remains; "
+                    "the Codex plugin owns this skill"
+                )
         if "pi" in components:
             check_link(repo / "integrations" / "pi-worker", agents_dir / "skills" / "o90-pi-worker")
 
@@ -211,7 +239,9 @@ def main() -> int:
     if "claude" in components:
         stray_directories.extend((claude_dir, claude_dir / "skills"))
     if "codex" in components:
-        stray_directories.extend((codex_dir, codex_dir / "agents", agents_dir / "skills"))
+        # ~/.agents/skills is shared user space. Exact checks above cover links
+        # owned by this checkout while leaving unrelated skills alone.
+        stray_directories.extend((codex_dir, codex_dir / "agents"))
     if "cursor" in components:
         for project in cursor_projects:
             stray_directories.extend(

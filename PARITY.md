@@ -38,9 +38,9 @@ Parity means the public toolkit preserves reusable behavior from the two source 
 - [ ] No `--with` flag installs Pi only.
 - [ ] Any explicit `--with` flags define the exact component set, including optional `--with pi`.
 - [ ] Claude, Codex, and Cursor each install and work natively without Pi.
-- [ ] The five-skill public catalog (`clean-writing`, `onboarding`, `plan-hunter`, `systematic-debugging`, `verification-before-completion`) is present in Claude and installed natively for Codex and Cursor.
+- [ ] The five-skill public catalog (`clean-writing`, `onboarding`, `plan-hunter`, `systematic-debugging`, `verification-before-completion`) is present in Claude, packaged as a namespaced Codex plugin, and installed natively for Cursor.
 - [ ] The five-role public catalog (`adversarial-reviewer`, `brutal-code-reviewer`, `debug-genius`, `fast-impl`, `validator`) is present in Claude and installed as native custom agents for Codex and Cursor.
-- [ ] Codex installs global `AGENTS.md`, personal custom-agent TOML, and shared native skills at documented paths.
+- [ ] Codex installs the `other-ninety@other-ninety` plugin before its global `AGENTS.md` and personal custom-agent TOML companion config.
 - [ ] Cursor installs native o90 rules, agents, and skills only in explicitly named existing projects.
 - [ ] Native Codex and Cursor roles inherit the active model instead of pinning a provider or model.
 - [ ] Pi, Claude, Codex, and Cursor always-loaded guidance contains the exact canonical compact-writing policy.
@@ -53,6 +53,7 @@ Parity means the public toolkit preserves reusable behavior from the two source 
 - [ ] Dry-run creates no files or directories.
 - [ ] Apply records absent, symlink, file, and directory prior states.
 - [ ] Rollback restores all recorded paths.
+- [ ] Codex plugin failure leaves legacy global skill links intact; successful migration removes only checkout-owned links and can restore them through rollback.
 - [ ] Overlay replacement is included in the same rollback manifest.
 - [ ] Pi shadow install writes nothing under the live Pi directory.
 - [ ] Drift check reports a non-zero number of checked paths.

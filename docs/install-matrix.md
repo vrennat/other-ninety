@@ -57,19 +57,19 @@ only when Pi is also installed.
 
 ### Codex
 
+- The `other-ninety@other-ninety` skills plugin from this repository's local
+  marketplace. Its five skills are exposed with the `other-ninety:` namespace.
 - Global guidance at `$CODEX_HOME/AGENTS.md`.
-- All five public o90 skills under `$HOME/.agents/skills`: `clean-writing`,
-  `onboarding`, `plan-hunter`, `systematic-debugging`, and
-  `verification-before-completion`.
 - All five public o90 roles as native custom-agent TOML under
   `$CODEX_HOME/agents`: `adversarial-reviewer`, `brutal-code-reviewer`,
   `debug-genius`, `fast-impl`, and `validator`.
 - The `o90-pi-worker` skill only when both Codex and Pi are selected.
 
-Official OpenAI documentation says Codex discovers global instructions from
-`AGENTS.md` in `CODEX_HOME` (normally `~/.codex`) and user skills under
-`$HOME/.agents/skills`; see [Build skills](https://learn.chatgpt.com/docs/build-skills).
-It discovers personal custom agents from `$CODEX_HOME/agents`; see
+Official OpenAI documentation defines a plugin as a package with a
+`.codex-plugin/plugin.json` manifest and optional skills, MCP servers, or hooks;
+see [Build plugins](https://developers.openai.com/plugins/build/plugins).
+Codex discovers global instructions from `AGENTS.md` in `CODEX_HOME` (normally
+`~/.codex`) and personal custom agents from `$CODEX_HOME/agents`; see
 [Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents).
 Install and authenticate the Codex CLI separately using the
 [official Codex CLI guide](https://learn.chatgpt.com/docs/codex/cli).
@@ -105,13 +105,24 @@ plugin setup is not wanted:
 ./install.sh --apply --with codex --with cursor --cursor-project ~/code/app
 ```
 
+For Codex this is a native companion-config operation, not a complete install:
+it manages global instructions and custom agents but does not register or
+install the skills plugin. It also leaves any older global skill links in place
+unless bootstrap has already verified their plugin replacement. Use
+`bootstrap.sh --apply --with codex` for the full setup and migration.
+
 After applying, check exactly the surfaces you selected:
 
 ```bash
 ./check-drift.sh --with codex --with cursor --cursor-project ~/code/app
 ```
 
+For Codex, drift checks cover the filesystem companion and retired legacy
+links. Plugin-manager state is verified by bootstrap; inspect it independently
+with `codex plugin list --json` when diagnosing an existing installation.
+
 Useful target overrides are `--pi-dir`, `--pi-root`, `--bin-dir`,
 `--claude-dir`, `--codex-dir`, `--agents-dir`, and repeated `--cursor-project`. Configuration
 writes are recorded in one rollback manifest. Pi package installation and the
-Claude marketplace/plugin operations are intentionally outside that manifest.
+Claude and Codex marketplace/plugin operations are intentionally outside that
+manifest.

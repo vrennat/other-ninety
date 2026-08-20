@@ -1,0 +1,34 @@
+{
+  "name": "other-ninety",
+  "version": "0.3.2",
+  "description": "Planning, delegation, review, verification, and writing workflows for Codex.",
+  "author": {
+    "name": "vrennat",
+    "url": "https://github.com/vrennat"
+  },
+  "homepage": "https://github.com/vrennat/other-ninety",
+  "repository": "https://github.com/vrennat/other-ninety",
+  "license": "MIT",
+  "keywords": [
+    "workflow",
+    "planning",
+    "delegation",
+    "review",
+    "verification"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "The Other Ninety",
+    "shortDescription": "Planning, delegation, review, and verification",
+    "longDescription": "Reusable Codex workflows for clean writing, onboarding, plan comparison, systematic debugging, and verification before completion.",
+    "developerName": "vrennat",
+    "category": "Developer Tools",
+    "capabilities": [],
+    "websiteURL": "https://github.com/vrennat/other-ninety",
+    "defaultPrompt": [
+      "Use plan-hunter to compare approaches for this roadmap.",
+      "Review this task with verification before completion.",
+      "Tighten this documentation with clean-writing."
+    ]
+  }
+}

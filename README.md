@@ -13,7 +13,8 @@ Your agent writes the code. **o90** does everything else: planning, delegation, 
 | Pi | Standalone agent runtime: agents, extensions, prompts, skills, themes, and pinned packages | `pi/` |
 | Claude plugin | Commands, agents, skills, hooks, and project templates | `claude/plugin/` |
 | Claude config | Public-safe global rules, hooks, skills, and settings | `claude/config/` |
-| Codex adapter | Native global `AGENTS.md`, custom agents, and shared o90 skills | `codex/`, `skills/` |
+| Codex plugin | Namespaced o90 skills installed through Codex's plugin manager | `plugins/other-ninety/` |
+| Codex companion | Native global `AGENTS.md` and custom agents | `codex/` |
 | Cursor adapter | Native project rule, custom agents, and shared o90 skills | `cursor/`, `skills/` |
 | Pi bridge | Optional cross-runtime Pi leaf delegation | `bin/`, `integrations/` |
 | Repository tooling | Bootstrap, rollback, drift, leak, and verification checks | `bootstrap.sh`, `install.sh`, `scripts/` |
@@ -36,8 +37,9 @@ remain unrestricted. No native host workflow depends on this bridge.
 
 Core requirements: macOS, Git, and Python 3.9+. Install only the runtimes you
 select; Pi additionally needs Bun. This repository configures runtimes but does
-not install their applications, credentials, or optional third-party plugins. See
-the [install matrix](docs/install-matrix.md) and
+not install their applications, credentials, or optional third-party plugins.
+It does install the selected o90 Claude or Codex plugin. See the
+[install matrix](docs/install-matrix.md) and
 [new-machine checklist](docs/new-machine.md).
 
 ```bash
@@ -72,12 +74,13 @@ selected runtimes. It suggests an `o90-pi` smoke check only when Pi was selected
 
 The apply command:
 
-1. Applies each selected runtime's native config and skills with targeted backups and a rollback manifest.
-2. When Pi is selected, installs its locked Bun dependencies and pinned packages.
-3. When Pi and Codex or Cursor are both selected, installs the optional Pi-worker skill.
-4. When Claude is selected, adds or updates its marketplace and plugin at user scope.
+1. When Codex is selected, adds or verifies the repository marketplace and installs the o90 plugin.
+2. Applies each selected runtime's native companion config with targeted backups and a rollback manifest.
+3. When Pi is selected, installs its locked Bun dependencies and pinned packages.
+4. When Pi and Codex or Cursor are both selected, installs the optional Pi-worker skill.
+5. When Claude is selected, adds or updates its marketplace and plugin at user scope.
 
-Package and Claude plugin installation is not covered by the config rollback
+Package, Claude plugin, and Codex plugin installation is not covered by the config rollback
 manifest. Provider login, model choice, Linear OAuth, trust decisions, and
 other credentials remain local and interactive. When Pi is selected, the
 `o90-pi` command is linked to `~/.local/bin` by default; set
@@ -103,7 +106,20 @@ A successful config apply prints its manifest path. Restore only manifests creat
 ./install.sh --rollback ~/.local/state/other-ninety/backups/<timestamp>/manifest.json
 ```
 
-Rollback restores config paths touched by `install.sh`. It does not uninstall Bun dependencies, Pi packages, or the Claude plugin. If a managed path was absent during apply, rollback removes that path; preserve any state the tool wrote there after installation before rolling back.
+Rollback restores config paths touched by `install.sh`, including any
+checkout-owned legacy Codex skill links retired after a verified plugin install.
+It does not uninstall Bun dependencies, Pi packages, or plugins. To remove the
+Codex package and its repository marketplace too, run:
+
+```bash
+codex plugin remove other-ninety@other-ninety
+codex plugin marketplace remove other-ninety
+```
+
+Only remove the marketplace when no other local checkout depends on that named
+registration. If a managed path was absent during apply, rollback removes that
+path; preserve any state the tool wrote there after installation before rolling
+back.
 
 ## Private overlay
 
@@ -136,12 +152,16 @@ selected. With no `--with` flags, the default Pi selection applies Pi overlays.
 
 ```text
 other-ninety/
+├── .agents/plugins/     # Codex repository marketplace
 ├── bin/                  # cross-harness constrained Pi leaf-worker command
 ├── codex/                # Codex-native global instructions and custom agents
 ├── cursor/               # Cursor-native project rule and custom agents
 ├── integrations/         # optional cross-runtime integrations
 ├── shared/               # canonical cross-runtime policy
-├── skills/               # complete shared public skill catalog
+├── plugins/
+│   └── other-ninety/     # distributable Codex skills plugin
+├── skills -> plugins/other-ninety/skills
+│                         # compatibility path for other runtime adapters
 ├── .claude-plugin/       # marketplace catalog
 ├── claude/
 │   ├── plugin/           # distributable Claude Code plugin
@@ -152,7 +172,22 @@ other-ninety/
 └── install.sh            # dry-run-first config installer and rollback
 ```
 
-The marketplace points at `claude/plugin/`, so the repository can stay coherent without exposing plugin components across the root.
+Each marketplace points at its runtime-specific package: Claude uses
+`claude/plugin/`, while Codex uses `plugins/other-ninety/`. The repository root
+is not packaged into either plugin.
+
+## Install only the Codex plugin
+
+```bash
+codex plugin marketplace add "$PWD"
+codex plugin add other-ninety@other-ninety
+```
+
+Open a new Codex task after installation. Plugin skills are namespaced, for
+example `other-ninety:plan-hunter`. The standalone `install.sh --with codex`
+path manages only the global `AGENTS.md` and custom-agent TOML companion files;
+use `bootstrap.sh --apply --with codex` for the complete plugin-plus-companion
+setup and safe migration from older global skill links.
 
 ## Install only the Claude plugin
 

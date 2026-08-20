@@ -1,0 +1,20 @@
+{
+  "name": "other-ninety",
+  "interface": {
+    "displayName": "The Other Ninety"
+  },
+  "plugins": [
+    {
+      "name": "other-ninety",
+      "source": {
+        "source": "local",
+        "path": "./plugins/other-ninety"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

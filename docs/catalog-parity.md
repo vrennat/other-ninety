@@ -1,9 +1,10 @@
 # Public catalog parity
 
-The public o90 catalog is available natively in every selectable runtime.
+The public o90 catalog is available in every selectable runtime.
 Claude, Codex, and Cursor do not require Pi for any item in this table. The
-Claude plugin remains the Claude source of truth. The shared skill catalog and
-native role adapters carry the same general behavior into Codex and Cursor.
+Claude plugin remains the Claude source of truth. The Codex plugin owns the
+shared skill package; its root compatibility link and native role adapters
+carry the same general behavior into Pi, Codex, and Cursor.
 
 ## Output policy
 
@@ -22,11 +23,11 @@ writing task benefits from a more specific mode.
 
 | Skill | Pi | Claude | Codex | Cursor |
 |---|---|---|---|---|
-| `clean-writing` | Shared skill | Plugin skill | `~/.agents/skills/clean-writing` | `<project>/.cursor/skills/clean-writing` |
-| `onboarding` | Shared skill | Plugin skill | `~/.agents/skills/onboarding` | `<project>/.cursor/skills/onboarding` |
-| `plan-hunter` | Pi-native skill | Plugin skill | `~/.agents/skills/plan-hunter` | `<project>/.cursor/skills/plan-hunter` |
-| `systematic-debugging` | Pi-native skill | Plugin skill | `~/.agents/skills/systematic-debugging` | `<project>/.cursor/skills/systematic-debugging` |
-| `verification-before-completion` | Pi-native skill | Plugin skill | `~/.agents/skills/verification-before-completion` | `<project>/.cursor/skills/verification-before-completion` |
+| `clean-writing` | Shared skill | Plugin skill | `other-ninety:clean-writing` plugin skill | `<project>/.cursor/skills/clean-writing` |
+| `onboarding` | Shared skill | Plugin skill | `other-ninety:onboarding` plugin skill | `<project>/.cursor/skills/onboarding` |
+| `plan-hunter` | Pi-native skill | Plugin skill | `other-ninety:plan-hunter` plugin skill | `<project>/.cursor/skills/plan-hunter` |
+| `systematic-debugging` | Pi-native skill | Plugin skill | `other-ninety:systematic-debugging` plugin skill | `<project>/.cursor/skills/systematic-debugging` |
+| `verification-before-completion` | Pi-native skill | Plugin skill | `other-ninety:verification-before-completion` plugin skill | `<project>/.cursor/skills/verification-before-completion` |
 
 The portable `onboarding` skill performs the same safe project bootstrap as
 Claude's `/bootstrap` flow without assuming slash-command support. The portable
@@ -49,6 +50,8 @@ model: Codex inherits the spawning session's resolved model, and Cursor uses
 
 ## Native-format choices and limits
 
+- Codex packages the shared skills from `plugins/other-ninety/`; the global
+  `AGENTS.md` and custom-agent TOML remain native companion configuration.
 - Codex's official custom-agent format is standalone TOML under
   `~/.codex/agents/` for personal agents. The format is documented as a current
   configuration layer that may evolve as sharing support matures. See
@@ -58,9 +61,9 @@ model: Codex inherits the spawning session's resolved model, and Cursor uses
   explicit, version-visible, and reversible. See
   [Cursor subagents](https://cursor.com/docs/subagents) and
   [Cursor Agent Skills](https://cursor.com/docs/skills).
-- Claude plugin installation is performed by Claude's plugin manager and is not
-  included in o90's filesystem rollback manifest. Codex and Cursor catalog
-  files are covered by that manifest.
+- Claude and Codex plugin installation is performed by each runtime's plugin
+  manager and is not included in o90's filesystem rollback manifest. Codex
+  companion config and Cursor catalog files are covered by that manifest.
 - Pi supplies its own native roles and workflows. The `o90-pi-worker` skill is a
   separate optional enhancement installed only for an explicit host-plus-Pi
   selection.

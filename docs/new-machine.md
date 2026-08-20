@@ -27,7 +27,8 @@
    ```
 
 5. Restart the selected runtimes and complete their provider login or OAuth
-   interactively. If Pi was selected, make sure `o90-pi` is on `PATH` (the
+   interactively. If Codex was selected, open a new task so the newly cached
+   plugin is loaded. If Pi was selected, make sure `o90-pi` is on `PATH` (the
    default target is `~/.local/bin`).
 6. Check configuration drift with the same overlay argument:
 
@@ -36,9 +37,10 @@
    ```
 
 7. Smoke-check each selected runtime natively. In Claude, run `/mode` and confirm
-   the plugin lists the public skills and roles. In Codex, confirm all five o90
-   skills and five custom agents are discoverable. In Cursor, confirm the o90
-   project rule, five skills, and five agents appear in Customize. The exact
+   the plugin lists the public skills and roles. In Codex, confirm all five
+   `other-ninety:` skills and five custom agents are discoverable. In Cursor,
+   confirm the o90 project rule, five skills, and five agents appear in
+   Customize. The exact
    inventory is in [public catalog parity](catalog-parity.md). If Pi was
    selected, run `o90-pi -- "summarize the repository layout"`; host-to-Pi
    delegation is optional.
