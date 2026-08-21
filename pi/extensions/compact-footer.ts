@@ -2,7 +2,7 @@ import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { relative, resolve, sep } from "node:path";
-import { computeCacheMetrics, formatCacheMetrics } from "./cache-metrics.ts";
+import { computeCacheMetrics, formatCacheMetrics } from "./lib/cache-metrics.ts";
 
 export function shouldShowStatus(key: string): boolean {
 	return key !== "mcp";
