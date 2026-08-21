@@ -25,13 +25,18 @@ writing task benefits from a more specific mode.
 |---|---|---|---|---|
 | `clean-writing` | Shared skill | Plugin skill | `other-ninety:clean-writing` plugin skill | `<project>/.cursor/skills/clean-writing` |
 | `onboarding` | Shared skill | Plugin skill | `other-ninety:onboarding` plugin skill | `<project>/.cursor/skills/onboarding` |
-| `plan-hunter` | Pi-native skill | Plugin skill | `other-ninety:plan-hunter` plugin skill | `<project>/.cursor/skills/plan-hunter` |
-| `systematic-debugging` | Pi-native skill | Plugin skill | `other-ninety:systematic-debugging` plugin skill | `<project>/.cursor/skills/systematic-debugging` |
-| `verification-before-completion` | Pi-native skill | Plugin skill | `other-ninety:verification-before-completion` plugin skill | `<project>/.cursor/skills/verification-before-completion` |
+| `plan-hunter` | Shared skill | Plugin skill | `other-ninety:plan-hunter` plugin skill | `<project>/.cursor/skills/plan-hunter` |
+| `systematic-debugging` | Shared skill | Plugin skill | `other-ninety:systematic-debugging` plugin skill | `<project>/.cursor/skills/systematic-debugging` |
+| `verification-before-completion` | Shared skill | Plugin skill | `other-ninety:verification-before-completion` plugin skill | `<project>/.cursor/skills/verification-before-completion` |
 
-The portable `onboarding` skill performs the same safe project bootstrap as
-Claude's `/bootstrap` flow without assuming slash-command support. The portable
-`plan-hunter` uses whichever native subagent mechanism the active host provides.
+All five skills ship from one shared catalog (`skills/`, mirrored byte-for-byte
+into the Claude plugin; `scripts/test_install.py` enforces the mirror). Pi links
+the shared copies directly; `pi/skills/` stays empty unless a skill genuinely
+needs a Pi-specific override, which shadows the shared copy by name at install
+time. The portable `onboarding` skill performs the same safe project bootstrap
+as Claude's `/bootstrap` flow without assuming slash-command support. The
+portable `plan-hunter` uses whichever native subagent mechanism the active host
+provides.
 
 ## Agent roles
 

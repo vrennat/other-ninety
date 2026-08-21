@@ -1,31 +1,37 @@
 ---
 name: verification-before-completion
-description: Use when about to claim work is complete, fixed, passing, or ready. Requires running the verification command and showing its output before any success claim.
+description: Use before claiming work is complete, fixed, passing, or ready. Run the relevant verification and establish behavioral ground truth before making the success claim.
 ---
 
-# Verification Before Completion
+# Verification before completion
 
-Fires when Claude is about to claim "done", "fixed", "passing", "ready", or any equivalent. Before any such claim, evidence must be produced. A claim is either about a gate ("tests pass") or about behavior ("the handler now rejects expired tokens", "this is equivalent to the old path"). Gates need a green command; behavior needs ground truth.
+Before claiming success, identify exactly what the claim requires.
 
-## Procedure
+1. For a gate claim, run the relevant current command: test, typecheck, build,
+   lint, or another repository-defined check.
+2. For a behavioral claim, exercise the changed path and re-read the source
+   being described. A successful build alone is not behavioral evidence.
+3. Capture the result. If it fails or is inconclusive, do not claim completion;
+   report the gap and continue when possible.
+4. State what passed and what remains unverified without rounding partial
+   evidence up to success.
 
-1. Identify the relevant verification command (typecheck, test, build, lint — whichever matches the claim).
-2. Run it. Capture the output.
-3. Pass: include the output verbatim in the response, then make the claim.
-4. Fail: do NOT claim done. Surface the failure. Continue work.
-5. For a claim about what the code *does* (not just a green gate): re-read the actual source you are asserting about before claiming. Do not trust your earlier summary or memory of it. Equivalence claims ("same as before", "matches the spec") are testable — prove them: diff the two, run both, compare output.
+Equivalence claims are testable: compare both paths or outputs directly.
 
 ## Example
 
-Bad: "Tests are passing now."
+Weak: "Tests are passing now."
 
-Good:
-```
+Strong:
+
+```text
 $ bun run test:run
-✓ src/lib/foo.test.ts (12)
 Test Files  1 passed (1)
      Tests  12 passed (12)
 ```
+
 Tests pass.
 
-Behavior claim — bad: "The webhook now verifies signatures." Good: re-open the handler, confirm `verifySignature(raw)` runs before `JSON.parse`, quote the lines, then claim.
+For a behavioral claim such as "the webhook now verifies signatures", re-open
+the handler, confirm `verifySignature(raw)` runs before `JSON.parse`, and quote
+those lines before claiming.

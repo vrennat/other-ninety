@@ -27,7 +27,7 @@ Parity means the public toolkit preserves reusable behavior from the two source 
 - [ ] Pi loads `AGENTS.md` and `APPEND_SYSTEM.md` from an isolated `PI_CODING_AGENT_DIR`.
 - [ ] Eight routed agents are available.
 - [ ] Prompt templates load: `brainstorm`, `debt`, `impl`, `plan`, `research`, `tdd`, `trim`.
-- [ ] Skills load: shared `clean-writing` and `onboarding` plus native `plan-hunter`, `systematic-debugging`, and `verification-before-completion`.
+- [ ] Skills load: all five shared catalog skills (`clean-writing`, `onboarding`, `plan-hunter`, `systematic-debugging`, `verification-before-completion`); `pi/skills/` holds only deliberate per-skill overrides and is currently empty.
 - [ ] Extensions typecheck and the focused Chrome extension tests pass.
 - [ ] Four themes load.
 - [ ] Public settings and agent definitions contain no default provider, model routing, enabled-model cycle, or credentials.

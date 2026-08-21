@@ -488,12 +488,17 @@ class CatalogParityTest(unittest.TestCase):
         shared = {path.parent.name for path in (ROOT / "skills").glob("*/SKILL.md")}
         self.assertEqual(claude, PUBLIC_SKILLS)
         self.assertEqual(shared, PUBLIC_SKILLS)
-        clean_writing = ROOT / "skills" / "clean-writing"
-        for path in clean_writing.rglob("*"):
-            if not path.is_file():
-                continue
-            plugin_path = ROOT / "claude" / "plugin" / "skills" / "clean-writing" / path.relative_to(clean_writing)
-            self.assertEqual(path.read_text(), plugin_path.read_text())
+        shared_root = ROOT / "skills"
+        plugin_root = ROOT / "claude" / "plugin" / "skills"
+        shared_files = {path.relative_to(shared_root) for path in shared_root.rglob("*") if path.is_file()}
+        plugin_files = {path.relative_to(plugin_root) for path in plugin_root.rglob("*") if path.is_file()}
+        self.assertEqual(shared_files, plugin_files)
+        for relative in sorted(shared_files):
+            self.assertEqual(
+                (shared_root / relative).read_text(),
+                (plugin_root / relative).read_text(),
+                str(relative),
+            )
         self.assertTrue((ROOT / "skills" / "plan-hunter" / "REFERENCE.md").is_file())
         pi_native = {path.parent.name for path in (ROOT / "pi" / "skills").glob("*/SKILL.md")}
         self.assertTrue(pi_native <= PUBLIC_SKILLS)

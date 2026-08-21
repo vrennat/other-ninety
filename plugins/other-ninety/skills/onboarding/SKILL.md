@@ -30,5 +30,8 @@ native to the active runtime and does not require Pi.
 6. Suggest project guidance appropriate to the active runtime (`CLAUDE.md`,
    `AGENTS.md`, or `.cursor/rules`) but never overwrite it automatically.
 
+On a runtime with the o90 plugin command, `/bootstrap` runs these project steps
+directly; prefer it over the manual sequence.
+
 The workflow is idempotent. Preserve user-owned settings, hooks, credentials,
 and project instructions.

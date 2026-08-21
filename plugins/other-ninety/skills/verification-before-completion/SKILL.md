@@ -17,3 +17,21 @@ Before claiming success, identify exactly what the claim requires.
    evidence up to success.
 
 Equivalence claims are testable: compare both paths or outputs directly.
+
+## Example
+
+Weak: "Tests are passing now."
+
+Strong:
+
+```text
+$ bun run test:run
+Test Files  1 passed (1)
+     Tests  12 passed (12)
+```
+
+Tests pass.
+
+For a behavioral claim such as "the webhook now verifies signatures", re-open
+the handler, confirm `verifySignature(raw)` runs before `JSON.parse`, and quote
+those lines before claiming.

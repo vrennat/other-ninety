@@ -30,8 +30,9 @@ a new project tree.
 ### Pi
 
 - The portable config under `PI_CODING_AGENT_DIR` (default `~/.pi/agent`).
-- The complete five-skill public catalog. Pi-native variants override shared
-  variants with the same name.
+- The complete five-skill public catalog, linked from the shared `skills/`
+  source. A `pi/skills/` entry with the same name overrides the shared copy;
+  none exist today.
 - `web-search.json` under the Pi root.
 - Locked Bun dependencies and Pi packages.
 - `o90-pi` in `OTHER_NINETY_BIN_DIR` (default `~/.local/bin`).

@@ -1,46 +1,33 @@
 ---
 name: plan-hunter
-description: 'Tournament-style planning that produces one polished plan from an idea by drafting from four lenses (MVP-first, risk-first, dependency-first, user-first) in parallel, scoring with four judges, and synthesizing the winner with grafted moves from runner-ups. Use when the user asks for a substantive implementation plan, project roadmap, build sequence, or "how should I approach building X" — multi-week scope, real tradeoffs, sequencing decisions. User-invoked only: trigger on an explicit "/plan-hunter". Skip for tactical questions, single-file edits, debugging, or anything answerable in two paragraphs.'
+description: Use for explicit tournament-style planning of a substantive roadmap. Compare MVP, risk, dependency, and user plans before you synthesize one plan. User-invoked only; never auto-trigger the ten-subagent tournament.
 disable-model-invocation: true
 ---
 
 # Plan Hunter
 
-One polished implementation plan via a four-phase tournament: **Scope → Draft (×4 parallel) → Judge (×4 parallel) → Synthesize**. About 10 subagents and 4 of your turns end-to-end.
+Produce one polished implementation plan through a planning tournament:
+**Scope -> Draft (four in parallel) -> Judge (four in parallel) -> Synthesize**.
+This workflow uses the active runtime's native subagents and does not require Pi.
 
-## When it pays off
+Use it only for substantive planning. Do not spend ten subagents on tactical
+questions, single-file edits, debugging, or work answerable in two paragraphs.
 
-Run when there's real planning weight: multi-week scope, sequence/scope/risk tradeoffs, or explicit user request. Skip for bug triage, tactical "how do I X", single-component choices, or anything answerable in two paragraphs — burning 10 subagents on a small question is the worse failure mode.
+## Phases
 
-## The phases
+1. **Scope** (one subagent): normalize goals, constraints, assumptions, and open
+   questions into the JSON schema in `REFERENCE.md`.
+2. **Draft** (four parallel subagents): produce complete plans through MVP-first,
+   risk-first, dependency-first, and user-first lenses.
+3. **Judge** (four parallel subagents): independently score every draft on
+   completeness, practicality, risk awareness, and sequencing.
+4. **Aggregate** (main agent): average scores, rank drafts, and deduplicate all
+   risks and gaps.
+5. **Synthesize** (one subagent): polish the winner and graft in clearly better
+   moves from runners-up without averaging away the tradeoffs.
 
-1. **Scope** (1 subagent) — normalize the idea into a JSON CONTEXT block (`normalized_idea`, `goals`, `constraints`, `assumptions`, `open_questions`). Every downstream agent consumes it verbatim.
-2. **Draft** (4 subagents, parallel — launch in a single turn) — each commits to one lens:
-   - **A. MVP-first** — smallest shippable thing that delivers the core promise.
-   - **B. Risk-first** — sequence so the riskiest assumptions get spiked or proven early.
-   - **C. Dependency-first** — build the dependency graph; surface critical path and parallelizable tracks.
-   - **D. User-first** — work backward from the user journey; what makes the product feel real at each milestone.
-3. **Judge** (4 subagents, parallel — identical prompts) — each scores all four drafts on completeness, practicality, risk_awareness, sequencing (1–10 each). Variance across judges is the point — averaging cuts single-judge noise.
-4. **Aggregate** (no subagent) — mean per axis per plan, total mean per plan. Highest = winner; the rest are runner-ups. Collect rationales, union risks, union gaps.
-5. **Synthesize** (1 subagent) — polish the winner, graft clearly-better moves from runner-ups (note "(borrowed from {lens} lens)"), prepend assumptions + open questions. No averaging or compromise — pick the better move and justify.
+If scope, hard constraints, or definition of done is missing, ask two or three
+questions in one round. If ambiguity remains, state assumptions and proceed.
 
-## Invocation
-
-- Slash command: `/plan-hunter <idea>` — `$ARGUMENTS` is the idea.
-- Auto-trigger: on substantive planning asks. The idea is the user's most recent planning message; don't ask them to repeat it.
-
-If the idea is missing scope/timeline, hard constraints, or definition of done, ask 2–3 clarifying questions in one turn before launching the tournament. One round maximum — if still vague, surface assumptions explicitly and proceed.
-
-## Final output
-
-The synthesized plan as the main response, structured: `# Project name`, `## Assumptions to confirm` (checkboxes), `## Open questions`, `## The plan`, `## Risks and mitigations`, `## Open gaps`. Footer with the scoreboard so the user sees how the plan was built:
-
-```
-Built via plan-hunter tournament. Lenses: MVP / Risk / Dependency / User.
-Winner: {lens} — total {score}/10
-Scoreboard: A {tot} | B {tot} | C {tot} | D {tot}
-```
-
-## Full procedure
-
-The verbatim subagent prompts (Scope, four lens drafts, judge, synthesizer), the JSON schemas, and failure-mode handling live in `REFERENCE.md` next to this file. Read it before launching the tournament — copy the prompts directly rather than paraphrasing them.
+Read `REFERENCE.md` before running the tournament. It contains the schemas,
+prompts, output contract, and failure handling.
