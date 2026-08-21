@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { computeCacheMetrics, formatCacheMetrics } from "../extensions/cache-metrics";
+import { computeCacheMetrics, formatCacheMetrics } from "../extensions/lib/cache-metrics";
 
 function assistant(input: number, cacheRead = 0, cacheWrite = 0) {
 	return { type: "message", message: { role: "assistant", usage: { input, cacheRead, cacheWrite } } };
