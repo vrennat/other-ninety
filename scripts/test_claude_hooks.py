@@ -110,9 +110,9 @@ esac
     def test_plugin_session_start_needs_no_bun_and_injects_output_policy(self):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
-            mode_dir = project / ".claude"
+            mode_dir = project / ".o90"
             mode_dir.mkdir()
-            (mode_dir / "other-ninety-mode").write_text("autonomous\n")
+            (mode_dir / "mode").write_text("autonomous\n")
             result = subprocess.run(
                 [sys.executable, str(PLUGIN_HOOK)],
                 capture_output=True,
@@ -133,6 +133,41 @@ esac
             command = hook_config["hooks"]["SessionStart"][0]["hooks"][0]["command"]
             self.assertTrue(command.startswith("python3 "), command)
             self.assertNotIn("bun", command)
+
+    def test_plugin_session_start_falls_back_to_legacy_mode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            mode_dir = project / ".claude"
+            mode_dir.mkdir()
+            (mode_dir / "other-ninety-mode").write_text("cautious\n")
+            result = subprocess.run(
+                [sys.executable, str(PLUGIN_HOOK)],
+                capture_output=True,
+                text=True,
+                env={"PATH": "/usr/bin:/bin", "CLAUDE_PROJECT_DIR": str(project)},
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+            self.assertIn("Mode: cautious", context)
+
+    def test_plugin_session_start_prefers_canonical_mode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            canonical = project / ".o90"
+            canonical.mkdir()
+            (canonical / "mode").write_text("autonomous\n")
+            legacy = project / ".claude"
+            legacy.mkdir()
+            (legacy / "other-ninety-mode").write_text("cautious\n")
+            result = subprocess.run(
+                [sys.executable, str(PLUGIN_HOOK)],
+                capture_output=True,
+                text=True,
+                env={"PATH": "/usr/bin:/bin", "CLAUDE_PROJECT_DIR": str(project)},
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+            self.assertIn("Mode: autonomous", context)
 
 
 if __name__ == "__main__":

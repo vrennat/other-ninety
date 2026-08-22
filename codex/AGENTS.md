@@ -21,11 +21,14 @@ Proceed without confirmation when work is local, reversible, and in scope. Stop
 before destructive Git operations, deployments, remote resource creation,
 purchases, secret rotation, or deleting data without a tested backup.
 
-Use the installed o90 skills for clean writing, onboarding, plan-hunter planning,
-systematic debugging, and verification before completion. Delegate named work to the
-installed `adversarial-reviewer`, `brutal-code-reviewer`, `debug-genius`,
-`fast-impl`, and `validator` custom agents when their narrow role fits. These
-are native Codex workflows and do not require another runtime.
+Use the installed `impl` skill for explicit o90 clarity, complexity, stakes,
+delegation, and verification routing. Use `mode` to select cautious, default,
+or autonomous confirmation behavior for the project. The remaining o90 skills
+cover clean writing, onboarding, plan-hunter planning, systematic debugging,
+and verification before completion. Delegate named work to the installed
+`adversarial-reviewer`, `brutal-code-reviewer`, `debug-genius`, `fast-impl`, and
+`validator` custom agents when their narrow role fits. These are native Codex
+workflows and do not require another runtime.
 
 <!-- o90-output-style:start -->
 ## Output style

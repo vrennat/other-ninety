@@ -30,7 +30,7 @@ a new project tree.
 ### Pi
 
 - The portable config under `PI_CODING_AGENT_DIR` (default `~/.pi/agent`).
-- The complete five-skill public catalog, linked from the shared `skills/`
+- The complete seven-skill public catalog, linked from the shared `skills/`
   source. A `pi/skills/` entry with the same name overrides the shared copy;
   none exist today.
 - `web-search.json` under the Pi root.
@@ -59,7 +59,7 @@ only when Pi is also installed.
 ### Codex
 
 - The `other-ninety@other-ninety` skills plugin from this repository's local
-  marketplace. Its five skills are exposed with the `other-ninety:` namespace.
+  marketplace. Its seven skills are exposed with the `other-ninety:` namespace.
 - Global guidance at `$CODEX_HOME/AGENTS.md`.
 - All five public o90 roles as native custom-agent TOML under
   `$CODEX_HOME/agents`: `adversarial-reviewer`, `brutal-code-reviewer`,
@@ -78,7 +78,7 @@ Install and authenticate the Codex CLI separately using the
 ### Cursor
 
 - `.cursor/rules/o90.mdc` in every selected project.
-- All five public o90 skills under `.cursor/skills` in every selected project.
+- All seven public o90 skills under `.cursor/skills` in every selected project.
 - All five public o90 roles as native agents under `.cursor/agents` in every
   selected project.
 - The `o90-pi-worker` skill only when both Cursor and Pi are selected.

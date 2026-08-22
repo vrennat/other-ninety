@@ -4,13 +4,13 @@ Parity means the public toolkit preserves reusable behavior from the two source 
 
 ## Claude plugin
 
-- [ ] Manifests parse and agree on name `other-ninety` and version `0.3.3`.
+- [ ] Manifests parse and agree on name `other-ninety` and version `0.3.4`.
 - [ ] Commands load: `bootstrap`, `brainstorm`, `debt`, `impl`, `mode`, `pi`, `plan`, `research`, `tdd`, `trim`.
 - [ ] Agents load: `adversarial-reviewer`, `brutal-code-reviewer`, `debug-genius`, `fast-impl`, `validator`.
-- [ ] Skills load: `clean-writing`, `onboarding`, `plan-hunter`, `systematic-debugging`, `verification-before-completion`.
+- [ ] Skills load: `clean-writing`, `impl`, `mode`, `onboarding`, `plan-hunter`, `systematic-debugging`, `verification-before-completion`.
 - [ ] SessionStart emits valid JSON and injects the `other-ninety` routing context.
 - [ ] SessionStart injects the canonical output policy and runs on Python without Pi or Bun.
-- [ ] `/mode` writes `.claude/other-ninety-mode`.
+- [ ] `/mode` writes `.o90/mode` and reads the legacy `.claude/other-ninety-mode` fallback.
 - [ ] `/debt` recognizes current `o90:` plus legacy `on:` and `dD:` markers.
 - [ ] `/bootstrap` resolves the `other-ninety/other-ninety` plugin cache path.
 - [ ] `/pi` launches one ephemeral leaf worker, defaults to read-only tools, and requires explicit `--write` for edits.
@@ -26,10 +26,10 @@ Parity means the public toolkit preserves reusable behavior from the two source 
 
 - [ ] Pi loads `AGENTS.md` and `APPEND_SYSTEM.md` from an isolated `PI_CODING_AGENT_DIR`.
 - [ ] Eight routed agents are available.
-- [ ] Prompt templates load: `brainstorm`, `debt`, `impl`, `plan`, `research`, `tdd`, `trim`.
-- [ ] Skills load: all five shared catalog skills (`clean-writing`, `onboarding`, `plan-hunter`, `systematic-debugging`, `verification-before-completion`); `pi/skills/` holds only deliberate per-skill overrides and is currently empty.
+- [ ] Prompt templates load: `brainstorm`, `debt`, `impl`, `mode`, `plan`, `research`, `tdd`, `trim`.
+- [ ] Skills load: all seven shared catalog skills (`clean-writing`, `impl`, `mode`, `onboarding`, `plan-hunter`, `systematic-debugging`, `verification-before-completion`); `pi/skills/` holds only deliberate per-skill overrides and is currently empty.
 - [ ] Extensions typecheck and the focused Chrome extension tests pass.
-- [ ] Four themes load.
+- [ ] Five themes load, including the high-contrast Tokyo Night variant.
 - [ ] Public settings and agent definitions contain no default provider, model routing, enabled-model cycle, or credentials.
 - [ ] `auth.json`, OAuth state, sessions, trust decisions, caches, and installed package directories remain local.
 
@@ -38,7 +38,7 @@ Parity means the public toolkit preserves reusable behavior from the two source 
 - [ ] No `--with` flag installs Pi only.
 - [ ] Any explicit `--with` flags define the exact component set, including optional `--with pi`.
 - [ ] Claude, Codex, and Cursor each install and work natively without Pi.
-- [ ] The five-skill public catalog (`clean-writing`, `onboarding`, `plan-hunter`, `systematic-debugging`, `verification-before-completion`) is present in Claude, packaged as a namespaced Codex plugin, and installed natively for Cursor.
+- [ ] The seven-skill public catalog (`clean-writing`, `impl`, `mode`, `onboarding`, `plan-hunter`, `systematic-debugging`, `verification-before-completion`) is present in Claude, packaged as a namespaced Codex plugin, and installed natively for Cursor.
 - [ ] The five-role public catalog (`adversarial-reviewer`, `brutal-code-reviewer`, `debug-genius`, `fast-impl`, `validator`) is present in Claude and installed as native custom agents for Codex and Cursor.
 - [ ] Codex installs the `other-ninety@other-ninety` plugin before its global `AGENTS.md` and personal custom-agent TOML companion config.
 - [ ] Cursor installs native o90 rules, agents, and skills only in explicitly named existing projects.
@@ -66,7 +66,7 @@ Parity means the public toolkit preserves reusable behavior from the two source 
 
 - Claude plugin commands and Pi prompt templates use runtime-specific tool names and delegation primitives.
 - Codex custom agents use TOML while Claude and Cursor agents use their native Markdown/frontmatter formats; the role contract is shared, not the serialization.
-- Pi has no `/bootstrap` or `/mode` prompt in v1; its `/impl` reads the same project-local mode file when present.
+- Pi has no `/bootstrap` prompt in v1. Its `/mode` prompt and `/impl` use the same project-local mode file as Claude Code.
 - Claude's plugin contains `/pi`, but every other Claude command, agent, and skill remains independent of Pi.
 - Public settings are safe examples, not the maintainer's provider, model, permission, MCP, status-line, or notification choices.
 - Historical plans, retrospectives, and real-session examples are not migrated.

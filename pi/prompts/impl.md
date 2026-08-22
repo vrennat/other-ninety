@@ -14,7 +14,7 @@ Execute this work end-to-end: $ARGUMENTS
    - If `--dry-run` is present: print the classification and planned routing, then stop.
 
 2. **Read Mode & Classify**
-   - Check `.claude/other-ninety-mode` in the repo or working directory (treat absent as `default`). Modes: `default`, `cautious`, or `autonomous`.
+   - Read `.o90/mode`, falling back to legacy `.claude/other-ninety-mode` when absent. Treat both absent as `default`. Modes: `default`, `cautious`, or `autonomous`.
    - Classify independently across three orthogonal axes:
      - **Clarity**: `clear` (one obvious approach) or `ambiguous` (2+ approaches with real tradeoffs, missing requirement, or multi-cause bug).
      - **Complexity**: `simple` (1 file, <50 LOC), `medium` (2-3 files, clear scope), or `complex` (>3 files or shared infrastructure).

@@ -1,7 +1,7 @@
 {
   "name": "other-ninety",
-  "description": "Lean, opinionated workflow plugin for Claude Code. Replaces obra/superpowers with confirm-only-when-ambiguous routing.",
-  "version": "0.3.3",
+  "description": "Opinionated Claude Code workflows that ask only on real ambiguity and scale review to the work.",
+  "version": "0.3.4",
   "author": {
     "name": "vrennat"
   },

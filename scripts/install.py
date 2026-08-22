@@ -22,6 +22,8 @@ class Operation:
 
 CODEX_PLUGIN_SKILLS = (
     "clean-writing",
+    "impl",
+    "mode",
     "onboarding",
     "plan-hunter",
     "systematic-debugging",

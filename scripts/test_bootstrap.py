@@ -8,6 +8,8 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 PUBLIC_SKILLS = {
     "clean-writing",
+    "impl",
+    "mode",
     "onboarding",
     "plan-hunter",
     "systematic-debugging",
