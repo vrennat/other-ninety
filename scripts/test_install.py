@@ -16,6 +16,8 @@ INSTALLER = ROOT / "scripts" / "install.py"
 DRIFT_CHECKER = ROOT / "scripts" / "check_drift.py"
 PUBLIC_SKILLS = {
     "clean-writing",
+    "impl",
+    "mode",
     "onboarding",
     "plan-hunter",
     "systematic-debugging",

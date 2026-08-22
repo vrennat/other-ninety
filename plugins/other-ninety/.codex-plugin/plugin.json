@@ -1,7 +1,7 @@
 {
   "name": "other-ninety",
-  "version": "0.3.3",
-  "description": "Planning, delegation, review, verification, and writing workflows for Codex.",
+  "version": "0.3.4",
+  "description": "Runtime-native working agreements, specialist roles, and verification workflows for Codex.",
   "author": {
     "name": "vrennat",
     "url": "https://github.com/vrennat"
@@ -19,14 +19,14 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "The Other Ninety",
-    "shortDescription": "Planning, delegation, review, and verification",
-    "longDescription": "Reusable Codex workflows for clean writing, onboarding, plan comparison, systematic debugging, and verification before completion.",
+    "shortDescription": "Working agreements, specialist roles, and verification",
+    "longDescription": "Opinionated Codex workflows for clean writing, onboarding, plan comparison, systematic debugging, and verification before completion.",
     "developerName": "vrennat",
     "category": "Developer Tools",
     "capabilities": [],
     "websiteURL": "https://github.com/vrennat/other-ninety",
     "defaultPrompt": [
-      "Use plan-hunter to compare approaches for this roadmap.",
+      "Use impl to route and execute this repository task.",
       "Review this task with verification before completion.",
       "Tighten this documentation with clean-writing."
     ]

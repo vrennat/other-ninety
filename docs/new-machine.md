@@ -36,14 +36,15 @@
    ./check-drift.sh --with claude --with pi --overlay ../my-private-overlay
    ```
 
-7. Smoke-check each selected runtime natively. In Claude, run `/mode` and confirm
-   the plugin lists the public skills and roles. In Codex, confirm all five
-   `other-ninety:` skills and five custom agents are discoverable. In Cursor,
-   confirm the o90 project rule, five skills, and five agents appear in
-   Customize. The exact
-   inventory is in [public catalog parity](catalog-parity.md). If Pi was
-   selected, run `o90-pi -- "summarize the repository layout"`; host-to-Pi
-   delegation is optional.
+7. Smoke-check each selected runtime natively. In Claude and Pi, run `/mode`
+   and an `/impl --dry-run`. In Codex, confirm all seven `other-ninety:` skills
+   and five custom agents are discoverable, then invoke `mode` and `impl`. In
+   Cursor, confirm the o90 project rule, seven skills, and five agents appear in
+   Customize, then invoke the same two skills. Confirm every runtime reports
+   the selected mode from `.o90/mode`. The exact inventory is in
+   [public catalog parity](catalog-parity.md). If Pi was selected, run
+   `o90-pi -- "summarize the repository layout"`; host-to-Pi delegation is
+   optional.
 
 Optional broadly useful Claude plugins: `security-guidance` and
 `typescript-lsp`. Install them manually only when needed.

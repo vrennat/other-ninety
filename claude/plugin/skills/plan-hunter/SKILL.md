@@ -1,7 +1,6 @@
 ---
 name: plan-hunter
 description: Use for explicit tournament-style planning of a substantive roadmap. Compare MVP, risk, dependency, and user plans before you synthesize one plan. User-invoked only; never auto-trigger the ten-subagent tournament.
-disable-model-invocation: true
 ---
 
 # Plan Hunter

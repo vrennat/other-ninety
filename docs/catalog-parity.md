@@ -24,19 +24,23 @@ writing task benefits from a more specific mode.
 | Skill | Pi | Claude | Codex | Cursor |
 |---|---|---|---|---|
 | `clean-writing` | Shared skill | Plugin skill | `other-ninety:clean-writing` plugin skill | `<project>/.cursor/skills/clean-writing` |
+| `impl` | Shared skill and `/impl` prompt | Plugin skill and `/impl` command | `other-ninety:impl` plugin skill | `<project>/.cursor/skills/impl` |
+| `mode` | Shared skill and `/mode` prompt | Plugin skill and `/mode` command | `other-ninety:mode` plugin skill | `<project>/.cursor/skills/mode` |
 | `onboarding` | Shared skill | Plugin skill | `other-ninety:onboarding` plugin skill | `<project>/.cursor/skills/onboarding` |
 | `plan-hunter` | Shared skill | Plugin skill | `other-ninety:plan-hunter` plugin skill | `<project>/.cursor/skills/plan-hunter` |
 | `systematic-debugging` | Shared skill | Plugin skill | `other-ninety:systematic-debugging` plugin skill | `<project>/.cursor/skills/systematic-debugging` |
 | `verification-before-completion` | Shared skill | Plugin skill | `other-ninety:verification-before-completion` plugin skill | `<project>/.cursor/skills/verification-before-completion` |
 
-All five skills ship from one shared catalog (`skills/`, mirrored byte-for-byte
+All seven skills ship from one shared catalog (`skills/`, mirrored byte-for-byte
 into the Claude plugin; `scripts/test_install.py` enforces the mirror). Pi links
 the shared copies directly; `pi/skills/` stays empty unless a skill genuinely
 needs a Pi-specific override, which shadows the shared copy by name at install
 time. The portable `onboarding` skill performs the same safe project bootstrap
 as Claude's `/bootstrap` flow without assuming slash-command support. The
 portable `plan-hunter` uses whichever native subagent mechanism the active host
-provides.
+provides. `impl` and `mode` are explicit workflows: they do not auto-trigger on
+ordinary implementation requests. Mode is stored in `.o90/mode`; existing
+`.claude/other-ninety-mode` files remain a read-only fallback.
 
 ## Agent roles
 

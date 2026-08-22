@@ -20,11 +20,13 @@ MODE_BLURBS = {
 
 def read_mode() -> str:
     project_dir = Path(os.environ.get("CLAUDE_PROJECT_DIR", Path.cwd()))
-    try:
-        mode = (project_dir / ".claude" / "other-ninety-mode").read_text().strip().lower()
-    except OSError:
-        return "default"
-    return mode if mode in MODE_BLURBS else "default"
+    for path in (project_dir / ".o90" / "mode", project_dir / ".claude" / "other-ninety-mode"):
+        try:
+            mode = path.read_text().strip().lower()
+        except OSError:
+            continue
+        return mode if mode in MODE_BLURBS else "default"
+    return "default"
 
 
 def main() -> int:

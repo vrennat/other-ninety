@@ -19,6 +19,8 @@ PI_COPIES = {"settings.json", "mcp.json"}
 COMPONENTS = ("pi", "claude", "codex", "cursor")
 CODEX_PLUGIN_SKILLS = (
     "clean-writing",
+    "impl",
+    "mode",
     "onboarding",
     "plan-hunter",
     "systematic-debugging",

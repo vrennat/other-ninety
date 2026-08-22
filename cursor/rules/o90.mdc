@@ -20,8 +20,11 @@ alwaysApply: true
   creation, purchases, secret rotation, or deleting data without a tested
   backup.
 
-Use the installed o90 skills for clean writing, onboarding, plan-hunter planning,
-systematic debugging, and verification before completion. Invoke `/adversarial-reviewer`,
+Use the installed `impl` skill for explicit o90 clarity, complexity, stakes,
+delegation, and verification routing. Use `mode` to select cautious, default,
+or autonomous confirmation behavior for the project. The remaining o90 skills
+cover clean writing, onboarding, plan-hunter planning, systematic debugging,
+and verification before completion. Invoke `/adversarial-reviewer`,
 `/brutal-code-reviewer`, `/debug-genius`, `/fast-impl`, or `/validator` when its
 narrow role fits. These are native Cursor workflows and do not require another
 runtime.

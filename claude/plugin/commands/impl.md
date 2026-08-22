@@ -17,7 +17,7 @@ Execute work. Input is one of:
 1. **Parse input.** If it matches `[A-Z]+-\d+` and Linear MCP tools (`mcp__plugin_linear_linear__*` or `mcp__claude_ai_Linear__*`) are available, fetch the ticket. If it's a path, read the spec. Otherwise treat as freeform.
 
 2. **Read mode, then classify clarity, complexity, AND stakes.**
-   - Mode: read `.claude/other-ninety-mode` (treat absent as `default`). It is `cautious`, `default`, or `autonomous` — set via `/mode`.
+   - Mode: read `.o90/mode`, falling back to legacy `.claude/other-ninety-mode` when absent (treat both absent as `default`). It is `cautious`, `default`, or `autonomous` — set via `/mode`.
    - Clarity: clear (one obvious approach) or ambiguous (2+ approaches with real tradeoffs, OR missing requirement, OR multi-cause bug).
    - Complexity: simple (1 file, <50 LOC), medium (2-3 files), complex (>3 files).
    - Stakes: high if it touches auth, money, data integrity, security, or privacy, or is hard to undo; otherwise normal.

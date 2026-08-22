@@ -56,4 +56,4 @@ Write clear, compact prose.
 
 ## Workflow
 
-The Other Ninety (o90) provides `/brainstorm`, `/impl`, `/research`, `/trim`, `/debt`, `/plan`, `/tdd`, and the explicit `/pi` leaf-worker bridge. Use `clean-writing` for deliberate prose work. `systematic-debugging` triggers on observed failures and `verification-before-completion` applies before success claims. Use `conductor` only for long-running delegated sessions that need named ownership.
+The Other Ninety (o90) provides `/brainstorm`, `/impl`, `/mode`, `/research`, `/trim`, `/debt`, `/plan`, `/tdd`, and the explicit `/pi` leaf-worker bridge. Use `clean-writing` for deliberate prose work. `systematic-debugging` triggers on observed failures and `verification-before-completion` applies before success claims. Use `conductor` only for long-running delegated sessions that need named ownership.
