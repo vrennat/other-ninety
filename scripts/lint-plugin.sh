@@ -114,7 +114,8 @@ fi
 
 last_tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
 if [[ -n "$last_tag" ]] && ! git diff --quiet "$last_tag" -- "$plugin"; then
-  [[ "v$plugin_version" != "$last_tag" ]] || { echo "FAIL: shipped content changed without a version bump"; errors=$((errors + 1)); }
+  # Tags are named <name>--v<version>; compare on the version after the last "v".
+  [[ "$plugin_version" != "${last_tag##*v}" ]] || { echo "FAIL: shipped content changed without a version bump"; errors=$((errors + 1)); }
 fi
 
 for file in "$plugin"/skills/*/SKILL.md; do [[ -f "$file" ]] && { check_length "$file" 80; check_frontmatter "$file"; check_banned "$file"; }; done
