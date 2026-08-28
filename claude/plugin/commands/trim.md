@@ -11,6 +11,8 @@ A review with exactly one question: what can be removed? Correctness, security, 
 
 Default target is the working change: `git diff`, staged, and untracked files. Given a path (`/trim src/foo.ts` or a directory), review that instead.
 
+`/trim docs/lessons.md` reviews the lessons file `/impl` appends to. Flag as `delete` any entry the code, tests, or repo instructions now make derivable, or that names a path or behavior that no longer exists. Same output format.
+
 ## What to flag
 
 | Tag | Finding |

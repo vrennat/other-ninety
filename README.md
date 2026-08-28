@@ -53,6 +53,9 @@ unrestricted. No native host workflow depends on this bridge.
 See the [catalog parity matrix](docs/catalog-parity.md) for the complete skill,
 role, and runtime mapping.
 
+[When to move up a rung](docs/ladder.md) says which workflow to reach for as
+work grows from a single prompt to parallel agents.
+
 ## Quick start
 
 Core requirements are macOS, Git, and Python 3.9+. Install only the runtimes you

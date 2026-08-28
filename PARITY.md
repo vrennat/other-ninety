@@ -5,7 +5,9 @@ Parity means the public toolkit preserves reusable behavior from the two source 
 ## Claude plugin
 
 - [ ] Manifests parse and agree on name `other-ninety` and version `0.3.4`.
-- [ ] Commands load: `bootstrap`, `brainstorm`, `debt`, `impl`, `mode`, `pi`, `plan`, `research`, `tdd`, `trim`.
+- [ ] Commands load: `bootstrap`, `brainstorm`, `debt`, `impl`, `mode`, `pi`, `plan`, `research`, `status`, `tdd`, `trim`.
+- [ ] `/status` is read-only and shows `?` rather than a guessed value when `gh` is unavailable.
+- [ ] `/impl` ends with at most one `docs/lessons.md` line or `Lesson: none`; `/trim docs/lessons.md` prunes it.
 - [ ] Agents load: `adversarial-reviewer`, `brutal-code-reviewer`, `debug-genius`, `fast-impl`, `validator`.
 - [ ] Skills load: `clean-writing`, `impl`, `mode`, `onboarding`, `plan-hunter`, `systematic-debugging`, `verification-before-completion`.
 - [ ] SessionStart emits valid JSON and injects the `other-ninety` routing context.
@@ -26,7 +28,7 @@ Parity means the public toolkit preserves reusable behavior from the two source 
 
 - [ ] Pi loads `AGENTS.md` and `APPEND_SYSTEM.md` from an isolated `PI_CODING_AGENT_DIR`.
 - [ ] Eight routed agents are available.
-- [ ] Prompt templates load: `brainstorm`, `debt`, `impl`, `mode`, `plan`, `research`, `tdd`, `trim`.
+- [ ] Prompt templates load: `brainstorm`, `debt`, `impl`, `mode`, `plan`, `research`, `status`, `tdd`, `trim`.
 - [ ] Skills load: all seven shared catalog skills (`clean-writing`, `impl`, `mode`, `onboarding`, `plan-hunter`, `systematic-debugging`, `verification-before-completion`); `pi/skills/` holds only deliberate per-skill overrides and is currently empty.
 - [ ] Extensions typecheck and the focused Chrome extension tests pass.
 - [ ] Five themes load, including the high-contrast Tokyo Night variant.

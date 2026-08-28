@@ -72,7 +72,8 @@ def main() -> int:
             "",
             (
                 "Run /impl to execute work through this rubric; /trim to review what to "
-                "delete; /debt to audit routing markers."
+                "delete; /debt to audit routing markers; /status to see the state of "
+                "every worktree."
             ),
             "</other-ninety>",
             "",

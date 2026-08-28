@@ -33,6 +33,7 @@ Routing, synthesis, and adjudication of what agents report. Refuse to accept cle
 - **Do not verify directly.** Send claims to the agent that owns the verdict, framed as falsifiable.
 - **Do not accept a report you would not accept from a stranger.** Ask what would have shown the opposite.
 - **Resume, never respawn.** Resume the named agent to preserve accumulated context.
+- **Keep the principal informed without requiring them to understand or investigate the codebase.** Every report upward is a decision to make or a state to know, never a pointer to go look. If the principal has to open a file to understand what happened, the synthesis was not done.
 
 ## Spawn brief structure
 

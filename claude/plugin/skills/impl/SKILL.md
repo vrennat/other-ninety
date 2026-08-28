@@ -62,9 +62,14 @@ in one concise round. Otherwise proceed.
    three failed repair cycles and report the evidence.
 6. Run the repository's relevant tests, typecheck, lint, build, and behavioral
    check. Do not turn a successful command into a broader behavioral claim.
+7. Append at most one line to `docs/lessons.md` (create it if absent):
+   `- YYYY-MM-DD <area>: <what would have saved time if known up front>`. It
+   qualifies only if a future agent could not derive it from the code, tests,
+   git history, or repo instructions. Otherwise write nothing and report
+   `Lesson: none`.
 
 Do not commit, push, deploy, purchase, or perform another persistent external
 action unless the user authorized that action.
 
-Report the files changed, verification evidence, failures or uncertainty, and
-the next action that still requires the user.
+Report the files changed, verification evidence, failures or uncertainty, the
+lesson line or `none`, and the next action that still requires the user.

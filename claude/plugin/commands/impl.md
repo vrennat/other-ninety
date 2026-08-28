@@ -49,10 +49,13 @@ Execute work. Input is one of:
 
 11. **If Linear ticket:** update status to "In Review".
 
-12. **Report:**
+12. **Capture one lesson, or none.** Append at most one line to `docs/lessons.md` (create it if absent) in the form `- YYYY-MM-DD <area>: <what would have saved time if known up front>`. It qualifies only if a future agent could not derive it from the code, tests, git history, or repo instructions. If nothing qualifies, write nothing and report `Lesson: none`. `/trim docs/lessons.md` prunes the file.
+
+13. **Report:**
 ```
 Files modified: <list>
 Verdict: <validator output>
+Lesson: <the line appended | none>
 Next: test locally; commit when ready.
 ```
 

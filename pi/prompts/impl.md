@@ -57,10 +57,15 @@ Execute this work end-to-end: $ARGUMENTS
 9. **Linear Status Update**
    - If a Linear ticket was processed, update ticket status to "In Review" via Linear MCP.
 
-10. **Report**
+10. **Capture One Lesson, or None**
+   - Append at most one line to `docs/lessons.md` (create it if absent): `- YYYY-MM-DD <area>: <what would have saved time if known up front>`.
+   - It qualifies only if a future agent could not derive it from the code, tests, git history, or repo instructions. If nothing qualifies, write nothing and report `Lesson: none`. `/trim docs/lessons.md` prunes the file.
+
+11. **Report**
 ```
 Files modified: <list of absolute paths>
 Verdict: <validator / test output>
+Lesson: <the line appended | none>
 Next: test locally; commit when ready.
 ```
 
