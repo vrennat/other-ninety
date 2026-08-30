@@ -4,7 +4,7 @@ Parity means the public toolkit preserves reusable behavior from the two source 
 
 ## Claude plugin
 
-- [ ] Manifests parse and agree on name `other-ninety` and version `0.3.5`.
+- [ ] Manifests parse and agree on name `other-ninety` and version `0.3.6`.
 - [ ] Commands load: `bootstrap`, `brainstorm`, `debt`, `impl`, `mode`, `pi`, `plan`, `research`, `status`, `surface`, `tdd`, `trim`.
 - [ ] `/surface` exits 1 and names the file when a change lands outside the declared globs; `scripts/test_surface_check.py` covers committed, staged, and untracked changes.
 - [ ] `scripts/test_parity.py` keeps the lists in this file and the public `CLAUDE.md` equal to the tree.
