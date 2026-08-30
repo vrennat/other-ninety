@@ -54,7 +54,8 @@ See the [catalog parity matrix](docs/catalog-parity.md) for the complete skill,
 role, and runtime mapping.
 
 [When to move up a rung](docs/ladder.md) says which workflow to reach for as
-work grows from a single prompt to parallel agents.
+work grows from a single prompt to parallel agents. Choices with more than one
+defensible answer are numbered in [docs/decisions.md](docs/decisions.md).
 
 ## Quick start
 

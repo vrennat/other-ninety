@@ -1,0 +1,27 @@
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Read-only: the workflow never writes back, so a permissive account default
+# cannot hand a write-scoped token to a run triggered from a fork.
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # lint-plugin reads the latest tag; check-leaks reads history.
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: oven-sh/setup-bun@v2
+      # Same entry point as local, so the two cannot drift.
+      - run: scripts/verify.sh

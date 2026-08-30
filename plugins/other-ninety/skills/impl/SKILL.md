@@ -55,6 +55,9 @@ in one concise round. Otherwise proceed.
      without concurrent overlap, then use `validator`. Add
      `brutal-code-reviewer` for shared infrastructure or changes spanning more
      than five files.
+   Run agents in parallel only when all three hold: provably disjoint write
+   surfaces, no step needs another's output, and each result is verifiable
+   alone. Read-only fan-out (search, audit, review) always qualifies.
 4. For high-stakes work, use `adversarial-reviewer` after implementation even
    when the change is simple. Resolve blocking findings before completion.
 5. If verification produces a real unexplained failure, diagnose it with the

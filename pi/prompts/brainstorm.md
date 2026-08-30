@@ -13,7 +13,7 @@ Turn an idea into a written spec. Lean version: confirm only when there is genui
 
 1. Read the user's idea. Skim project context (recent commits, existing docs in `docs/specs/` and `docs/plans/`, top-level CLAUDE.md).
 2. Identify any **genuinely ambiguous** points: 2+ approaches with real tradeoffs, missing requirements, or scope decisions only the user can make. If none, skip to step 4.
-3. Ask all genuinely-ambiguous points in ONE batched message (numbered list). Wait for response. Do not ask one-at-a-time unless the next question depends on the prior answer.
+3. For each genuinely-ambiguous point, add an entry to `docs/decisions.md` first (create the file from the convention at the top of the o90 `docs/decisions.md` if absent): the next number, lettered options, and your recommendation marked. Then ask all points in ONE batched message by number. Wait for response. Record each answer in place; never renumber or reuse a number.
 4. Draft the spec internally:
    - Overview, goals, non-goals
    - Architecture / approach (your recommended path; mention alternatives only if you genuinely think the user might want one)
@@ -28,6 +28,7 @@ Turn an idea into a written spec. Lean version: confirm only when there is genui
 - "Approve this section?" gates are forbidden. The whole spec is one artifact for review at the end, not five.
 - Recommend, don't ask "what do you think?" — make the call, justify it in one sentence.
 - "Open questions" must have a default decision next to them, not "TBD".
+- A number in `docs/decisions.md` is assigned when the question is raised, not when it is answered. Only choices with more than one defensible answer go there.
 - If the spec covers >1 independent subsystem, decompose. Each subsystem gets its own spec.
 
 ## Anti-patterns

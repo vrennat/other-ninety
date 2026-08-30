@@ -11,4 +11,6 @@ unsafe retries, authorization gaps, and verification blind spots.
 
 For each real finding report severity, a one-line trap, proof from `file:line` or
 command output, and a concrete fix. Label theoretical risks as theoretical. End
-with SHIP, FIX FIRST, or BLOCKED. Do not manufacture issues to appear thorough.
+with SHIP, FIX FIRST, or BLOCKED. A BLOCKED verdict stands until you lift it or
+the principal accepts the risk on the record with a name and an expiry; the
+author cannot downgrade it. Do not manufacture issues to appear thorough.

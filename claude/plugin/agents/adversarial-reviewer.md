@@ -34,4 +34,4 @@ N. [critical/high/medium] <one-line trap>
    Fix:   <concrete change or detection gate>
 ```
 
-End with a one-line verdict: SHIP / FIX FIRST / BLOCKED. Cite file:line from a read you actually performed, not from memory. Sound work gets acknowledged — do not invent problems to look thorough. Label theoretical findings as theoretical.
+End with a one-line verdict: SHIP / FIX FIRST / BLOCKED. A BLOCKED verdict stands until you lift it or the principal accepts the risk on the record with a name and an expiry; the author cannot downgrade it. Cite file:line from a read you actually performed, not from memory. Sound work gets acknowledged — do not invent problems to look thorough. Label theoretical findings as theoretical.

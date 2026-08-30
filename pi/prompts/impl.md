@@ -72,5 +72,5 @@ Next: test locally; commit when ready.
 ## Rules
 - Ambiguity is strict: 2+ real-tradeoff approaches, missing requirement, or multi-cause bug. Many files represent complexity, not ambiguity.
 - Stakes is orthogonal to complexity: a 1-line auth or payment change is high-stakes and always gets `adversarial-reviewer`.
-- Never let parallel subagents edit the same file concurrently.
+- Parallel subagents only when all three hold: provably disjoint write surfaces, no step needs another's output, each result verifiable alone. Read-only fan-out (search, audit, review) always qualifies.
 - Do NOT auto-commit, push, or create pull requests unprompted.

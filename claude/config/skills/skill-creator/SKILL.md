@@ -86,6 +86,11 @@ Use the skill on real tasks, notice struggles, update accordingly.
 - Avoid deeply nested references - keep one level deep
 - For files >100 lines, include a table of contents
 
+### Two checks before shipping
+
+- **State the failure behind each rule.** A rule with no failure attached gets optimized away by the next reader. "Never X" becomes "Never X -- because Y happened when we did."
+- **Test the trigger.** Write three requests that should load the skill and two near-misses that should not, and check the description discriminates. If a near-miss pulls it in, tighten the description.
+
 ## Do NOT Include
 
 - README.md, INSTALLATION_GUIDE.md, CHANGELOG.md, etc.

@@ -45,6 +45,12 @@ that keep this cheap:
 - Agents edit their worktree copy, not the main checkout.
 - Merge back through the project's normal review path. A worktree is not a
   review.
+- Run two agents at once only when all three hold: provably disjoint write
+  surfaces, no step needs another's output, and each result is verifiable
+  alone. Read-only fan-out (search, audit, review) always qualifies.
+- Give each agent its surface as globs and check the branch with `/surface`
+  before merging. A file outside the surface is a coordination question, not
+  something to fix by widening the globs.
 
 ## Rung 4: `/status`
 

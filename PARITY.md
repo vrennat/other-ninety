@@ -5,7 +5,9 @@ Parity means the public toolkit preserves reusable behavior from the two source 
 ## Claude plugin
 
 - [ ] Manifests parse and agree on name `other-ninety` and version `0.3.5`.
-- [ ] Commands load: `bootstrap`, `brainstorm`, `debt`, `impl`, `mode`, `pi`, `plan`, `research`, `status`, `tdd`, `trim`.
+- [ ] Commands load: `bootstrap`, `brainstorm`, `debt`, `impl`, `mode`, `pi`, `plan`, `research`, `status`, `surface`, `tdd`, `trim`.
+- [ ] `/surface` exits 1 and names the file when a change lands outside the declared globs; `scripts/test_surface_check.py` covers committed, staged, and untracked changes.
+- [ ] `scripts/test_parity.py` keeps the lists in this file and the public `CLAUDE.md` equal to the tree.
 - [ ] `/status` is read-only and shows `?` rather than a guessed value when `gh` is unavailable.
 - [ ] `/impl` ends with at most one `docs/lessons.md` line or `Lesson: none`; `/trim docs/lessons.md` prunes it.
 - [ ] Agents load: `adversarial-reviewer`, `brutal-code-reviewer`, `debug-genius`, `fast-impl`, `validator`.
@@ -70,5 +72,6 @@ Parity means the public toolkit preserves reusable behavior from the two source 
 - Codex custom agents use TOML while Claude and Cursor agents use their native Markdown/frontmatter formats; the role contract is shared, not the serialization.
 - Pi has no `/bootstrap` prompt in v1. Its `/mode` prompt and `/impl` use the same project-local mode file as Claude Code.
 - Claude's plugin contains `/pi`, but every other Claude command, agent, and skill remains independent of Pi.
+- `/surface` and `/bootstrap` are Claude commands only; other runtimes run `claude/plugin/scripts/surface_check.py` and the `onboarding` skill directly.
 - Public settings are safe examples, not the maintainer's provider, model, permission, MCP, status-line, or notification choices.
 - Historical plans, retrospectives, and real-session examples are not migrated.

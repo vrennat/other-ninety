@@ -54,6 +54,8 @@ Give each agent a **first task that is recon only, changing nothing**. It builds
 
 **Write the gate so it binds the conductor.** The conductor's authority does not substitute for the principal's word. State this in the brief and escalate rather than override an authorization refusal.
 
+**A reviewer's blocking finding is closed only by the reviewer or by the principal accepting the risk on the record, with a name and an expiry.** Neither the agent under review nor the conductor can downgrade it. Review that the reviewed party can overrule is measured on the same delivery pressure it exists to resist.
+
 ## Follow-up messages
 
 Via the session's agent-message mechanism. The structure that works:
@@ -77,4 +79,4 @@ Via the session's agent-message mechanism. The structure that works:
 
 ## Record what happened outside the session
 
-An in-session review leaves no durable trace. If agent review is the review process, post the review, verdicts, gate lifts, and other future-useful decisions to the project's durable record.
+An in-session review leaves no durable trace. If agent review is the review process, post the review, verdicts, gate lifts, and other future-useful decisions to the project's durable record. Choices with more than one defensible answer go in `docs/decisions.md`: numbered when raised, lettered options, an explicit recommendation, resolution recorded in place.

@@ -50,7 +50,9 @@ Your final message is the return value and the ONLY thing the conductor sees. Be
 
 ## Role-specific additions
 
-**Reviewer:** lead with APPROVE / APPROVE WITH FIXES / BLOCK, then findings ranked by severity with `file:line` and a concrete failure scenario.
+**Reviewer:** lead with APPROVE / APPROVE WITH FIXES / BLOCK, then findings ranked by severity with `file:line` and a concrete failure scenario. A BLOCK stands until you lift it or `<PRINCIPAL>` accepts the risk on the record with a name and an expiry; the author and the conductor cannot downgrade it.
+
+**Builder:** your write surface is `<GLOBS>`. Before reporting, run `/surface` (or `surface_check.py`) in your worktree. An OUTSIDE file is reported as a coordination need, never fixed by widening the surface.
 
 **QA / verifier:** own the verdict on whether a change works. Check whether the baseline already exhibits any claimed bug before testing the change.
 
