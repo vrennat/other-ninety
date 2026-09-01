@@ -1,11 +1,11 @@
 ---
 name: trim
-description: Deletion-focused code review. Hunts only what to remove — over-engineering, dead flexibility, reinvented stdlib, speculative abstraction. Not correctness, not security (those are brutal-code-reviewer and adversarial-reviewer). Outputs one line per finding plus a net line-savings total.
+description: Deletion-focused code review. Hunts only what to remove — over-engineering, dead flexibility, reinvented stdlib, speculative abstraction. Not correctness, not security (those are /code-review and adversarial-reviewer). Outputs one line per finding plus a net line-savings total.
 ---
 
 # /trim
 
-A review with exactly one question: what can be removed? Correctness, security, and style are out of scope — those belong to `brutal-code-reviewer` (architecture) and `adversarial-reviewer` (break-it). `/trim` hunts the opposite failure: code that works but should not exist. Over-engineering, dead flexibility, reinvented standard library, speculative generality.
+A review with exactly one question: what can be removed? Correctness, security, and style are out of scope — those belong to `/code-review` (correctness) and `adversarial-reviewer` (break-it). `/trim` hunts the opposite failure: code that works but should not exist. Over-engineering, dead flexibility, reinvented standard library, speculative generality.
 
 ## Scope
 

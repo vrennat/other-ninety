@@ -1,3 +1,5 @@
+> Archived 2026-09-01 (decision D6): design direction that never shipped. Kept for the reasoning.
+
 # Agent provenance and federation
 
 Status: design direction, not shipped behavior.

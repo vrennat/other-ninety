@@ -14,11 +14,11 @@ history can explain does not.
 | D2 | `/status` as a prompt or a script | Resolved |
 | D3 | Scope of the write-surface guard | Resolved |
 | D4 | CI without a committed Pi lockfile | Resolved |
-| D5 | Fable-era always-loaded layer: how far to strip | Open |
-| D6 | Plugin command, agent, and skill surface | Open |
-| D7 | Codex and Cursor adapters | Open |
-| D8 | User-level skills and their drift | Open |
-| D9 | What Pi loads as CLAUDE.md | Open |
+| D5 | Fable-era always-loaded layer: how far to strip | Resolved |
+| D6 | Plugin command, agent, and skill surface | Resolved |
+| D7 | Codex and Cursor adapters | Resolved |
+| D8 | User-level skills and their drift | Resolved |
+| D9 | What Pi loads as CLAUDE.md | Resolved |
 
 ---
 
@@ -77,7 +77,7 @@ tracking an ignored file); the line is removed so the file cannot silently drop 
 `latest` pin was the real problem. Verified: `bun install --frozen-lockfile` passes on the committed pair and
 fails when `package.json` drifts from the lock. `bun run update:pi` remains the deliberate upgrade path.
 
-## D5. Fable-era always-loaded layer: how far to strip — Open
+## D5. Fable-era always-loaded layer: how far to strip — Resolved
 
 Every Claude session loads about 4,200 tokens of o90 text before the first prompt: `CLAUDE.md` 920, `rules/` 1,670, the SessionStart injection 480, and until 2026-09-01 the same injection a second time from the plugin's previous-name twin, still enabled alongside it plus a 31-line list of mostly dead sessions. The Fable 5.1 system prompt now states autonomy, scope discipline, verification honesty, and a writing style of its own, so three o90 blocks restate it (`CLAUDE.md` "Style" and "Output style", the hook's output-style block) and one contradicted it (post-compact "absolute paths", removed). The complexity table in `rules/agents.md` routes by file count; across 119 transcripts in 30 days `validator` ran 0 times and `fast-impl` 4, against `general-purpose` 205.
 
@@ -87,7 +87,9 @@ Every Claude session loads about 4,200 tokens of o90 text before the first promp
 
 **Recommendation:** (a). (c) saves about 400 more tokens but loses the worked reasoning behind each verification rule, which is what changes behavior on the day it matters.
 
-## D6. Plugin command, agent, and skill surface — Open
+**Resolution (2026-09-01):** (a). `CLAUDE.md` is 35 lines (about 670 tokens), `rules/agents.md` is delegation-by-reason (about 340), `rules/verification.md` is unchanged (about 690), and the hook injects about 140. Both output-style blocks are gone from Claude; `shared/output-style.md` remains Pi's canonical policy.
+
+## D6. Plugin command, agent, and skill surface — Resolved
 
 Thirty-day invocation counts from 119 transcripts: `adversarial-reviewer` 27, `brainstorm` 9, `plan` 9, `impl` 8, `brutal-code-reviewer` 4, `fast-impl` 4, `debug-genius` 1, `validator` 0; `/trim`, `/debt`, `/mode`, `/tdd`, `/research`, `/status`, `/surface`, `/pi`, `/bootstrap` 0; skills `clean-writing`, `onboarding`, `plan-hunter`, `systematic-debugging`, `verification-before-completion` 0. No project has `.o90/mode`, `.o90/surface`, or `docs/lessons.md`; three `o90:` markers exist across every repo. Anthropic now ships `plan-hunter`, `/code-review` with `ultra`, `/simplify`, `/security-review`, and plan mode, which overlap five of ours.
 
@@ -97,7 +99,9 @@ Thirty-day invocation counts from 119 transcripts: `adversarial-reviewer` 27, `b
 
 **Recommendation:** (a). `/trim` survives on its contract (deletion only, net-lines total), not its count. `brutal-code-reviewer` is the closest call; `/code-review high` on a fresh subagent covers it.
 
-## D7. Codex and Cursor adapters — Open
+**Resolution (2026-09-01):** (a). Plugin 0.4.0 ships `/brainstorm`, `/impl`, `/plan`, `/trim`, `adversarial-reviewer`, and `clean-writing`. `/impl` prints clarity and stakes only, works in the main session, sends more than five files to `/code-review`, and takes `--tdd` as a flag. The `o90:` marker convention is retired; the three existing markers are ordinary comments now.
+
+## D7. Codex and Cursor adapters — Resolved
 
 `codex/`, `cursor/`, `plugins/other-ninety/` (the Codex skill package), the `skills` symlink, `docs/catalog-parity.md`, and the parity tests exist so the seven-skill catalog ships to four runtimes. On taiga no project has `.cursor/rules/o90.mdc`, `~/.codex/AGENTS.md` is the personal June file with no o90 agents, and the codex binary does not launch. Pi is fully linked and used daily.
 
@@ -107,7 +111,9 @@ Thirty-day invocation counts from 119 transcripts: `adversarial-reviewer` 27, `b
 
 **Recommendation:** (a). Reversible from history if either runtime returns. Four-runtime parity is the largest single source of duplicated prose in the repo.
 
-## D8. User-level skills and their drift — Open
+**Resolution (2026-09-01):** (a). `codex/`, `cursor/`, `plugins/`, `integrations/`, `bin/`, `.agents/`, the `skills` symlink, `docs/catalog-parity.md`, and their tests are deleted; `docs/agent-federation.md` moved to `docs/archive/`. The installer, drift checker, bootstrap, lint, and verify scripts know only `pi` and `claude`.
+
+## D8. User-level skills and their drift — Resolved
 
 `~/.claude/skills/` holds twelve real directories, copied by the installer rather than linked. Five differ from the repo (conductor by 304 lines, the others by 5 to 14 lines), with the repo side newer in every case, except that the live conductor carries a private `references/example-briefs.md` that the public SKILL.md still cites. Thirty-day use: `i-have-adhd` 3, `conductor` 4, `summarize` 4, `pr` 1; `typecheck`, `ticket`, `quick-review`, `design-ctx`, `skill-creator` (Anthropic ships one), `researcher` (30 KB, duplicates `/research`), and `svelte5-best-practices` 0.
 
@@ -116,7 +122,9 @@ Thirty-day invocation counts from 119 transcripts: `adversarial-reviewer` 27, `b
 
 **Recommendation:** (a). `svelte5-best-practices` stays on content, not count: stack knowledge the model cannot infer, at the cost of one description line.
 
-## D9. What Pi loads as CLAUDE.md — Open
+**Resolution (2026-09-01):** (a), with one refinement found while applying it: the live `conductor` copy is the richer private version (model routing, shakedown results, worked briefs), so it is now owned by the private overlay (`other-ninety-private/claude/skills/conductor`) rather than linked to the public repo. The installer links skills with a new `link-if-missing` action that never replaces a real directory, so a private copy survives a re-run without `--overlay`.
+
+## D9. What Pi loads as CLAUDE.md — Resolved
 
 `~/.pi/agent/CLAUDE.md` is a July symlink into the retired `claude-setup` repo, so Pi reads the pre-o90 persona and rules alongside o90's `AGENTS.md`.
 
@@ -125,3 +133,6 @@ Thirty-day invocation counts from 119 transcripts: `adversarial-reviewer` 27, `b
 - (c) Leave it.
 
 **Recommendation:** (a), unless the persona paragraph is wanted in Pi, in which case it belongs in the private overlay.
+
+
+**Resolution (2026-09-01):** (b), not (a). The Pi eval run the same day (stock 8/8 at 167k tokens; public 8/8 at 267k; private behavior overlay 8/8 at 423k, 2.53x tokens, no task wins) showed the persona-and-workflow overlay costs without helping, and the retired link was exactly that overlay. Removed. Making the public Pi `AGENTS.md` and `APPEND_SYSTEM.md` opt-in is a Pi-side change left to the eval work.

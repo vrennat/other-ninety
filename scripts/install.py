@@ -20,15 +20,8 @@ class Operation:
     target: Path
 
 
-CODEX_PLUGIN_SKILLS = (
-    "clean-writing",
-    "impl",
-    "mode",
-    "onboarding",
-    "plan-hunter",
-    "systematic-debugging",
-    "verification-before-completion",
-)
+COMPONENTS = ("pi", "claude")
+ACTIONS = {"link", "link-if-missing", "copy-if-missing", "copy-replace"}
 
 
 def lexists(path: Path) -> bool:
@@ -50,31 +43,7 @@ def copy(source: Path, target: Path) -> None:
         shutil.copy2(source, target, follow_symlinks=False)
 
 
-def lexical_path(path: Path) -> Path:
-    """Return an absolute normalized path without resolving symlinks."""
-    return Path(os.path.abspath(path))
-
-
-def symlink_points_to_source(target: Path, source: Path) -> bool:
-    """Match installer-owned links even when their destination is now dangling.
-
-    Older installs linked through the repository's top-level ``skills`` path.
-    The Codex plugin uses the canonical plugin skill path. Both spellings belong
-    to this checkout; resolving the final destination alone cannot recognize a
-    dangling legacy link safely.
-    """
-    if not target.is_symlink():
-        return False
-    link = Path(os.readlink(target))
-    destination = link if link.is_absolute() else target.parent / link
-    expected = {lexical_path(source), source.resolve(strict=False)}
-    return lexical_path(destination) in expected
-
-
-COMPONENTS = ("pi", "claude", "codex", "cursor")
-
-
-def add_pi_operations(repo: Path, pi_dir: Path, pi_root: Path, bin_dir: Path) -> list[Operation]:
+def add_pi_operations(repo: Path, pi_dir: Path, pi_root: Path) -> list[Operation]:
     operations: list[Operation] = []
     pi = repo / "pi"
 
@@ -90,10 +59,9 @@ def add_pi_operations(repo: Path, pi_dir: Path, pi_root: Path, bin_dir: Path) ->
         if source.exists():
             operations.append(Operation("link", source, pi_dir / name))
     pi_skills = {source.name: source for source in (pi / "skills").glob("*")}
-    shared_skills = {source.name: source for source in (repo / "skills").glob("*")}
+    shared_skills = {source.name: source for source in (repo / "claude" / "plugin" / "skills").glob("*")}
     for name, source in sorted({**shared_skills, **pi_skills}.items()):
         operations.append(Operation("link", source, pi_dir / "skills" / source.name))
-    operations.append(Operation("link", repo / "bin" / "o90-pi", bin_dir / "o90-pi"))
 
     return operations
 
@@ -113,52 +81,12 @@ def add_claude_operations(repo: Path, claude_dir: Path) -> list[Operation]:
     keybindings = claude / "keybindings.json"
     if keybindings.exists():
         operations.append(Operation("copy-if-missing", keybindings, claude_dir / "keybindings.json"))
+    # Skills are linked so they cannot drift from the checkout. A skill that is
+    # already a real directory is a user's private copy (or an overlay's) and is
+    # kept as is.
     for source in sorted((claude / "skills").glob("*")):
-        operations.append(Operation("copy-if-missing", source, claude_dir / "skills" / source.name))
+        operations.append(Operation("link-if-missing", source, claude_dir / "skills" / source.name))
 
-    return operations
-
-
-def add_codex_operations(
-    repo: Path, codex_dir: Path, agents_dir: Path, *, plugin_ready: bool
-) -> list[Operation]:
-    operations = [Operation("link", repo / "codex" / "AGENTS.md", codex_dir / "AGENTS.md")]
-    for source in sorted((repo / "codex" / "agents").glob("*.toml")):
-        operations.append(Operation("link", source, codex_dir / "agents" / source.name))
-    if plugin_ready:
-        for name in CODEX_PLUGIN_SKILLS:
-            operations.append(
-                Operation(
-                    "remove-owned-link",
-                    repo / "skills" / name,
-                    agents_dir / "skills" / name,
-                )
-            )
-    return operations
-
-
-def add_cursor_operations(repo: Path, cursor_projects: list[Path]) -> list[Operation]:
-    operations: list[Operation] = []
-    rule = repo / "cursor" / "rules" / "o90.mdc"
-    for project in cursor_projects:
-        operations.append(Operation("copy-replace", rule, project / ".cursor" / "rules" / "o90.mdc"))
-        for agent in sorted((repo / "cursor" / "agents").glob("*.md")):
-            operations.append(Operation("link", agent, project / ".cursor" / "agents" / agent.name))
-        for skill in sorted((repo / "skills").glob("*")):
-            operations.append(Operation("link", skill, project / ".cursor" / "skills" / skill.name))
-    return operations
-
-
-def add_pi_integration_operations(
-    repo: Path, components: set[str], agents_dir: Path, cursor_projects: list[Path]
-) -> list[Operation]:
-    operations: list[Operation] = []
-    skill = repo / "integrations" / "pi-worker"
-    if "codex" in components:
-        operations.append(Operation("link", skill, agents_dir / "skills" / "o90-pi-worker"))
-    if "cursor" in components:
-        for project in cursor_projects:
-            operations.append(Operation("link", skill, project / ".cursor" / "skills" / "o90-pi-worker"))
     return operations
 
 
@@ -252,9 +180,9 @@ def apply(operations: list[Operation], state_dir: Path, roots: list[Path]) -> Pa
         if root == Path(root.anchor):
             raise ValueError(f"refusing filesystem root as an install target: {root}")
     for operation in operations:
-        if operation.action not in {"link", "copy-if-missing", "copy-replace", "remove-owned-link"}:
+        if operation.action not in ACTIONS:
             raise ValueError(f"unknown install action: {operation.action}")
-        if operation.action != "remove-owned-link" and not operation.source.exists():
+        if not operation.source.exists():
             raise ValueError(f"source is missing: {operation.source}")
         if not within(operation.target, roots):
             raise ValueError(f"target is outside configured roots: {operation.target}")
@@ -283,19 +211,14 @@ def apply(operations: list[Operation], state_dir: Path, roots: list[Path]) -> Pa
         for operation in operations:
             target = operation.target
             source = operation.source.resolve(strict=False)
-            if operation.action == "remove-owned-link":
-                if not symlink_points_to_source(target, operation.source):
-                    print(f"keep            {target} (not an owned legacy link)")
-                    continue
-                backup(target, backup_dir, manifest, seen)
-                save_manifest(manifest_path, manifest)
-                remove(target)
-                print(describe(operation))
-                continue
+            links = operation.action in {"link", "link-if-missing"}
             if operation.action == "copy-if-missing" and lexists(target):
                 print(f"keep            {target}")
                 continue
-            if operation.action == "link" and target.is_symlink() and target.resolve() == source:
+            if operation.action == "link-if-missing" and lexists(target) and not target.is_symlink():
+                print(f"keep            {target} (user copy)")
+                continue
+            if links and target.is_symlink() and target.resolve() == source:
                 print(f"current         {target}")
                 continue
 
@@ -303,7 +226,7 @@ def apply(operations: list[Operation], state_dir: Path, roots: list[Path]) -> Pa
             ensure_parent(target, roots, manifest)
             save_manifest(manifest_path, manifest)
             remove(target)
-            if operation.action == "link":
+            if links:
                 target.symlink_to(source)
             else:
                 copy(source, target)
@@ -396,28 +319,12 @@ def parse_args() -> argparse.Namespace:
     action.add_argument("--rollback", type=Path, metavar="MANIFEST", help="restore a prior apply")
     parser.add_argument(
         "--with", dest="components", action="append", choices=COMPONENTS, default=[],
-        metavar="COMPONENT", help="select an exact component set (repeat for pi, claude, codex, cursor)",
+        metavar="COMPONENT", help="select an exact component set (repeat for pi, claude)",
     )
     parser.add_argument("--overlay", type=Path, help="external private overlay directory")
     parser.add_argument("--claude-dir", type=Path, help="Claude config target")
-    parser.add_argument("--codex-dir", type=Path, help="Codex home target")
-    parser.add_argument(
-        "--agents-dir",
-        type=Path,
-        help="user agent config root for optional integrations and legacy Codex skill cleanup",
-    )
-    parser.add_argument(
-        "--codex-plugin-ready",
-        action="store_true",
-        help="confirm the Codex plugin is installed before retiring checkout-owned legacy skill links",
-    )
-    parser.add_argument(
-        "--cursor-project", type=Path, action="append", default=[],
-        help="project that receives the o90 Cursor rule (repeatable; requires --with cursor)",
-    )
     parser.add_argument("--pi-dir", type=Path, help="Pi agent config target")
     parser.add_argument("--pi-root", type=Path, help="Pi root target for web-search.json")
-    parser.add_argument("--bin-dir", type=Path, help="target for the o90-pi leaf-worker command")
     parser.add_argument("--state-dir", type=Path, help="backup and manifest directory")
     return parser.parse_args()
 
@@ -430,43 +337,17 @@ def main() -> int:
 
     repo = Path(__file__).resolve().parents[1]
     components = set(args.components) if args.components else {"pi"}
-    if args.codex_plugin_ready and "codex" not in components:
-        raise ValueError("--codex-plugin-ready requires --with codex")
-    if "cursor" in components and not args.cursor_project:
-        raise ValueError("--with cursor requires at least one --cursor-project")
-    if args.cursor_project and "cursor" not in components:
-        raise ValueError("--cursor-project requires --with cursor")
 
     claude_dir = (args.claude_dir or Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))).expanduser().absolute()
-    codex_dir = (args.codex_dir or Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))).expanduser().absolute()
-    agents_dir = (args.agents_dir or Path(os.environ.get("OTHER_NINETY_AGENTS_DIR", Path.home() / ".agents"))).expanduser().absolute()
     pi_dir = (args.pi_dir or Path(os.environ.get("PI_CODING_AGENT_DIR", Path.home() / ".pi" / "agent"))).expanduser().absolute()
     pi_root = (args.pi_root or Path(os.environ.get("PI_ROOT_DIR", pi_dir.parent))).expanduser().absolute()
-    bin_dir = (args.bin_dir or Path(os.environ.get("OTHER_NINETY_BIN_DIR", Path.home() / ".local" / "bin"))).expanduser().absolute()
-    cursor_projects = [project.expanduser().absolute() for project in args.cursor_project]
-    for project in cursor_projects:
-        if not project.is_dir():
-            raise ValueError(f"cursor project is not a directory: {project}")
     state_dir = (args.state_dir or Path(os.environ.get("OTHER_NINETY_STATE_DIR", Path.home() / ".local" / "state" / "other-ninety"))).expanduser().absolute()
 
     operations: list[Operation] = []
     if "pi" in components:
-        operations.extend(add_pi_operations(repo, pi_dir, pi_root, bin_dir))
+        operations.extend(add_pi_operations(repo, pi_dir, pi_root))
     if "claude" in components:
         operations.extend(add_claude_operations(repo, claude_dir))
-    if "codex" in components:
-        operations.extend(
-            add_codex_operations(
-                repo,
-                codex_dir,
-                agents_dir,
-                plugin_ready=args.codex_plugin_ready,
-            )
-        )
-    if "cursor" in components:
-        operations.extend(add_cursor_operations(repo, cursor_projects))
-    if "pi" in components:
-        operations.extend(add_pi_integration_operations(repo, components, agents_dir, cursor_projects))
     if args.overlay:
         add_overlay_operations(
             operations, args.overlay.expanduser().resolve(), components, claude_dir, pi_dir, pi_root
@@ -477,18 +358,8 @@ def main() -> int:
     if "pi" in components:
         print(f"Pi target:     {pi_dir}")
         print(f"Pi root:       {pi_root}")
-        print(f"Command target: {bin_dir / 'o90-pi'}")
     if "claude" in components:
         print(f"Claude target: {claude_dir}")
-    if "codex" in components:
-        print(f"Codex target:  {codex_dir}")
-        print(f"Agents target: {codex_dir / 'agents'}")
-        if args.codex_plugin_ready:
-            print(f"Legacy skills: retire owned links under {agents_dir / 'skills'}")
-        elif "pi" in components:
-            print(f"Skills target: {agents_dir / 'skills'} (Pi worker bridge only)")
-    for project in cursor_projects:
-        print(f"Cursor project: {project}")
     print("Mode:          apply" if args.apply else "Mode:          dry-run (no writes)")
     for operation in operations:
         print(describe(operation))
@@ -499,13 +370,9 @@ def main() -> int:
 
     roots: list[Path] = []
     if "pi" in components:
-        roots.extend((pi_dir, pi_root, bin_dir))
+        roots.extend((pi_dir, pi_root))
     if "claude" in components:
         roots.append(claude_dir)
-    if "codex" in components:
-        roots.append(codex_dir)
-        roots.append(agents_dir)
-    roots.extend(project / ".cursor" for project in cursor_projects)
     manifest = apply(operations, state_dir, roots)
     print(f"Rollback: {Path(__file__).resolve()} --rollback {manifest}")
     return 0

@@ -1,5 +1,5 @@
 {
-  "description": "The Other Ninety injects clarity, complexity, and stakes routing rules at session start so they apply even when /impl is not invoked.",
+  "description": "The Other Ninety injects its clarity and stakes rules at session start so they apply even when /impl is not invoked.",
   "hooks": {
     "SessionStart": [
       {

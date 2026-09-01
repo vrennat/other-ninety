@@ -4,7 +4,7 @@ A one-line convention for recording which harness, model, and machine produced a
 piece of work, when every agent runs under the same human's credentials.
 
 This is declarative attribution, not independently observed or cryptographic
-provenance. [Agent provenance and federation](agent-federation.md) describes the
+provenance. [Agent provenance and federation](archive/agent-federation.md) describes the
 proposed telemetry and trust layers while keeping this line as a portable,
 human-readable label.
 

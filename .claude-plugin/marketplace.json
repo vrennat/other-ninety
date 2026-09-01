@@ -11,7 +11,7 @@
     {
       "name": "other-ninety",
       "description": "Opinionated Claude Code workflows that ask only when a decision is genuinely open and add adversarial review when stakes rise.",
-      "version": "0.3.8",
+      "version": "0.4.0",
       "source": "./claude/plugin",
       "author": {
         "name": "vrennat"

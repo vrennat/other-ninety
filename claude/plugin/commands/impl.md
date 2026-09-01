@@ -1,79 +1,64 @@
 ---
 name: impl
-description: Workhorse command. Spec file, ticket ID, or freeform description -> classified, routed, executed work. Confirms only when ambiguous. Auto-detects Linear MCP for ticket flows.
+description: Workhorse command. Spec file, ticket ID, or freeform description -> classified, executed, verified work. Confirms only when ambiguous. Auto-detects Linear MCP for ticket flows.
 ---
 
 # /impl
 
 Execute work. Input is one of:
 
-- Path to spec file: `/impl docs/specs/foo.md`
-- Ticket ID: `/impl ABC-1234` (uses Linear MCP if available)
+- Path to a spec file: `/impl docs/specs/foo.md`
+- Ticket ID: `/impl ABC-1234` (uses Linear MCP when available)
 - Freeform: `/impl "make banner sticky on mobile"`
-- `--dry-run` flag: print the assessment and stop
+- `--dry-run`: print the classification and the plan, then stop
+- `--tdd`: write the failing test first and show it fail before implementing
 
 ## Procedure
 
-1. **Parse input.** If it matches `[A-Z]+-\d+` and Linear MCP tools (`mcp__plugin_linear_linear__*` or `mcp__claude_ai_Linear__*`) are available, fetch the ticket. If it's a path, read the spec. Otherwise treat as freeform.
+1. **Parse input.** A `[A-Z]+-\d+` token with Linear MCP tools available (`mcp__plugin_linear_linear__*` or `mcp__claude_ai_Linear__*`) is a ticket: fetch it. A path is a spec: read it. Anything else is freeform.
 
-2. **Read mode, then classify clarity, complexity, AND stakes.**
-   - Mode: read `.o90/mode`, falling back to legacy `.claude/other-ninety-mode` when absent (treat both absent as `default`). It is `cautious`, `default`, or `autonomous` — set via `/mode`.
-   - Clarity: clear (one obvious approach) or ambiguous (2+ approaches with real tradeoffs, OR missing requirement, OR multi-cause bug).
-   - Complexity: simple (1 file, <50 LOC), medium (2-3 files), complex (>3 files).
-   - Stakes: high if it touches auth, money, data integrity, security, or privacy, or is hard to undo; otherwise normal.
-   - Print the mode first, then the classification, as the top two lines of output:
-     `Mode: <mode>`
-     `Clarity: clear/ambiguous | Complexity: simple/medium/complex | Stakes: normal/high`
+2. **Classify clarity and stakes, and print them first.**
+   `Clarity: clear/ambiguous | Stakes: normal/high`
+   - Clarity: ambiguous means a missing requirement, two or more approaches with real tradeoffs, or a multi-cause bug. It is not "many files" and not "I would like to confirm."
+   - Stakes: high if the change touches auth, money, data integrity, security, privacy, or remote persistence, or is hard to undo. When unsure, round up.
 
-3. **Branch on clarity, modulated by mode.**
-   - `default`: ambiguous → ask all open questions in ONE batched numbered list, wait, then proceed. Clear → proceed silently.
-   - `cautious`: same as default, plus — before executing a medium or complex task even when clarity is clear, print the planned routing and wait for a go-ahead.
-   - `autonomous`: never block on clarity. Ambiguous → pick the most sensible default, state the assumption in one line, and proceed. (Destructive/irreversible ops and stakes-gated review are unaffected by mode — see Rules.)
+3. **Ambiguous:** ask every open question in one numbered list, wait, then proceed. Clear: proceed without asking.
 
-4. **If `--dry-run`:** print the planned routing and stop.
+4. **`--dry-run`:** print the planned approach and stop.
 
-5. **If Linear ticket:** update status to "In Progress" via Linear MCP.
+5. **Ticket:** move it to "In Progress".
 
-6. **Second look (medium/complex only — skip for simple).** Before writing any code, interrogate the direction you just picked, in one deliberate pass. The first approach that looks right is usually the statistically-likely default, not the considered one. Ask: what here is the generic pattern reached for by reflex? What would give this a point of view instead of "looks fine"? What can be cut or tightened? Is there a simpler path dismissed too quickly? One pass, then commit to a direction — a sharpening step, not a stalling loop.
+6. **Second look.** Before writing code, challenge the first approach once: what is the reflex pattern here, what can be cut, is there a simpler path dismissed too quickly? One pass, then commit to a direction.
 
-7. **Branch on complexity.**
-   - Simple: implement directly in main session.
-   - Medium: spawn 1-2 `fast-impl` agents in parallel via the Agent tool. Then dispatch `validator`.
-   - Complex: `TeamCreate` with name like `impl-<slug>`. Decompose into atomic tasks via `TaskCreate` (one per file, with paths and acceptance criteria, plus `blockedBy` dependencies). Spawn `fast-impl` teammates. Monitor via `SendMessage`. On completion: `TeamDelete`, then dispatch `validator`. If change touches >5 files OR shared infrastructure: also dispatch `brutal-code-reviewer` for an architectural pass.
+7. **Implement in this session.** Delegate only for the reasons in `rules/agents.md`: parallel work on disjoint write surfaces, isolating noisy exploration, or independent review. Size alone is not a reason. With `--tdd`, write the test, run it, show the failure, then implement.
 
-8. **If `Stakes: high`:** regardless of complexity tier, dispatch `adversarial-reviewer` after implementation — an independent break-it pass that reads the source fresh, distinct from the routine `brutal-code-reviewer`. A one-file auth or payment change still gets it; the complexity gate does not apply to stakes. Resolve blocking findings before claiming done.
+8. **Review by stakes and size.** High stakes: dispatch `adversarial-reviewer` after implementation, whatever the diff size, and resolve blocking findings before claiming done. More than five files or shared infrastructure: run `/code-review` as well.
 
-9. **On `validator` failure:** dispatch `debug-genius` for diagnosis, then `fast-impl` for fix using debug-genius's output. Max 3 retry cycles before surfacing to user.
+9. **Verify.** Run the repository's typecheck, tests, lint, and build, and paste the output verbatim. Exercise the changed behavior, not only the commands. If verification fails, diagnose with a stated hypothesis and a minimal experiment before the next fix; stop after three failed repair cycles and report the evidence.
 
-10. **Before claiming done:** run the project's verification command (typecheck, test, build) and paste its output verbatim. Do not claim done if it fails.
+10. **Ticket:** move it to "In Review".
 
-11. **If Linear ticket:** update status to "In Review".
+11. **Capture one lesson, or none.** Append at most one line to `docs/lessons.md` (create it if absent) as `- YYYY-MM-DD <area>: <what would have saved time if known up front>`, only if a future agent could not derive it from the code, tests, git history, or repo instructions. Otherwise report `Lesson: none`. `/trim docs/lessons.md` prunes the file.
 
-12. **Capture one lesson, or none.** Append at most one line to `docs/lessons.md` (create it if absent) in the form `- YYYY-MM-DD <area>: <what would have saved time if known up front>`. It qualifies only if a future agent could not derive it from the code, tests, git history, or repo instructions. If nothing qualifies, write nothing and report `Lesson: none`. `/trim docs/lessons.md` prunes the file.
+12. **Report:**
 
-13. **Report:**
 ```
 Files modified: <list>
-Verdict: <validator output>
-Lesson: <the line appended | none>
-Next: test locally; commit when ready.
+Verification: <commands and results>
+Lesson: <line | none>
+Next: <what still needs the user>
 ```
 
 ## Rules
 
-- "Ambiguous" is strict: 2+ real-tradeoff approaches, missing requirement, or multi-cause bug. NOT "I'd like to confirm this." NOT "this is non-trivial." NOT "this touches many files" (that's complexity).
-- Stakes is orthogonal to clarity and complexity: a clear, simple change can still be high-stakes. When unsure whether something is high-stakes, treat it as high-stakes — an extra review pass costs minutes; skipping it on auth or money is the failure this routing exists to prevent. Stakes-gated review fires in every mode, including `autonomous`.
-- **Mark borderline routing in-code.** When a classification call is a genuine judgment — routing simple where medium was plausible, treating stakes as normal where high was arguable, skipping a review pass on a borderline change — leave a `// o90:` comment at the relevant line (`# o90:` for Python/shell) that names the upgrade trigger: `// o90: routed simple, escalate if sorting logic grows beyond this file`. Only for real borderline calls, not every edit. `/debt` audits them later.
-- Parallel agents only when all three hold: provably disjoint write surfaces, no step needs another's output, each result verifiable alone. Read-only fan-out (search, audit, review) always qualifies.
-- Do NOT auto-commit work. Do NOT auto-create PRs. The user decides.
-- The escape hatch from `~/.claude/CLAUDE.md` (destructive git, network side effects, money) always confirms regardless of clarity or mode.
+- Stakes-gated review always runs; task size and requests for speed do not remove it.
+- Do not commit, push, deploy, purchase, or take another persistent external action unless the user asked for it.
+- Destructive git and network side effects confirm regardless of clarity.
 
 ## Examples
 
-Clear + simple: `/impl "card backs render larger than fronts"` -> classify -> direct fix to one CSS rule -> validator -> done.
+Clear + normal: `/impl "card backs render larger than fronts"` -> classify -> fix the CSS rule -> run the check -> done.
 
-Ambiguous + medium: `/impl "add card sorting to hand"` -> ONE batched question (sort by? UI?) -> on answer, spawn 1-2 fast-impl, validator, done.
+Ambiguous + normal: `/impl "add card sorting to hand"` -> one batched question (sort by? UI?) -> implement -> verify -> done.
 
-Clear + complex: `/impl ABC-1234` (refactor rules engine for layered effects, ticket has design) -> TeamCreate, decompose, fast-impl teammates, validator, brutal-code-reviewer (touches >5 files), done.
-
-Clear + simple + high-stakes: `/impl "fix the JWT expiry check"` -> classify (Stakes: high) -> direct fix -> validator -> adversarial-reviewer (independent break-it pass) -> resolve findings -> done.
+Clear + high stakes: `/impl "fix the JWT expiry check"` -> `Stakes: high` -> fix -> verify -> `adversarial-reviewer` -> resolve findings -> done.

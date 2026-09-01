@@ -1,77 +1,53 @@
 # Safe-parity checklist
 
-Parity means the public toolkit preserves reusable behavior from the two source repositories. It does not mean preserving private settings or byte-identical Claude/Pi prompts.
+Parity means the public toolkit preserves reusable behavior from the private sources. It does not mean preserving private settings or byte-identical Claude/Pi prompts.
 
 ## Claude plugin
 
-- [ ] Manifests parse and agree on name `other-ninety` and version `0.3.8`.
-- [ ] Commands load: `bootstrap`, `brainstorm`, `debt`, `impl`, `mode`, `pi`, `plan`, `research`, `status`, `surface`, `tdd`, `trim`.
-- [ ] `/surface` exits 1 and names the file when a change lands outside the declared globs; `scripts/test_surface_check.py` covers committed, staged, and untracked changes.
+- [ ] Manifests parse and agree on name `other-ninety` and version `0.4.0`.
+- [ ] Commands load: `brainstorm`, `impl`, `plan`, `trim`.
+- [ ] Agents load: `adversarial-reviewer`.
+- [ ] Skills load: `clean-writing`.
 - [ ] `scripts/test_parity.py` keeps the lists in this file and the public `CLAUDE.md` equal to the tree.
-- [ ] `/status` is read-only and shows `?` rather than a guessed value when `gh` is unavailable.
-- [ ] `/impl` ends with at most one `docs/lessons.md` line or `Lesson: none`; `/trim docs/lessons.md` prunes it.
-- [ ] Agents load: `adversarial-reviewer`, `brutal-code-reviewer`, `debug-genius`, `fast-impl`, `validator`.
-- [ ] Skills load: `clean-writing`, `impl`, `mode`, `onboarding`, `plan-hunter`, `systematic-debugging`, `verification-before-completion`.
-- [ ] SessionStart emits valid JSON and injects the `other-ninety` routing context.
-- [ ] SessionStart injects the canonical output policy and runs on Python without Pi or Bun.
-- [ ] `/mode` writes `.o90/mode` and reads the legacy `.claude/other-ninety-mode` fallback.
-- [ ] `/debt` recognizes current `o90:` plus legacy `on:` and `dD:` markers.
-- [ ] `/bootstrap` resolves the `other-ninety/other-ninety` plugin cache path.
-- [ ] `/pi` launches one ephemeral leaf worker, defaults to read-only tools, and requires explicit `--write` for edits.
+- [ ] SessionStart emits valid JSON, injects the `other-ninety` routing context, and runs on Python without Pi or Bun.
+- [ ] `/impl` prints clarity and stakes before editing, dispatches `adversarial-reviewer` on high stakes regardless of diff size, and ends with at most one `docs/lessons.md` line or `Lesson: none`.
 
 ## Global Claude configuration
 
-- [ ] Public `CLAUDE.md`, rules, hooks, agents, and post-compact rules install without private context.
-- [ ] Existing `settings.json`, `keybindings.json`, and skills are not overwritten by a base install.
-- [ ] An explicit overlay can replace mutable settings with rollback coverage.
-- [ ] Reusable global skills include conductor, design context, ADHD output mode, PR/review, researcher, skill creator, Svelte guidance, ticketing, and typecheck.
+- [ ] Public `CLAUDE.md`, rules, hooks, and agents install as links without private context.
+- [ ] Existing `settings.json`, `keybindings.json`, and any skill that is already a real directory are never overwritten by a base install.
+- [ ] An explicit overlay can replace mutable settings and whole skills with rollback coverage.
+- [ ] Reusable global skills: `conductor`, `i-have-adhd`, `summarize`, `svelte5-best-practices`.
 
 ## Pi adapter
 
 - [ ] Pi loads `AGENTS.md` and `APPEND_SYSTEM.md` from an isolated `PI_CODING_AGENT_DIR`.
 - [ ] Eight routed agents are available.
 - [ ] Prompt templates load: `brainstorm`, `debt`, `impl`, `mode`, `plan`, `research`, `status`, `tdd`, `trim`.
-- [ ] Skills load: all seven shared catalog skills (`clean-writing`, `impl`, `mode`, `onboarding`, `plan-hunter`, `systematic-debugging`, `verification-before-completion`); `pi/skills/` holds only deliberate per-skill overrides and is currently empty.
+- [ ] Skills load: the Claude plugin's `clean-writing`; `pi/skills/` holds only deliberate per-skill overrides and is currently empty.
 - [ ] Extensions typecheck and the focused Chrome extension tests pass.
 - [ ] Five themes load, including the high-contrast Tokyo Night variant.
 - [ ] Public settings and agent definitions contain no default provider, model routing, enabled-model cycle, or credentials.
 - [ ] `auth.json`, OAuth state, sessions, trust decisions, caches, and installed package directories remain local.
-
-## Optional host adapters
-
-- [ ] No `--with` flag installs Pi only.
-- [ ] Any explicit `--with` flags define the exact component set, including optional `--with pi`.
-- [ ] Claude, Codex, and Cursor each install and work natively without Pi.
-- [ ] The seven-skill public catalog (`clean-writing`, `impl`, `mode`, `onboarding`, `plan-hunter`, `systematic-debugging`, `verification-before-completion`) is present in Claude, packaged as a namespaced Codex plugin, and installed natively for Cursor.
-- [ ] The five-role public catalog (`adversarial-reviewer`, `brutal-code-reviewer`, `debug-genius`, `fast-impl`, `validator`) is present in Claude and installed as native custom agents for Codex and Cursor.
-- [ ] Codex installs the `other-ninety@other-ninety` plugin before its global `AGENTS.md` and personal custom-agent TOML companion config.
-- [ ] Cursor installs native o90 rules, agents, and skills only in explicitly named existing projects.
-- [ ] Native Codex and Cursor roles inherit the active model instead of pinning a provider or model.
-- [ ] Pi, Claude, Codex, and Cursor always-loaded guidance contains the exact canonical compact-writing policy.
-- [ ] The output policy preserves exact technical text, facts, uncertainty, conditions, and voice.
-- [ ] `o90-pi` and the Pi-worker skill appear only when Pi is selected; the bridge defaults to read-only and refuses recursion.
-- [ ] Optional host adapters do not install runtimes, credentials, auth state, or model choices.
+- [ ] Pi always-loaded guidance contains the exact compact-writing policy from `shared/output-style.md`.
 
 ## Installer and safety
 
 - [ ] Dry-run creates no files or directories.
 - [ ] Apply records absent, symlink, file, and directory prior states.
 - [ ] Rollback restores all recorded paths.
-- [ ] Codex plugin failure leaves legacy global skill links intact; successful migration removes only checkout-owned links and can restore them through rollback.
 - [ ] Overlay replacement is included in the same rollback manifest.
 - [ ] Pi shadow install writes nothing under the live Pi directory.
 - [ ] Drift check reports a non-zero number of checked paths.
 - [ ] Leak scanner detects its positive control before accepting a clean scan.
 - [ ] Every migrated prose/config file receives manual privacy review.
 - [ ] `bootstrap.sh` remains write-free by default and installs dependencies, config, and plugins only with `--apply`.
-- [ ] Drift checks accept the same optional component and target flags as install.
+- [ ] Drift checks accept the same component and target flags as install.
 
 ## Intentional differences
 
 - Claude plugin commands and Pi prompt templates use runtime-specific tool names and delegation primitives.
-- Codex custom agents use TOML while Claude and Cursor agents use their native Markdown/frontmatter formats; the role contract is shared, not the serialization.
-- Pi has no `/bootstrap` prompt in v1. Its `/mode` prompt and `/impl` use the same project-local mode file as Claude Code.
-- Claude's plugin contains `/pi`, but every other Claude command, agent, and skill remains independent of Pi.
-- `/surface` and `/bootstrap` are Claude commands only; other runtimes run `claude/plugin/scripts/surface_check.py` and the `onboarding` skill directly.
+- Pi keeps prompt templates (`mode`, `debt`, `status`, `research`, `tdd`) that the Claude plugin retired on 2026-09-01 under decision D6; their fate on Pi is decided by Pi-side evidence.
+- Pi has no `/bootstrap` prompt. Its `/mode` prompt and `/impl` use the project-local mode file.
 - Public settings are safe examples, not the maintainer's provider, model, permission, MCP, status-line, or notification choices.
 - Historical plans, retrospectives, and real-session examples are not migrated.

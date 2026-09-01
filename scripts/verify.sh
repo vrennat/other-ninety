@@ -25,23 +25,6 @@ for path in Path('.').rglob('*.json'):
 print('JSON parse passed')
 PY
 
-bun - <<'TS'
-import { readdirSync, readFileSync } from "node:fs";
-for (const file of readdirSync("codex/agents")) {
-  if (!file.endsWith(".toml")) continue;
-  const parsed = Bun.TOML.parse(readFileSync(`codex/agents/${file}`, "utf8"));
-  for (const field of ["name", "description", "developer_instructions"]) {
-    if (typeof parsed[field] !== "string" || parsed[field].length === 0) {
-      throw new Error(`${file}: missing ${field}`);
-    }
-  }
-  if ("model" in parsed || "model_reasoning_effort" in parsed) {
-    throw new Error(`${file}: public role must inherit model policy`);
-  }
-}
-console.log("Codex agent TOML parse passed");
-TS
-
 scripts/lint-plugin.sh
 (
   cd pi

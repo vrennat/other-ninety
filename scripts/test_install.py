@@ -14,22 +14,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "scripts" / "install.py"
 DRIFT_CHECKER = ROOT / "scripts" / "check_drift.py"
-PUBLIC_SKILLS = {
-    "clean-writing",
-    "impl",
-    "mode",
-    "onboarding",
-    "plan-hunter",
-    "systematic-debugging",
-    "verification-before-completion",
-}
-PUBLIC_AGENTS = {
-    "adversarial-reviewer",
-    "brutal-code-reviewer",
-    "debug-genius",
-    "fast-impl",
-    "validator",
-}
+PUBLIC_SKILLS = {"clean-writing"}
+PUBLIC_AGENTS = {"adversarial-reviewer"}
 CANONICAL_OUTPUT_STYLE = (ROOT / "shared" / "output-style.md").read_text().strip()
 
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -52,11 +38,8 @@ class InstallerHarness(unittest.TestCase):
         claude, pi, pi_root, state = self.targets(root)
         return [
             "--claude-dir", claude,
-            "--codex-dir", root / "codex",
-            "--agents-dir", root / "agents",
             "--pi-dir", pi,
             "--pi-root", pi_root,
-            "--bin-dir", root / "bin",
             "--state-dir", state,
         ]
 
@@ -139,7 +122,7 @@ class InstallerTest(InstallerHarness):
             state = root / "state"
             result = self.run_installer(
                 "--apply", "--claude-dir", claude, "--pi-dir", pi,
-                "--pi-root", pi_root, "--bin-dir", root / "bin", "--state-dir", state,
+                "--pi-root", pi_root, "--state-dir", state,
             )
             manifest = Path(next(line for line in result.stdout.splitlines() if line.startswith("manifest")).split(maxsplit=1)[1])
             self.assertTrue((pi / "AGENTS.md").is_symlink())
@@ -194,6 +177,23 @@ class InstallerTest(InstallerHarness):
             self.assertNotEqual(repeated.returncode, 0)
             self.assertEqual(added_after_rollback.read_text(), "new user file\n")
 
+    def test_existing_real_skill_directory_is_kept_and_linked_ones_replaced(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            claude, _, _, _ = self.targets(root)
+            private = claude / "skills" / "conductor"
+            private.mkdir(parents=True)
+            (private / "SKILL.md").write_text("private conductor\n")
+            stale = claude / "skills" / "summarize"
+            stale.symlink_to(root / "retired-repo" / "summarize")
+
+            result = self.run_installer("--apply", "--with", "claude", *self.arguments(root))
+            self.assertIn("keep            " + str(private) + " (user copy)", result.stdout)
+            self.assertFalse(private.is_symlink())
+            self.assertEqual((private / "SKILL.md").read_text(), "private conductor\n")
+            self.assertTrue(stale.is_symlink())
+            self.assertEqual(stale.resolve(), (ROOT / "claude" / "config" / "skills" / "summarize").resolve())
+
     def test_default_is_pi_only(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -203,9 +203,7 @@ class InstallerTest(InstallerHarness):
             self.assertIn(CANONICAL_OUTPUT_STYLE, (pi / "APPEND_SYSTEM.md").read_text())
             for name in PUBLIC_SKILLS:
                 self.assertTrue((pi / "skills" / name).is_symlink(), name)
-            self.assertTrue((root / "bin" / "o90-pi").is_symlink())
             self.assertFalse(claude.exists())
-            self.assertFalse((root / "codex").exists())
 
     def test_claude_only_does_not_touch_pi(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -214,9 +212,10 @@ class InstallerTest(InstallerHarness):
             result = self.run_installer("--apply", "--with", "claude", *self.arguments(root))
             self.assertIn("Components:    claude", result.stdout)
             self.assertTrue((claude / "CLAUDE.md").is_symlink())
-            self.assertIn(CANONICAL_OUTPUT_STYLE, (claude / "CLAUDE.md").read_text())
+            self.assertNotIn("## Output style", (claude / "CLAUDE.md").read_text())
+            for name in ("conductor", "i-have-adhd", "summarize", "svelte5-best-practices"):
+                self.assertTrue((claude / "skills" / name).is_symlink(), name)
             self.assertFalse((root / "pi").exists())
-            self.assertFalse((root / "bin").exists())
             self.assertEqual(
                 {path.parent.name for path in (ROOT / "claude" / "plugin" / "skills").glob("*/SKILL.md")},
                 PUBLIC_SKILLS,
@@ -225,178 +224,6 @@ class InstallerTest(InstallerHarness):
                 {path.stem for path in (ROOT / "claude" / "plugin" / "agents").glob("*.md")},
                 PUBLIC_AGENTS,
             )
-
-    def test_codex_only_installs_companion_config_without_global_skills(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            result = self.run_installer("--apply", "--with", "codex", *self.arguments(root))
-            skills = root / "agents" / "skills"
-            self.assertIn("Components:    codex", result.stdout)
-            self.assertTrue((root / "codex" / "AGENTS.md").is_symlink())
-            self.assertIn(CANONICAL_OUTPUT_STYLE, (root / "codex" / "AGENTS.md").read_text())
-            for name in PUBLIC_SKILLS:
-                self.assertFalse(os.path.lexists(skills / name), name)
-            for name in PUBLIC_AGENTS:
-                self.assertTrue((root / "codex" / "agents" / f"{name}.toml").is_symlink(), name)
-            self.assertFalse((skills / "o90-pi-worker").exists())
-            self.assertFalse((root / "pi").exists())
-            self.assertFalse((root / "bin").exists())
-
-    def test_codex_plugin_ready_removes_only_owned_links_and_rollback_restores_them(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            skills = root / "agents" / "skills"
-            skills.mkdir(parents=True)
-            owned = skills / "clean-writing"
-            owned.symlink_to(ROOT / "skills" / "clean-writing")
-            foreign_target = root / "foreign-skill"
-            foreign_target.mkdir()
-            foreign_link = skills / "onboarding"
-            foreign_link.symlink_to(foreign_target)
-            foreign_file = skills / "plan-hunter"
-            foreign_file.write_text("user-managed\n")
-
-            result = self.run_installer(
-                "--apply",
-                "--with", "codex",
-                "--codex-plugin-ready",
-                *self.arguments(root),
-            )
-            manifest = Path(
-                next(line for line in result.stdout.splitlines() if line.startswith("manifest")).split(maxsplit=1)[1]
-            )
-            self.assertFalse(os.path.lexists(owned))
-            self.assertTrue(foreign_link.is_symlink())
-            self.assertEqual(foreign_link.resolve(), foreign_target.resolve())
-            self.assertEqual(foreign_file.read_text(), "user-managed\n")
-            manifest_data = json.loads(manifest.read_text())
-            self.assertIn(
-                {"target": str(owned), "kind": "symlink", "link": str(ROOT / "skills" / "clean-writing")},
-                manifest_data["entries"],
-            )
-
-            self.run_installer("--rollback", manifest)
-            self.assertTrue(owned.is_symlink())
-            self.assertEqual(Path(os.readlink(owned)), ROOT / "skills" / "clean-writing")
-            self.assertTrue(foreign_link.is_symlink())
-            self.assertEqual(foreign_file.read_text(), "user-managed\n")
-
-    def test_codex_companion_without_plugin_proof_leaves_owned_legacy_link(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            legacy = root / "agents" / "skills" / "clean-writing"
-            legacy.parent.mkdir(parents=True)
-            legacy.symlink_to(ROOT / "skills" / "clean-writing")
-
-            self.run_installer("--apply", "--with", "codex", *self.arguments(root))
-
-            self.assertTrue(legacy.is_symlink())
-            self.assertEqual(Path(os.readlink(legacy)), ROOT / "skills" / "clean-writing")
-
-    def test_remove_owned_link_handles_dangling_destination_and_rollback(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            expected = root / "checkout" / "skills" / "clean-writing"
-            target = root / "agents" / "skills" / "clean-writing"
-            target.parent.mkdir(parents=True)
-            target.symlink_to(expected)
-            self.assertFalse(target.exists())
-
-            manifest = installer_module.apply(
-                [installer_module.Operation("remove-owned-link", expected, target)],
-                root / "state",
-                [root / "agents"],
-            )
-            self.assertFalse(os.path.lexists(target))
-
-            installer_module.rollback(manifest)
-            self.assertTrue(target.is_symlink())
-            self.assertFalse(target.exists())
-            self.assertEqual(Path(os.readlink(target)), expected)
-
-    def test_codex_plugin_ready_requires_codex_component(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            result = self.run_installer(
-                "--with", "pi", "--codex-plugin-ready", *self.arguments(root), check=False
-            )
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("requires --with codex", result.stderr)
-
-    def test_cursor_only_installs_native_skills_without_pi(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            project = root / "project"
-            project.mkdir()
-            result = self.run_installer(
-                "--apply",
-                "--with", "cursor",
-                "--cursor-project", project,
-                *self.arguments(root),
-            )
-            skills = project / ".cursor" / "skills"
-            self.assertIn("Components:    cursor", result.stdout)
-            self.assertTrue((project / ".cursor" / "rules" / "o90.mdc").is_file())
-            self.assertIn(CANONICAL_OUTPUT_STYLE, (project / ".cursor" / "rules" / "o90.mdc").read_text())
-            for name in PUBLIC_SKILLS:
-                self.assertTrue((skills / name).is_symlink(), name)
-            for name in PUBLIC_AGENTS:
-                self.assertTrue((project / ".cursor" / "agents" / f"{name}.md").is_symlink(), name)
-            self.assertFalse((skills / "o90-pi-worker").exists())
-            self.assertFalse((root / "pi").exists())
-            self.assertFalse((root / "bin").exists())
-
-            manifest = Path(
-                next(line for line in result.stdout.splitlines() if line.startswith("manifest")).split(maxsplit=1)[1]
-            )
-            self.run_installer("--rollback", manifest)
-            self.assertFalse((project / ".cursor").exists())
-
-    def test_hosts_plus_pi_add_optional_bridge(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            project = root / "project"
-            project.mkdir()
-            result = self.run_installer(
-                "--apply",
-                "--with", "pi",
-                "--with", "codex",
-                "--with", "cursor",
-                "--cursor-project", project,
-                *self.arguments(root),
-            )
-            self.assertIn("Components:    pi, codex, cursor", result.stdout)
-            self.assertTrue((root / "pi" / "agent" / "AGENTS.md").is_symlink())
-            self.assertTrue((root / "agents" / "skills" / "o90-pi-worker").is_symlink())
-            self.assertTrue((project / ".cursor" / "skills" / "o90-pi-worker").is_symlink())
-
-            drift = subprocess.run(
-                [
-                    "python3", str(DRIFT_CHECKER),
-                    "--with", "pi",
-                    "--with", "codex",
-                    "--with", "cursor",
-                    "--cursor-project", str(project),
-                    *map(str, self.arguments(root)[:-2]),
-                ],
-                capture_output=True,
-                text=True,
-            )
-            self.assertEqual(drift.returncode, 0, drift.stdout + drift.stderr)
-            self.assertIn("RESULT: clean", drift.stdout)
-
-            manifest = Path(
-                next(line for line in result.stdout.splitlines() if line.startswith("manifest")).split(maxsplit=1)[1]
-            )
-            self.run_installer("--rollback", manifest)
-            self.assertFalse((project / ".cursor").exists())
-
-    def test_cursor_component_requires_explicit_projects(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            result = self.run_installer("--with", "cursor", *self.arguments(root), check=False)
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("requires at least one --cursor-project", result.stderr)
 
 
 class DriftCheckerTest(InstallerHarness):
@@ -445,86 +272,21 @@ class DriftCheckerTest(InstallerHarness):
             self.assertNotEqual(drift.returncode, 0, drift.stdout)
             self.assertIn("expected symlink", drift.stdout)
 
-    def test_codex_reports_owned_legacy_skill_link_but_ignores_foreign_entries(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            self.run_installer("--apply", "--with", "codex", *self.arguments(root))
-            skills = root / "agents" / "skills"
-            skills.mkdir(parents=True)
-            owned = skills / "clean-writing"
-            owned.symlink_to(ROOT / "skills" / "clean-writing")
-            foreign_target = root / "foreign-skill"
-            foreign_target.mkdir()
-            (skills / "onboarding").symlink_to(foreign_target)
-            (skills / "plan-hunter").write_text("user-managed\n")
-
-            drift = self.run_drift(root, "--with", "codex")
-
-            self.assertNotEqual(drift.returncode, 0, drift.stdout)
-            self.assertIn("checkout-owned legacy global skill link remains", drift.stdout)
-            self.assertIn(str(owned), drift.stdout)
-            self.assertNotIn(str(skills / "onboarding"), drift.stdout)
-            self.assertNotIn(str(skills / "plan-hunter"), drift.stdout)
-
 
 class CatalogParityTest(unittest.TestCase):
-    def test_every_host_guidance_contains_the_canonical_output_style(self) -> None:
-        host_guidance = (
-            ROOT / "pi" / "APPEND_SYSTEM.md",
-            ROOT / "claude" / "config" / "CLAUDE.md",
-            ROOT / "claude" / "plugin" / "output-style.md",
-            ROOT / "codex" / "AGENTS.md",
-            ROOT / "cursor" / "rules" / "o90.mdc",
-        )
-        for path in host_guidance:
-            self.assertEqual(path.read_text().count(CANONICAL_OUTPUT_STYLE), 1, str(path))
+    def test_every_claude_agent_has_a_pi_counterpart(self) -> None:
+        claude = {path.stem for path in (ROOT / "claude" / "plugin" / "agents").glob("*.md")}
+        pi = {path.stem for path in (ROOT / "pi" / "agents").glob("*.md")}
+        self.assertEqual(claude, PUBLIC_AGENTS)
+        self.assertTrue(PUBLIC_AGENTS <= pi)
+
+    def test_pi_guidance_contains_the_canonical_output_style(self) -> None:
+        self.assertEqual((ROOT / "pi" / "APPEND_SYSTEM.md").read_text().count(CANONICAL_OUTPUT_STYLE), 1)
+        self.assertNotIn(CANONICAL_OUTPUT_STYLE, (ROOT / "claude" / "config" / "CLAUDE.md").read_text())
 
         self.assertIn("Write clear, compact prose", CANONICAL_OUTPUT_STYLE)
         self.assertIn("Skip generic introductions and conclusions", CANONICAL_OUTPUT_STYLE)
         self.assertIn("Preserve exact code", CANONICAL_OUTPUT_STYLE)
-
-    def test_every_public_skill_has_shared_native_source(self) -> None:
-        claude = {
-            path.parent.name for path in (ROOT / "claude" / "plugin" / "skills").glob("*/SKILL.md")
-        }
-        shared = {path.parent.name for path in (ROOT / "skills").glob("*/SKILL.md")}
-        self.assertEqual(claude, PUBLIC_SKILLS)
-        self.assertEqual(shared, PUBLIC_SKILLS)
-        shared_root = ROOT / "skills"
-        plugin_root = ROOT / "claude" / "plugin" / "skills"
-        shared_files = {path.relative_to(shared_root) for path in shared_root.rglob("*") if path.is_file()}
-        plugin_files = {path.relative_to(plugin_root) for path in plugin_root.rglob("*") if path.is_file()}
-        self.assertEqual(shared_files, plugin_files)
-        for relative in sorted(shared_files):
-            self.assertEqual(
-                (shared_root / relative).read_text(),
-                (plugin_root / relative).read_text(),
-                str(relative),
-            )
-        self.assertTrue((ROOT / "skills" / "plan-hunter" / "REFERENCE.md").is_file())
-        pi_native = {path.parent.name for path in (ROOT / "pi" / "skills").glob("*/SKILL.md")}
-        self.assertTrue(pi_native <= PUBLIC_SKILLS)
-
-    def test_every_public_agent_has_codex_and_cursor_native_source(self) -> None:
-        claude = {path.stem for path in (ROOT / "claude" / "plugin" / "agents").glob("*.md")}
-        codex = {path.stem for path in (ROOT / "codex" / "agents").glob("*.toml")}
-        cursor = {path.stem for path in (ROOT / "cursor" / "agents").glob("*.md")}
-        self.assertEqual(claude, PUBLIC_AGENTS)
-        self.assertEqual(codex, PUBLIC_AGENTS)
-        self.assertEqual(cursor, PUBLIC_AGENTS)
-        pi = {path.stem for path in (ROOT / "pi" / "agents").glob("*.md")}
-        self.assertTrue(PUBLIC_AGENTS <= pi)
-
-        for name in PUBLIC_AGENTS:
-            codex_text = (ROOT / "codex" / "agents" / f"{name}.toml").read_text()
-            self.assertIn(f'name = "{name}"', codex_text)
-            self.assertIn("description = ", codex_text)
-            self.assertIn("developer_instructions = ", codex_text)
-            cursor_text = (ROOT / "cursor" / "agents" / f"{name}.md").read_text()
-            self.assertIn(f"name: {name}", cursor_text)
-            self.assertIn("description:", cursor_text)
-            self.assertIn("model: inherit", cursor_text)
-
 
 if __name__ == "__main__":
     unittest.main()

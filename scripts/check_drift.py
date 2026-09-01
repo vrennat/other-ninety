@@ -16,31 +16,7 @@ CLAUDE_LINKS = ("CLAUDE.md", "rules", "hooks", "agents")
 CLAUDE_COPIES = {"settings.json", "keybindings.json"}
 PI_LINKS = ("AGENTS.md", "APPEND_SYSTEM.md", "agents", "extensions", "prompts", "themes")
 PI_COPIES = {"settings.json", "mcp.json"}
-COMPONENTS = ("pi", "claude", "codex", "cursor")
-CODEX_PLUGIN_SKILLS = (
-    "clean-writing",
-    "impl",
-    "mode",
-    "onboarding",
-    "plan-hunter",
-    "systematic-debugging",
-    "verification-before-completion",
-)
-
-
-def lexical_path(path: Path) -> Path:
-    """Return an absolute normalized path without resolving symlinks."""
-    return Path(os.path.abspath(path))
-
-
-def symlink_points_to_source(target: Path, source: Path) -> bool:
-    """Recognize checkout-owned legacy links without requiring a live target."""
-    if not target.is_symlink():
-        return False
-    link = Path(os.readlink(target))
-    destination = link if link.is_absolute() else target.parent / link
-    expected = {lexical_path(source), source.resolve(strict=False)}
-    return lexical_path(destination) in expected
+COMPONENTS = ("pi", "claude")
 
 
 def linked_names(base: tuple[str, ...], overlay_dir: Path | None, copied: set[str]) -> list[str]:
@@ -112,22 +88,13 @@ def main() -> int:
     )
     parser.add_argument("--overlay", type=Path)
     parser.add_argument("--claude-dir", type=Path)
-    parser.add_argument("--codex-dir", type=Path)
-    parser.add_argument("--agents-dir", type=Path)
-    parser.add_argument("--cursor-project", type=Path, action="append", default=[])
     parser.add_argument("--pi-dir", type=Path)
     parser.add_argument("--pi-root", type=Path)
-    parser.add_argument("--bin-dir", type=Path)
     args = parser.parse_args()
 
     repo = Path(__file__).resolve().parents[1]
     components = set(args.components) if args.components else {"pi"}
-    if "cursor" in components and not args.cursor_project:
-        parser.error("--with cursor requires at least one --cursor-project")
-    if args.cursor_project and "cursor" not in components:
-        parser.error("--cursor-project requires --with cursor")
     claude_base = repo / "claude" / "config"
-    codex_base = repo / "codex"
     pi_base = repo / "pi"
     overlay = args.overlay.expanduser().resolve() if args.overlay else None
     claude_overlay = overlay / "claude" if overlay else None
@@ -135,12 +102,8 @@ def main() -> int:
     pi_root_overlay = overlay / "pi-root" if overlay else None
 
     claude_dir = (args.claude_dir or Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))).expanduser().absolute()
-    codex_dir = (args.codex_dir or Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))).expanduser().absolute()
-    agents_dir = (args.agents_dir or Path(os.environ.get("OTHER_NINETY_AGENTS_DIR", Path.home() / ".agents"))).expanduser().absolute()
     pi_dir = (args.pi_dir or Path(os.environ.get("PI_CODING_AGENT_DIR", Path.home() / ".pi" / "agent"))).expanduser().absolute()
     pi_root = (args.pi_root or Path(os.environ.get("PI_ROOT_DIR", pi_dir.parent))).expanduser().absolute()
-    bin_dir = (args.bin_dir or Path(os.environ.get("OTHER_NINETY_BIN_DIR", Path.home() / ".local" / "bin"))).expanduser().absolute()
-    cursor_projects = [project.expanduser().absolute() for project in args.cursor_project]
 
     drift: list[str] = []
     checked = 0
@@ -183,6 +146,8 @@ def main() -> int:
         check_copy(claude_settings, claude_dir / "settings.json", json_subset=True, exact=bool(claude_overlay and (claude_overlay / "settings.json").exists()))
         check_copy(source(claude_base, claude_overlay, "keybindings.json"), claude_dir / "keybindings.json", json_subset=True, exact=True)
 
+        # A linked skill and an identical copy both compare equal; an overlay-owned
+        # skill compares against the overlay's copy.
         expected_claude_skills = {item.name: item for item in (claude_base / "skills").glob("*")}
         if claude_overlay and (claude_overlay / "skills").is_dir():
             expected_claude_skills.update({item.name: item for item in (claude_overlay / "skills").glob("*")})
@@ -198,57 +163,18 @@ def main() -> int:
         web_source = source(pi_base, pi_root_overlay, "web-search.json")
         check_copy(web_source, pi_root / "web-search.json", json_subset=True, exact=bool(pi_root_overlay and (pi_root_overlay / "web-search.json").exists()))
 
-        expected_pi_skills = {item.name: item for item in (repo / "skills").glob("*")}
+        expected_pi_skills = {item.name: item for item in (repo / "claude" / "plugin" / "skills").glob("*")}
         expected_pi_skills.update({item.name: item for item in (pi_base / "skills").glob("*")})
         if pi_overlay and (pi_overlay / "skills").is_dir():
             expected_pi_skills.update({item.name: item for item in (pi_overlay / "skills").glob("*")})
         for name, src in sorted(expected_pi_skills.items()):
             check_link(src, pi_dir / "skills" / name)
-        check_link(repo / "bin" / "o90-pi", bin_dir / "o90-pi")
-
-    if "codex" in components:
-        check_link(codex_base / "AGENTS.md", codex_dir / "AGENTS.md")
-        for agent in sorted((codex_base / "agents").glob("*.toml")):
-            check_link(agent, codex_dir / "agents" / agent.name)
-        for name in CODEX_PLUGIN_SKILLS:
-            checked += 1
-            target = agents_dir / "skills" / name
-            if symlink_points_to_source(target, repo / "skills" / name):
-                drift.append(
-                    f"{target}: checkout-owned legacy global skill link remains; "
-                    "the Codex plugin owns this skill"
-                )
-        if "pi" in components:
-            check_link(repo / "integrations" / "pi-worker", agents_dir / "skills" / "o90-pi-worker")
-
-    if "cursor" in components:
-        cursor_rule = repo / "cursor" / "rules" / "o90.mdc"
-        for project in cursor_projects:
-            check_copy(cursor_rule, project / ".cursor" / "rules" / "o90.mdc")
-            for agent in sorted((repo / "cursor" / "agents").glob("*.md")):
-                check_link(agent, project / ".cursor" / "agents" / agent.name)
-            for skill in sorted((repo / "skills").glob("*")):
-                check_link(skill, project / ".cursor" / "skills" / skill.name)
-            if "pi" in components:
-                check_link(
-                    repo / "integrations" / "pi-worker",
-                    project / ".cursor" / "skills" / "o90-pi-worker",
-                )
 
     stray_directories: list[Path] = []
     if "pi" in components:
         stray_directories.extend((pi_dir, pi_dir / "skills"))
     if "claude" in components:
         stray_directories.extend((claude_dir, claude_dir / "skills"))
-    if "codex" in components:
-        # ~/.agents/skills is shared user space. Exact checks above cover links
-        # owned by this checkout while leaving unrelated skills alone.
-        stray_directories.extend((codex_dir, codex_dir / "agents"))
-    if "cursor" in components:
-        for project in cursor_projects:
-            stray_directories.extend(
-                (project / ".cursor" / "agents", project / ".cursor" / "skills")
-            )
     strays, scanned = stray_links(
         stray_directories,
         [repo, *([overlay] if overlay else [])],

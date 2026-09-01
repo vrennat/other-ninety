@@ -12,48 +12,24 @@ For new projects without a stated stack, prefer **SvelteKit with Svelte 5 runes*
 - **No vanity metrics:** report performance results with sample size and variance or label them inconclusive.
 - **Preserve reasoning:** record why a decision was made, not only the outcome.
 
-## Autonomy
+## Stop before
 
-Proceed without confirmation when work is local, reversible, and easy to undo. Stop before:
+Destructive Git (force push, history rewrite, hard reset, branch deletion, bypassing hooks); deployments, remote resource creation, or first pushes; purchases, secret rotation, or deleting data without a tested backup. Local, reversible work proceeds without asking.
 
-- destructive Git operations such as force pushes, history rewrites, hard resets, branch deletion, or bypassing hooks;
-- deployments, remote resource creation, first pushes, or other persistent network changes;
-- purchases, paid services, secret rotation, or deletion of data without a tested backup.
+## Git and deployment
 
-## Git
+- Conventional commits. New commits, never amend published history. Follow repository-local contribution rules.
+- Before pushing `main`: fetch upstream and resolve divergence without force. Read both sides of a conflict.
+- Check other live sessions and worktrees before repo-wide or destructive changes.
+- Typecheck and build before deploying. After deploying, hit the changed routes cold, more than once. A green deploy command is not proof.
 
-- Use conventional commits and create new commits rather than amending published history.
-- Follow repository-local contribution rules when present.
-- Before pushing `main`, fetch its upstream and resolve divergence without force-pushing.
-- Read both sides of conflicts. Do not resolve them mechanically with `--ours` or `--theirs`.
-- Check active worktrees before repo-wide or destructive changes.
+## Code
 
-## Deployment
-
-Run the repository's typecheck and build before deployment. After deployment, verify changed routes through a cold path more than once. A successful deploy command is not proof that the feature works.
-
-## Style
-
-- Use bun for Node work unless the repository already uses another lockfile.
-- Avoid production `console.log`, commented-out code, unexplained `any`, and TODOs without an issue reference.
-- Prefer small files organized by feature. Test behavior rather than implementation.
-- Never commit secrets, credentials, `.env` files, auth state, or private session data.
-- Write plain English with short, precise sentences.
-
-<!-- o90-output-style:start -->
-## Output style
-
-Write clear, compact prose.
-
-- Lead with the outcome or next action. Skip generic introductions and conclusions.
-- Describe behavior before benefits. Remove unsupported quality claims.
-- Prefer specific observations, sources, mechanisms, and measurements to generic claims. Do not invent detail.
-- Use one term for each concept. Split unrelated claims and procedural actions.
-- Keep necessary detail, uncertainty, conditions, and exceptions.
-- Match the user's voice when voice matters.
-- Preserve exact code, identifiers, commands, paths, quotations, errors, API terms, schema terms, names, dates, and numbers.
-<!-- o90-output-style:end -->
+- bun for Node work unless the repository has another lockfile. Never commit secrets, `.env` files, auth state, or session data.
+- No production `console.log`, commented-out code, unexplained `any`, or TODOs without an issue reference. Small files by feature. Test behavior, not implementation.
 
 ## Workflow
 
-The Other Ninety (o90) provides `/bootstrap`, `/brainstorm`, `/impl`, `/mode`, `/research`, `/trim`, `/debt`, `/status`, `/surface`, `/plan`, `/tdd`, and the explicit `/pi` leaf-worker bridge. `docs/ladder.md` in the o90 repo says when to move from one to the next. Use `clean-writing` for deliberate prose work. `systematic-debugging` triggers on observed failures and `verification-before-completion` applies before success claims. Use `conductor` only for long-running delegated sessions that need named ownership.
+- Stakes decide review, not size: auth, money, data integrity, security, privacy, or hard-to-undo changes get an independent `adversarial-reviewer` pass even when the diff is one line.
+- `/brainstorm` turns an idea into a spec in `docs/specs/`. `/impl` executes a spec, ticket, or description and prints its classification first. `/plan` writes a reviewable plan when you want one. `/trim` asks only what can be deleted.
+- `clean-writing` for deliberate prose. `conductor` only for long-running delegated sessions with named ownership. `summarize` and `i-have-adhd` for catch-up and ADHD-shaped output.
