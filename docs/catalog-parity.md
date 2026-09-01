@@ -16,8 +16,8 @@ installs. Tests compare every host copy with the canonical text.
 The policy keeps ordinary output compact without forcing every task into one
 voice. It removes generic framing and unsupported claims while preserving exact
 technical text, facts, uncertainty, conditions, and exceptions. The optional
-`clean-writing` skill selects controlled, technical, or natural guidance when a
-writing task benefits from a more specific mode.
+`clean-writing` skill selects controlled, technical, or natural guidance for
+tasks that draft or revise prose.
 
 ## Skills
 
@@ -31,9 +31,9 @@ writing task benefits from a more specific mode.
 | `systematic-debugging` | Shared skill | Plugin skill | `other-ninety:systematic-debugging` plugin skill | `<project>/.cursor/skills/systematic-debugging` |
 | `verification-before-completion` | Shared skill | Plugin skill | `other-ninety:verification-before-completion` plugin skill | `<project>/.cursor/skills/verification-before-completion` |
 
-All seven skills ship from one shared catalog (`skills/`, mirrored byte-for-byte
-into the Claude plugin; `scripts/test_install.py` enforces the mirror). Pi links
-the shared copies directly; `pi/skills/` stays empty unless a skill genuinely
+All seven skills ship from one shared catalog (`skills/`). The Claude plugin
+carries a byte-for-byte mirror, so skill changes must be applied to both copies.
+Pi links the shared copies directly; `pi/skills/` stays empty unless a skill genuinely
 needs a Pi-specific override, which shadows the shared copy by name at install
 time. The portable `onboarding` skill performs the same safe project bootstrap
 as Claude's `/bootstrap` flow without assuming slash-command support. The

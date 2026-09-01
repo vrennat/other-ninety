@@ -1,16 +1,15 @@
 # The Other Ninety
 
-**o90** is an opinionated, runtime-native working system for Claude Code,
-Codex, Cursor, and Pi. It installs the rules, skills, and specialist agents that
-keep planning, delegation, review, and verification consistent without putting
-another harness between you and the runtime.
+**o90** is an opinionated set of native rules, skills, workflows, and specialist
+agents for Claude Code, Codex, Cursor, and Pi. It gives each runtime the same
+planning, delegation, review, and verification rules without putting another
+harness between you and the runtime.
 
-This is a published working system, not a claim that every team should work the
-same way. The defaults favor local, reversible action; questions only when a
-decision is genuinely open; stronger review when the stakes rise; and evidence
-before a completion claim.
+By default, o90 keeps changes local and reversible, asks only when a decision is
+genuinely open, adds review when stakes rise, and requires evidence before
+reporting completion.
 
-## How it changes the work
+## How impl routes work
 
 Every runtime receives native `impl` and `mode` workflows that make four
 decisions explicit. Claude Code exposes commands, Pi exposes prompt templates,
@@ -56,6 +55,10 @@ role, and runtime mapping.
 [When to move up a rung](docs/ladder.md) says which workflow to reach for as
 work grows from a single prompt to parallel agents. Choices with more than one
 defensible answer are numbered in [docs/decisions.md](docs/decisions.md).
+[Agent provenance](docs/agent-provenance.md) documents the current optional
+attribution line; [agent provenance and federation](docs/agent-federation.md)
+distinguishes self-reported labels, best-effort run telemetry, and future
+verifiable cross-runtime provenance.
 
 ## Quick start
 
@@ -251,7 +254,7 @@ other-ninety/
 │   └── config/           # shared global Claude configuration
 ├── pi/                   # complete Pi configuration and extensions
 ├── scripts/              # installer, checks, and tests
-├── bootstrap.sh          # one-go config bootstrap
+├── bootstrap.sh          # single-command config bootstrap
 └── install.sh            # dry-run-first config installer and rollback
 ```
 

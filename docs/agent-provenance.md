@@ -3,6 +3,11 @@
 A one-line convention for recording which harness, model, and machine produced a
 piece of work, when every agent runs under the same human's credentials.
 
+This is declarative attribution, not independently observed or cryptographic
+provenance. [Agent provenance and federation](agent-federation.md) describes the
+proposed telemetry and trust layers while keeping this line as a portable,
+human-readable label.
+
 ## The problem it solves
 
 Agents commit as you, open pull requests as you, and comment as you. Once the
@@ -12,8 +17,7 @@ tracker all show one name.
 
 That is tolerable until you start changing things. Swap a harness, move a role
 to a different model, try a new routing table, and the question "did that
-actually help?" has no data behind it. The work is all there; the attribution
-is not.
+actually help?" has no data behind it.
 
 This is a **record, not a gate**. Nothing blocks on it, no check enforces it,
 and a missing entry is a gap rather than a failure.
@@ -22,8 +26,7 @@ It is also **text, not identity infrastructure**. No second account, no bot
 user, no separate commit email, no plus-addressed alias. Every commit stays
 authored by you and every comment stays posted by you, which keeps your
 contribution history intact and your account list at one. The whole convention
-is a line inside a message body — which is exactly why it costs nothing to
-adopt and nothing to abandon.
+is a line inside a message body, so it costs nothing to adopt or abandon.
 
 ## The trailer
 
@@ -89,8 +92,7 @@ published.
 
 ## Where to turn it on
 
-The record is worth most where it has readers and costs nothing, and that is
-not everywhere. A default worth starting from:
+Start with this default:
 
 - **Private repositories — on.** The audience is already inside, and nothing
   permanent is exposed to anyone who is not.
@@ -108,8 +110,8 @@ provenance is part of what the repository is demonstrating, contributors need to
 separate agent work from human work, or you are running an experiment whose
 results you intend to publish.
 
-The asymmetry is the point. Off in public is not secrecy — the same information
-is in your private history, where you are the one reading it.
+The same information remains available in private history without publishing
+it.
 
 ## Record the producer, not the process that committed
 
@@ -177,14 +179,14 @@ body:
 Agent: claude/review · opus-5 · laptop
 ```
 
-Two honest differences from commits. On GitHub and Linear there is no
+Two differences from commits. On GitHub and Linear there is no
 `%(trailers:...)` equivalent for a comment thread, so the line is a marker a
 person reads while scrolling rather than a dataset you query — do not plan
 analysis around it there. And a comment has no `Co-Authored-By` alongside it,
 so the line is the only thing distinguishing agent-written text from something
 you typed yourself.
 
-Comments make the relay case more common, not less: the agent that posts is
+Comments make the relay case more common: the agent that posts is
 often not the agent that did the work, because workers frequently cannot reach
 the tracker at all. The rule is the same one commits use — `host` names the
 **producer's** machine — but there is no `Co-Authored-By` here to hint that two
@@ -200,8 +202,7 @@ relay rule exists to prevent, and it is easier to commit by accident here.
 ### When the tracker has a real field for it, use the field
 
 Appending a line is what you do when nothing better exists. Some trackers have
-an actual slot for the actor, and there the convention should stop being a
-convention.
+an actual slot for the actor; use that field instead.
 
 [beads](https://github.com/gastownhall/beads) is the case in point. Every
 command takes `--actor`, or reads `$BEADS_ACTOR`, and the value lands in a
@@ -329,8 +330,8 @@ Provenance is a record. Review is the one place where identity does work, and
 it is worth separating the two.
 
 Mixed-up attribution in a comment thread is confusing. A **self-review that
-reads as an independent one is a broken quality gate** — it produces confidence
-that nothing earned. That is the failure worth designing against, and it is
+reads as an independent one is a broken quality gate** — it creates confidence
+the review has not earned. That is the failure worth designing against, and it is
 already visible in the wild: agents write "External review (not self-review)"
 into their own review bodies. The instinct is right. The execution is a claim
 the agent makes about itself, which is exactly the kind of claim a reader
@@ -350,7 +351,7 @@ so they are a description of the defaults rather than a proposal:
   no `Write` — so it could not have authored what it reviews.
 - **Where stakes justify it, the reviewer runs a different model than the
   author.** Same-model review is not worthless, but it is correlated. The model
-  table in `claude/config/rules/agents.md` already spends the decorrelation:
+  table in `claude/config/rules/agents.md` already assigns different tiers:
   implementation workers run the cheap tier, while review and debugging
   specialists run a step above them. `adversarial-reviewer` is dispatched on
   stakes rather than file count — auth, money, data, security, privacy,
@@ -359,10 +360,10 @@ so they are a description of the defaults rather than a proposal:
 Neither rule needs an account, a bot, or a seat. Both are settled when the
 agent is spawned, which is exactly why they work under a single login.
 
-### Recording it
+### Recording reviews
 
-Nothing new to learn. The review carries the same one-line record, with
-`review` or `adversarial` as the role:
+A review carries the same one-line record, with `review` or `adversarial` as the
+role:
 
 ```
 Agent: claude/review · opus-5 · laptop
@@ -372,37 +373,34 @@ An author line and a reviewer line on the same change *are* the decorrelation
 record — two models named, or the same model named twice, which tells you what
 the review was worth.
 
-One seam worth stating plainly: commits are the substrate for work, and **a
-review that approves without changing anything produces no commit.** Then the
-line goes wherever the review itself landed — the PR review body, the issue
-comment. Same format, different home, and still optional like every other
-record here; this is not a sign-off requirement returning through a side door.
-Reviews that do change something ride the fix commit like any other work.
+A review that approves without changing anything produces no commit. Put the
+line where the review landed: the PR review body or issue comment. The format
+stays the same, and the record remains optional; it is not a sign-off
+requirement. When a review produces a change, put the line on the fix commit.
 
-### The honest limit
+### The limit
 
 A fresh context of the same model is not an independent mind. It shares the
 training, the priors, and therefore the blind spots. What identity buys on one
 account is **decorrelation you can record, not independence you can assume.**
 
-Treat a same-model review as a second look, not a second opinion. Both are
-useful. Only one of them is evidence.
+Treat a same-model review as an additional pass, not independent evidence.
 
 ### Proving the ritual can fail
 
-A review lane is an instrument, and an instrument that can only report "looks
-good" is indistinguishable from one that is not looking.
+A review process that only reports "looks good" may not be checking the defects
+you care about.
 
-Before trusting a lane, plant a defect of the class you care about on a scratch
-branch, run the ritual against it, and confirm the reviewer catches it. Re-run
-that check when you change the reviewer's model or its brief — those are the
-edits that quietly turn a reviewer into a rubber stamp. This is the same
-positive-control discipline any other check here gets; a review lane does not
-earn an exemption for being made of prose.
+Before relying on a reviewer, plant a defect of the class you care about on a
+scratch branch, run the review, and confirm the reviewer catches it. Re-run that
+check when you change the reviewer's model or its brief — those are the edits
+that quietly turn a reviewer into a rubber stamp. This is the same
+positive-control discipline any other check here gets; a review process does
+not earn an exemption for being made of prose.
 
-If no review has ever come back with anything, that is a prompt to run the
-planted-defect check. It is not a metric to drive: an agent told that
-disagreement is the health signal will produce disagreement.
+If a reviewer has never reported a problem, run the planted-defect check. It is
+not a metric to drive: an agent told that disagreement is the health signal will
+produce disagreement.
 
 ## Deliberately not built
 

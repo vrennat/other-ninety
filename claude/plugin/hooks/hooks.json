@@ -1,5 +1,5 @@
 {
-  "description": "The Other Ninety — injects the three-axis routing rubric (clarity / complexity / stakes) as ambient context on every session start, so the confirm-only-when-ambiguous philosophy is active even without /impl.",
+  "description": "The Other Ninety injects clarity, complexity, and stakes routing rules at session start so they apply even when /impl is not invoked.",
   "hooks": {
     "SessionStart": [
       {
