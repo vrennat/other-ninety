@@ -2,11 +2,14 @@ import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { relative, resolve, sep } from "node:path";
+import { hostname } from "node:os";
 import { computeCacheMetrics, formatCacheMetrics } from "./lib/cache-metrics.ts";
 
 export function shouldShowStatus(key: string): boolean {
 	return key !== "mcp";
 }
+
+const HOST = hostname().split(".")[0].toLowerCase();
 
 function formatCount(count: number): string {
 	if (count < 1_000) return `${count}`;
@@ -87,7 +90,7 @@ export default function (pi: ExtensionAPI) {
 					const branch = footerData.getGitBranch();
 					const sessionName = pi.getSessionName();
 					const location = [
-						formatCwd(ctx.cwd) + (branch ? ` (${branch})` : ""),
+						`${HOST}:${formatCwd(ctx.cwd)}` + (branch ? ` (${branch})` : ""),
 						sessionName,
 					].filter(Boolean).join(" · ");
 					const stats = [

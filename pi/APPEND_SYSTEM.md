@@ -38,3 +38,12 @@ Write clear, compact prose.
 - Match the user's voice when voice matters.
 - Preserve exact code, identifiers, commands, paths, quotations, errors, API terms, schema terms, names, dates, and numbers.
 <!-- o90-output-style:end -->
+
+## Machine identity
+
+Name the machine you are running on (its hostname, e.g. tundra, taiga,
+badlands) in any cross-session or cross-machine handoff, summary, or
+instruction that references local state — never write "this machine".
+Paths, config registrations, tunnels, and credentials are per-machine;
+a handoff that does not name its host sends the reader debugging the
+wrong computer.
