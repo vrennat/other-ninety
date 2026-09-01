@@ -12,7 +12,7 @@ from pathlib import Path
 
 VOLATILE = {"lastChangelogVersion", "model"}
 
-CLAUDE_LINKS = ("CLAUDE.md", "post-compact-rules.md", "rules", "hooks", "agents")
+CLAUDE_LINKS = ("CLAUDE.md", "rules", "hooks", "agents")
 CLAUDE_COPIES = {"settings.json", "keybindings.json"}
 PI_LINKS = ("AGENTS.md", "APPEND_SYSTEM.md", "agents", "extensions", "prompts", "themes")
 PI_COPIES = {"settings.json", "mcp.json"}

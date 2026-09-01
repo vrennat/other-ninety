@@ -9,29 +9,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/session-intent.sh\""
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/session-intent.sh\""
-          }
-        ]
-      }
-    ],
-    "PostCompact": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cat \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/post-compact-rules.md\""
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/session-intent.py\""
           }
         ]
       }

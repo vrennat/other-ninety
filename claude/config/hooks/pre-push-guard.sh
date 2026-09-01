@@ -17,6 +17,10 @@ set -uo pipefail
 
 payload=$(cat)
 
+# Cheap prefilter: nearly every Bash call is not a push. Skip the python
+# parsing below (~50 ms per call) unless the raw payload even contains "push".
+case "$payload" in *push*) ;; *) exit 0 ;; esac
+
 # Only act on Bash tool calls
 tool_name=$(python3 -c 'import json, sys; print(json.load(sys.stdin).get("tool_name") or "")' <<<"$payload")
 if [[ "$tool_name" != "Bash" ]]; then

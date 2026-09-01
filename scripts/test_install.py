@@ -187,7 +187,7 @@ class InstallerTest(InstallerHarness):
 
             first_backup.write_bytes(held)
             self.run_installer("--rollback", manifest)
-            added_after_rollback = claude / "post-compact-rules.md"
+            added_after_rollback = claude / "agents"
             added_after_rollback.parent.mkdir(parents=True, exist_ok=True)
             added_after_rollback.write_text("new user file\n")
             repeated = self.run_installer("--rollback", manifest, check=False)

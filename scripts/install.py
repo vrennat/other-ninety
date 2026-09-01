@@ -102,7 +102,7 @@ def add_claude_operations(repo: Path, claude_dir: Path) -> list[Operation]:
     operations: list[Operation] = []
     claude = repo / "claude" / "config"
 
-    for name in ("CLAUDE.md", "post-compact-rules.md", "rules", "hooks", "agents"):
+    for name in ("CLAUDE.md", "rules", "hooks", "agents"):
         source = claude / name
         if source.exists():
             operations.append(Operation("link", source, claude_dir / name))

@@ -14,6 +14,11 @@ history can explain does not.
 | D2 | `/status` as a prompt or a script | Resolved |
 | D3 | Scope of the write-surface guard | Resolved |
 | D4 | CI without a committed Pi lockfile | Resolved |
+| D5 | Fable-era always-loaded layer: how far to strip | Open |
+| D6 | Plugin command, agent, and skill surface | Open |
+| D7 | Codex and Cursor adapters | Open |
+| D8 | User-level skills and their drift | Open |
+| D9 | What Pi loads as CLAUDE.md | Open |
 
 ---
 
@@ -71,3 +76,52 @@ was half wrong: `pi/bun.lock` was already tracked, so the `.gitignore` line was 
 tracking an ignored file); the line is removed so the file cannot silently drop out later. The
 `latest` pin was the real problem. Verified: `bun install --frozen-lockfile` passes on the committed pair and
 fails when `package.json` drifts from the lock. `bun run update:pi` remains the deliberate upgrade path.
+
+## D5. Fable-era always-loaded layer: how far to strip — Open
+
+Every Claude session loads about 4,200 tokens of o90 text before the first prompt: `CLAUDE.md` 920, `rules/` 1,670, the SessionStart injection 480, and until 2026-09-01 the same injection a second time from the plugin's previous-name twin, still enabled alongside it plus a 31-line list of mostly dead sessions. The Fable 5.1 system prompt now states autonomy, scope discipline, verification honesty, and a writing style of its own, so three o90 blocks restate it (`CLAUDE.md` "Style" and "Output style", the hook's output-style block) and one contradicted it (post-compact "absolute paths", removed). The complexity table in `rules/agents.md` routes by file count; across 119 transcripts in 30 days `validator` ran 0 times and `fast-impl` 4, against `general-purpose` 205.
+
+- **(a) Strip to what the system prompt cannot know: stack, the five working rules, the stop-before list, git and deploy gates, code conventions, and one Workflow paragraph naming the surviving commands. `rules/verification.md` stays. `rules/agents.md` becomes delegation-by-reason (parallelism, isolation, independent review) plus the two standard brief clauses. The hook injection shrinks to the stakes rule and the command list. Both output-style blocks go. About 1,600 tokens.** ← recommended
+- (b) Keep the layer; remove only the duplicated output-style block.
+- (c) Strip further: fold `verification.md` into four lines of `CLAUDE.md` and delete `rules/`.
+
+**Recommendation:** (a). (c) saves about 400 more tokens but loses the worked reasoning behind each verification rule, which is what changes behavior on the day it matters.
+
+## D6. Plugin command, agent, and skill surface — Open
+
+Thirty-day invocation counts from 119 transcripts: `adversarial-reviewer` 27, `brainstorm` 9, `plan` 9, `impl` 8, `brutal-code-reviewer` 4, `fast-impl` 4, `debug-genius` 1, `validator` 0; `/trim`, `/debt`, `/mode`, `/tdd`, `/research`, `/status`, `/surface`, `/pi`, `/bootstrap` 0; skills `clean-writing`, `onboarding`, `plan-hunter`, `systematic-debugging`, `verification-before-completion` 0. No project has `.o90/mode`, `.o90/surface`, or `docs/lessons.md`; three `o90:` markers exist across every repo. Anthropic now ships `plan-hunter`, `/code-review` with `ultra`, `/simplify`, `/security-review`, and plan mode, which overlap five of ours.
+
+- **(a) Keep `/brainstorm`, `/impl`, `/plan`, `/trim`, `adversarial-reviewer`, `clean-writing`. Cut `/mode` and its plumbing, `/debt` and the marker convention, `/surface`, `/status`, `/pi`, `/research`, `/tdd`, `/bootstrap`, `fast-impl`, `validator`, `debug-genius`, `brutal-code-reviewer`, `plan-hunter`, `onboarding`, `systematic-debugging`, `verification-before-completion`. `/impl` loses its file-count tiers: work happens in the main session, delegation follows `rules/agents.md`, more than five files goes to `/code-review`, and TDD becomes a one-line opt-in inside `/impl`.** ← recommended
+- (b) As (a) but keep `brutal-code-reviewer` for architectural review of shared infrastructure.
+- (c) Keep everything; fix only the hook and the dead command references.
+
+**Recommendation:** (a). `/trim` survives on its contract (deletion only, net-lines total), not its count. `brutal-code-reviewer` is the closest call; `/code-review high` on a fresh subagent covers it.
+
+## D7. Codex and Cursor adapters — Open
+
+`codex/`, `cursor/`, `plugins/other-ninety/` (the Codex skill package), the `skills` symlink, `docs/catalog-parity.md`, and the parity tests exist so the seven-skill catalog ships to four runtimes. On taiga no project has `.cursor/rules/o90.mdc`, `~/.codex/AGENTS.md` is the personal June file with no o90 agents, and the codex binary does not launch. Pi is fully linked and used daily.
+
+- **(a) Archive Codex and Cursor: delete their directories, the Codex plugin package, the `skills` symlink, and their tests. The Claude plugin becomes the one copy of each skill and Pi links to it.** ← recommended
+- (b) Keep all four runtimes and the byte-for-byte mirror.
+- (c) Keep Codex, drop Cursor.
+
+**Recommendation:** (a). Reversible from history if either runtime returns. Four-runtime parity is the largest single source of duplicated prose in the repo.
+
+## D8. User-level skills and their drift — Open
+
+`~/.claude/skills/` holds twelve real directories, copied by the installer rather than linked. Five differ from the repo (conductor by 304 lines, the others by 5 to 14 lines), with the repo side newer in every case, except that the live conductor carries a private `references/example-briefs.md` that the public SKILL.md still cites. Thirty-day use: `i-have-adhd` 3, `conductor` 4, `summarize` 4, `pr` 1; `typecheck`, `ticket`, `quick-review`, `design-ctx`, `skill-creator` (Anthropic ships one), `researcher` (30 KB, duplicates `/research`), and `svelte5-best-practices` 0.
+
+- **(a) Cut `typecheck`, `ticket`, `quick-review`, `pr`, `design-ctx`, `skill-creator`, `researcher`. Keep `conductor`, `i-have-adhd`, `summarize`, `svelte5-best-practices`. Link the survivors from `~/.claude/skills/` into the repo the way `CLAUDE.md`, `rules`, and `hooks` already are, so drift cannot recur; the private example briefs move to the overlay.** ← recommended
+- (b) Keep all twelve; only link them.
+
+**Recommendation:** (a). `svelte5-best-practices` stays on content, not count: stack knowledge the model cannot infer, at the cost of one description line.
+
+## D9. What Pi loads as CLAUDE.md — Open
+
+`~/.pi/agent/CLAUDE.md` is a July symlink into the retired `claude-setup` repo, so Pi reads the pre-o90 persona and rules alongside o90's `AGENTS.md`.
+
+- **(a) Repoint it at `claude/config/CLAUDE.md` and let the installer manage it.** ← recommended
+- (b) Remove the link; Pi keeps only `AGENTS.md` and `APPEND_SYSTEM.md`.
+- (c) Leave it.
+
+**Recommendation:** (a), unless the persona paragraph is wanted in Pi, in which case it belongs in the private overlay.

@@ -22,45 +22,68 @@ class HookTests(unittest.TestCase):
             capture_output=True, env=env, cwd=cwd,
         )
 
-    def test_session_start_registry_and_other_sessions(self):
-        with tempfile.TemporaryDirectory() as directory:
-            config = Path(directory)
-            old = (config / "sessions-active.md")
-            now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            old.write_text(f"{now} | other | /repo\n")
-            result = self.run_hook(
-                "session-intent.sh",
-                {"hook_event_name": "SessionStart", "session_id": "current", "cwd": "/work"},
-                config,
-            )
-            self.assertEqual(result.returncode, 0)
-            self.assertIn("current", old.read_text())
-            self.assertIn("other", result.stdout)
+    def write_session(self, config, pid, session_id, cwd):
+        sessions = config / "sessions"
+        sessions.mkdir(exist_ok=True)
+        (sessions / f"{session_id}.json").write_text(json.dumps(
+            {"pid": pid, "sessionId": session_id, "cwd": str(cwd), "name": f"name-{session_id}",
+             "procStart": "Tue Sep  1 18:00:00 2026"}
+        ))
 
-    def test_session_end_removes_current_session(self):
+    def test_session_start_lists_live_sessions_in_same_repo_only(self):
         with tempfile.TemporaryDirectory() as directory:
-            config = Path(directory)
-            registry = config / "sessions-active.md"
-            now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            registry.write_text(f"{now} | current | /work\n")
+            root = Path(directory)
+            config = root / "config"
+            config.mkdir()
+            repo = root / "repo"
+            repo.mkdir()
+            subprocess.run(["git", "init", "-q", "-b", "main"], cwd=repo, check=True)
+            subprocess.run(["git", "-c", "user.email=tester", "-c", "user.name=t",
+                            "commit", "-q", "--allow-empty", "-m", "init"], cwd=repo, check=True)
+            worktree = root / "wt"
+            subprocess.run(["git", "worktree", "add", "-q", str(worktree), "-b", "feature"], cwd=repo, check=True)
+            elsewhere = root / "elsewhere"
+            elsewhere.mkdir()
+            dead = subprocess.Popen(["true"])
+            dead.wait()
+            live = os.getpid()
+            self.write_session(config, live, "current", repo)
+            self.write_session(config, live, "same-repo-worktree", worktree)
+            self.write_session(config, live, "other-repo", elsewhere)
+            self.write_session(config, dead.pid, "dead-same-repo", repo)
             result = self.run_hook(
-                "session-intent.sh",
-                {"hook_event_name": "SessionEnd", "session_id": "current", "cwd": "/work"},
+                "session-intent.py",
+                {"hook_event_name": "SessionStart", "session_id": "current", "cwd": str(repo)},
                 config,
             )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(f"| name-same-repo-worktree | pid {live} | {worktree}", result.stdout)
+            self.assertNotIn("name-current", result.stdout)
+            self.assertNotIn("name-other-repo", result.stdout)
+            self.assertNotIn("name-dead-same-repo", result.stdout)
+            self.assertEqual(result.stdout.count(f"| pid {live} |"), 1, result.stdout)
+            self.assertNotIn(f"| pid {dead.pid} |", result.stdout)
+
+    def test_session_start_without_registry_prints_nothing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = self.run_hook(
+                "session-intent.py",
+                {"hook_event_name": "SessionStart", "session_id": "current", "cwd": directory},
+                Path(directory),
+            )
             self.assertEqual(result.returncode, 0)
-            self.assertNotIn("current", registry.read_text())
+            self.assertEqual(result.stdout, "")
 
     def test_null_session_id_is_ignored(self):
         with tempfile.TemporaryDirectory() as directory:
             config = Path(directory)
             result = self.run_hook(
-                "session-intent.sh",
+                "session-intent.py",
                 {"hook_event_name": None, "session_id": None, "cwd": None},
                 config,
             )
             self.assertEqual(result.returncode, 0)
-            self.assertFalse((config / "sessions-active.md").exists())
+            self.assertEqual(result.stdout, "")
 
     def test_null_cwd_uses_current_directory(self):
         with tempfile.TemporaryDirectory() as directory:
