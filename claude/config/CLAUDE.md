@@ -15,6 +15,13 @@ For new projects without a stated stack, prefer **SvelteKit with Svelte 5 runes*
 ## Stop before
 
 Destructive Git (force push, history rewrite, hard reset, branch deletion, bypassing hooks); deployments, remote resource creation, or first pushes; purchases, secret rotation, or deleting data without a tested backup. Local, reversible work proceeds without asking.
+## Long-running work and agents
+
+- **Bash timeout is a backstop, not a budget.** Anything likely to exceed 60 seconds (builds, renders, test suites, downloads, servers) starts with `run_in_background` and is checked with Monitor. Never raise the per-call timeout to wait.
+- **Compact early.** On 1M-context models, `/compact` around 250k tokens; do not run to the window edge. Every call re-reads the whole context.
+- **Long-lived agents stay small.** A wake re-sends the agent's entire context, so brief standing agents narrowly and batch messages to them. Reviewers and other read-only agents are spawned without worktree isolation.
+- **Reddit and web.archive.org are blocked for WebFetch.** Use the reddit MCP for Reddit.
+
 
 ## Git and deployment
 

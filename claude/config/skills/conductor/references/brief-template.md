@@ -33,6 +33,7 @@ State the mechanism, not just the prohibition.
 - `<Known-stale docs or config>`
 - `<What is deliberately absent>`
 - `<Other live sessions or worktrees>`
+- `<If isolated: your worktree is the only path you may cd into or write to; other worktrees and the main checkout are out of bounds>`
 
 ## First task: `<RECON ONLY>`. Change nothing.
 

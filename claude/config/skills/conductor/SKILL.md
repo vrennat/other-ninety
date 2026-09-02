@@ -33,6 +33,9 @@ Routing, synthesis, and adjudication of what agents report. Refuse to accept cle
 - **Do not verify directly.** Send claims to the agent that owns the verdict, framed as falsifiable.
 - **Do not accept a report you would not accept from a stranger.** Ask what would have shown the opposite.
 - **Resume, never respawn.** Resume the named agent to preserve accumulated context.
+- **Run the conductor at xhigh, not max.** Every standing agent inherits the conductor's effort level; max across twenty agents was the most expensive setting of the week it was measured.
+- **Isolate builders, not reviewers.** Worktree isolation is for agents with a write surface. Reviewers and verifiers read the shared checkout; isolated read-only agents spent dozens of turns failing to reach paths outside their worktree.
+- **Keep standing agents small.** A wake re-sends the whole context; agents that idle at 250k+ context are the cost, not the wakes. Batch messages to one agent and prefer a fresh one-shot agent over a standing one when nothing is accumulated.
 - **Keep the principal informed without requiring them to understand or investigate the codebase.** Every report upward is a decision to make or a state to know, never a pointer to go look. If the principal has to open a file to understand what happened, the synthesis was not done.
 
 ## Spawn brief structure
