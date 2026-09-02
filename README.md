@@ -23,7 +23,7 @@ them from drifting, and keep private context out of the public copy.
 |---|---|---|
 | Claude plugin | `/brainstorm`, `/impl`, `/plan`, `/trim`; the `adversarial-reviewer` agent; the `clean-writing` skill; a SessionStart hook that injects the two rules | `claude/plugin/` |
 | Claude config | Public-safe global `CLAUDE.md`, `rules/`, hooks, the `teammate` agent protocol, and reusable skills (`conductor`, `i-have-adhd`, `summarize`, `svelte5-best-practices`) | `claude/config/` |
-| Pi | Agents, extensions, prompt templates, themes, and pinned packages | `pi/` |
+| Pi | Agents, extensions, prompt templates, themes, and pinned packages; the o90 behavior text is opt-in (`--with pi-text`) | `pi/` |
 | Repository tooling | Bootstrap, rollback, drift, leak, and verification checks | `bootstrap.sh`, `install.sh`, `scripts/` |
 
 The Claude plugin works without Pi. Pi works without the plugin. The two hooks
@@ -65,7 +65,9 @@ a complete setup.
    A real directory is a private copy and is kept.
 3. Copies `settings.json` and `keybindings.json` only when absent.
 4. When Pi is selected, links the Pi config and installs its locked
-   dependencies and pinned packages.
+   dependencies and pinned packages. Pi stays stock unless `pi-text` is also
+   selected: three screens measured the always-loaded o90 text at 1.5x to
+   1.9x tokens with no task effect.
 5. When Claude is selected, adds or updates the marketplace and plugin at user
    scope.
 

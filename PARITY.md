@@ -21,7 +21,7 @@ Parity means the public toolkit preserves reusable behavior from the private sou
 
 ## Pi adapter
 
-- [ ] Pi loads `AGENTS.md` and `APPEND_SYSTEM.md` from an isolated `PI_CODING_AGENT_DIR`.
+- [ ] Pi is stock by default: `AGENTS.md` and `APPEND_SYSTEM.md` link only with `--with pi-text`, and the drift check flags a leftover text link when that component is not selected.
 - [ ] Eight routed agents are available.
 - [ ] Prompt templates load: `brainstorm`, `debt`, `impl`, `mode`, `plan`, `research`, `status`, `tdd`, `trim`.
 - [ ] Skills load: the Claude plugin's `clean-writing`; `pi/skills/` holds only deliberate per-skill overrides and is currently empty.
@@ -29,7 +29,7 @@ Parity means the public toolkit preserves reusable behavior from the private sou
 - [ ] Five themes load, including the high-contrast Tokyo Night variant.
 - [ ] Public settings and agent definitions contain no default provider, model routing, enabled-model cycle, or credentials.
 - [ ] `auth.json`, OAuth state, sessions, trust decisions, caches, and installed package directories remain local.
-- [ ] Pi always-loaded guidance contains the exact compact-writing policy from `shared/output-style.md`.
+- [ ] The opt-in Pi text contains the exact compact-writing policy from `shared/output-style.md`.
 
 ## Installer and safety
 

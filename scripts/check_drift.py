@@ -14,9 +14,10 @@ VOLATILE = {"lastChangelogVersion", "model"}
 
 CLAUDE_LINKS = ("CLAUDE.md", "rules", "hooks", "agents")
 CLAUDE_COPIES = {"settings.json", "keybindings.json"}
-PI_LINKS = ("AGENTS.md", "APPEND_SYSTEM.md", "agents", "extensions", "prompts", "themes")
+PI_LINKS = ("agents", "extensions", "prompts", "themes")
+PI_TEXT_LINKS = ("AGENTS.md", "APPEND_SYSTEM.md")
 PI_COPIES = {"settings.json", "mcp.json"}
-COMPONENTS = ("pi", "claude")
+COMPONENTS = ("pi", "claude", "pi-text")
 
 
 def linked_names(base: tuple[str, ...], overlay_dir: Path | None, copied: set[str]) -> list[str]:
@@ -94,6 +95,8 @@ def main() -> int:
 
     repo = Path(__file__).resolve().parents[1]
     components = set(args.components) if args.components else {"pi"}
+    if "pi-text" in components and "pi" not in components:
+        parser.error("--with pi-text requires --with pi")
     claude_base = repo / "claude" / "config"
     pi_base = repo / "pi"
     overlay = args.overlay.expanduser().resolve() if args.overlay else None
@@ -156,7 +159,17 @@ def main() -> int:
 
     if "pi" in components:
         for name in linked_names(PI_LINKS, pi_overlay, PI_COPIES):
+            if name in PI_TEXT_LINKS and "pi-text" not in components:
+                continue
             check_link(source(pi_base, pi_overlay, name), pi_dir / name)
+        for name in PI_TEXT_LINKS:
+            if "pi-text" in components:
+                check_link(source(pi_base, pi_overlay, name), pi_dir / name)
+            else:
+                target = pi_dir / name
+                checked += 1
+                if target.is_symlink() and target.resolve().is_relative_to(repo.resolve()):
+                    drift.append(f"{target}: o90 text linked without --with pi-text (Pi is stock by default)")
         for name in ("settings.json", "mcp.json"):
             src = source(pi_base, pi_overlay, name)
             check_copy(src, pi_dir / name, json_subset=True, exact=bool(pi_overlay and (pi_overlay / name).exists()))

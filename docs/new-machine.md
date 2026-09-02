@@ -12,7 +12,8 @@
    ./bootstrap.sh --with claude --with pi --overlay ../other-ninety-private
    ```
 
-   Omit all `--with` flags for the Pi-only default. Omit `--overlay` when you
+   Omit all `--with` flags for the Pi-only default. Add `--with pi-text` only
+   if you want the o90 Pi text, which is off by default. Omit `--overlay` when you
    do not have one. Existing Claude and Pi settings files are preserved rather
    than merged; if the plan says `keep`, use a complete overlay replacement
    when you want the o90 defaults too.
@@ -33,7 +34,8 @@
 7. Smoke-check each selected runtime. In Claude, start a session and confirm
    the `<other-ninety>` block appears in the SessionStart context, then run
    `/impl --dry-run "rename a variable"` and check that `Clarity` and `Stakes`
-   print before anything else. In Pi, run `/impl` the same way.
+   print before anything else. In Pi, run `/impl` the same way; with stock Pi
+   the prompt template still exists, the always-loaded text does not.
 
 Optional broadly useful Claude plugins: `security-guidance` and
 `typescript-lsp`. Install them manually only when needed.

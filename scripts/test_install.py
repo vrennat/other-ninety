@@ -70,7 +70,7 @@ class InstallerTest(InstallerHarness):
 
             self.assertTrue((claude / "CLAUDE.md").is_symlink())
             self.assertEqual(json.loads((claude / "settings.json").read_text()), {"custom": True})
-            self.assertTrue((pi / "AGENTS.md").is_symlink())
+            self.assertTrue((pi / "agents").is_symlink())
             self.assertTrue(manifest.is_file())
 
             self.run_installer("--rollback", manifest)
@@ -125,7 +125,7 @@ class InstallerTest(InstallerHarness):
                 "--pi-root", pi_root, "--state-dir", state,
             )
             manifest = Path(next(line for line in result.stdout.splitlines() if line.startswith("manifest")).split(maxsplit=1)[1])
-            self.assertTrue((pi / "AGENTS.md").is_symlink())
+            self.assertTrue((pi / "agents").is_symlink())
             self.run_installer("--rollback", manifest)
             self.assertFalse(claude.exists())
             self.assertFalse(pi.exists())
@@ -198,12 +198,26 @@ class InstallerTest(InstallerHarness):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             claude, pi, _, _ = self.targets(root)
-            self.run_installer("--apply", *self.arguments(root))
-            self.assertTrue((pi / "AGENTS.md").is_symlink())
-            self.assertIn(CANONICAL_OUTPUT_STYLE, (pi / "APPEND_SYSTEM.md").read_text())
+            result = self.run_installer("--apply", *self.arguments(root))
+            self.assertIn("Pi text:       not linked (stock Pi)", result.stdout)
+            self.assertFalse(os.path.lexists(pi / "AGENTS.md"))
+            self.assertFalse(os.path.lexists(pi / "APPEND_SYSTEM.md"))
+            self.assertTrue((pi / "agents").is_symlink())
             for name in PUBLIC_SKILLS:
                 self.assertTrue((pi / "skills" / name).is_symlink(), name)
             self.assertFalse(claude.exists())
+
+    def test_pi_text_is_opt_in(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            _, pi, _, _ = self.targets(root)
+            result = self.run_installer("--apply", "--with", "pi", "--with", "pi-text", *self.arguments(root))
+            self.assertIn("Pi text:       linked (opt-in)", result.stdout)
+            self.assertTrue((pi / "AGENTS.md").is_symlink())
+            self.assertIn(CANONICAL_OUTPUT_STYLE, (pi / "APPEND_SYSTEM.md").read_text())
+            rejected = self.run_installer("--with", "pi-text", *self.arguments(root), check=False)
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("requires --with pi", rejected.stderr)
 
     def test_claude_only_does_not_touch_pi(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -249,6 +263,16 @@ class DriftCheckerTest(InstallerHarness):
             self.assertNotEqual(drift.returncode, 0, drift.stdout)
             self.assertIn("points outside every managed source", drift.stdout)
             self.assertIn("leftover.md", drift.stdout)
+
+    def test_leftover_pi_text_link_is_drift_unless_pi_text_selected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            _, pi, _, _ = self.targets(root)
+            self.run_installer("--apply", "--with", "pi", "--with", "pi-text", *self.arguments(root))
+            self.assertEqual(self.run_drift(root, "--with", "pi", "--with", "pi-text").returncode, 0)
+            drift = self.run_drift(root, "--with", "pi")
+            self.assertNotEqual(drift.returncode, 0, drift.stdout)
+            self.assertIn("o90 text linked without --with pi-text", drift.stdout)
 
     def test_overlay_only_path_is_checked(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

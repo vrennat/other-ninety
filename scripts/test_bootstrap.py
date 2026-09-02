@@ -108,6 +108,15 @@ fi""",
         self.assertIn("Components: Pi", result.stdout)
         self.assertNotIn("Claude marketplace", result.stdout)
 
+    def test_pi_text_component_passes_through(self):
+        result = self.run_bootstrap("--apply", "--with", "pi", "--with", "pi-text")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Components: Pi (+ o90 Pi text)", result.stdout)
+        self.assertTrue((Path(self.tmp.name) / "pi" / "AGENTS.md").is_symlink())
+        rejected = self.run_bootstrap("--with", "pi-text")
+        self.assertEqual(rejected.returncode, 2)
+        self.assertIn("requires --with pi", rejected.stderr)
+
     def test_claude_only_needs_no_pi_or_bun(self):
         (self.bin / "pi").unlink()
         (self.bin / "bun").unlink()

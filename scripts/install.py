@@ -20,7 +20,8 @@ class Operation:
     target: Path
 
 
-COMPONENTS = ("pi", "claude")
+COMPONENTS = ("pi", "claude", "pi-text")
+PI_TEXT = ("AGENTS.md", "APPEND_SYSTEM.md")
 ACTIONS = {"link", "link-if-missing", "copy-if-missing", "copy-replace"}
 
 
@@ -43,7 +44,10 @@ def copy(source: Path, target: Path) -> None:
         shutil.copy2(source, target, follow_symlinks=False)
 
 
-def add_pi_operations(repo: Path, pi_dir: Path, pi_root: Path) -> list[Operation]:
+def add_pi_operations(repo: Path, pi_dir: Path, pi_root: Path, *, include_text: bool = False) -> list[Operation]:
+    """Pi is stock by default: the o90 behavior text (AGENTS.md, APPEND_SYSTEM.md)
+    links only with the pi-text component. Three 2026-09 screens showed that text
+    costing 1.5x to 1.9x tokens with no task effect (o90-evals experiments 10-12)."""
     operations: list[Operation] = []
     pi = repo / "pi"
 
@@ -54,7 +58,8 @@ def add_pi_operations(repo: Path, pi_dir: Path, pi_root: Path) -> list[Operation
     web_search = pi / "web-search.json"
     if web_search.exists():
         operations.append(Operation("copy-if-missing", web_search, pi_root / "web-search.json"))
-    for name in ("AGENTS.md", "APPEND_SYSTEM.md", "agents", "extensions", "prompts", "themes"):
+    names = ("agents", "extensions", "prompts", "themes") + (PI_TEXT if include_text else ())
+    for name in names:
         source = pi / name
         if source.exists():
             operations.append(Operation("link", source, pi_dir / name))
@@ -319,7 +324,7 @@ def parse_args() -> argparse.Namespace:
     action.add_argument("--rollback", type=Path, metavar="MANIFEST", help="restore a prior apply")
     parser.add_argument(
         "--with", dest="components", action="append", choices=COMPONENTS, default=[],
-        metavar="COMPONENT", help="select an exact component set (repeat for pi, claude)",
+        metavar="COMPONENT", help="select an exact component set (repeat for pi, claude, pi-text)",
     )
     parser.add_argument("--overlay", type=Path, help="external private overlay directory")
     parser.add_argument("--claude-dir", type=Path, help="Claude config target")
@@ -337,6 +342,8 @@ def main() -> int:
 
     repo = Path(__file__).resolve().parents[1]
     components = set(args.components) if args.components else {"pi"}
+    if "pi-text" in components and "pi" not in components:
+        raise ValueError("--with pi-text requires --with pi")
 
     claude_dir = (args.claude_dir or Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))).expanduser().absolute()
     pi_dir = (args.pi_dir or Path(os.environ.get("PI_CODING_AGENT_DIR", Path.home() / ".pi" / "agent"))).expanduser().absolute()
@@ -345,7 +352,7 @@ def main() -> int:
 
     operations: list[Operation] = []
     if "pi" in components:
-        operations.extend(add_pi_operations(repo, pi_dir, pi_root))
+        operations.extend(add_pi_operations(repo, pi_dir, pi_root, include_text="pi-text" in components))
     if "claude" in components:
         operations.extend(add_claude_operations(repo, claude_dir))
     if args.overlay:
@@ -358,6 +365,7 @@ def main() -> int:
     if "pi" in components:
         print(f"Pi target:     {pi_dir}")
         print(f"Pi root:       {pi_root}")
+        print("Pi text:       " + ("linked (opt-in)" if "pi-text" in components else "not linked (stock Pi)"))
     if "claude" in components:
         print(f"Claude target: {claude_dir}")
     print("Mode:          apply" if args.apply else "Mode:          dry-run (no writes)")

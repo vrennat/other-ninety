@@ -5,6 +5,7 @@ repo=$(cd "$(dirname "$0")" && pwd)
 apply=false
 with_pi=false
 with_claude=false
+with_pi_text=false
 selection_explicit=false
 installer_args=()
 while (( $# )); do
@@ -19,6 +20,7 @@ while (( $# )); do
       case "$2" in
         pi) with_pi=true ;;
         claude) with_claude=true ;;
+        pi-text) with_pi_text=true ;;
         *) echo "Unknown optional component: $2" >&2; exit 2 ;;
       esac
       installer_args+=("$1" "$2")
@@ -30,6 +32,7 @@ while (( $# )); do
       case "$component" in
         pi) with_pi=true ;;
         claude) with_claude=true ;;
+        pi-text) with_pi_text=true ;;
         *) echo "Unknown optional component: $component" >&2; exit 2 ;;
       esac
       installer_args+=("$1")
@@ -52,6 +55,10 @@ while (( $# )); do
 done
 
 $selection_explicit || with_pi=true
+if $with_pi_text && ! $with_pi; then
+  echo "--with pi-text requires --with pi" >&2
+  exit 2
+fi
 
 for command in git python3; do
   command -v "$command" >/dev/null || { echo "Missing prerequisite: $command" >&2; exit 1; }
@@ -79,6 +86,7 @@ if $apply; then echo "Mode: apply"; else echo "Mode: dry-run (no writes)"; fi
 components=""
 $with_pi && components="Pi"
 $with_claude && components="${components:+$components + }Claude"
+$with_pi_text && components="$components (+ o90 Pi text)"
 echo "Components: $components"
 $with_pi && echo "Planned: bun install --frozen-lockfile (in pi/)"
 if $apply; then

@@ -9,14 +9,18 @@ exact component set. Bootstrap is always a dry run unless `--apply` is present.
 | Pi only | `./bootstrap.sh` | `./bootstrap.sh --apply` |
 | Claude only | `./bootstrap.sh --with claude` | `./bootstrap.sh --apply --with claude` |
 | Claude + Pi | `./bootstrap.sh --with claude --with pi` | `./bootstrap.sh --apply --with claude --with pi` |
+| Pi with the o90 text (opt-in) | `./bootstrap.sh --with pi --with pi-text` | `./bootstrap.sh --apply --with pi --with pi-text` |
 
 ## What each component installs
 
 ### Pi
 
 - The portable config under `PI_CODING_AGENT_DIR` (default `~/.pi/agent`):
-  `AGENTS.md`, `APPEND_SYSTEM.md`, agents, extensions, prompts, and themes,
-  all linked to the checkout.
+  agents, extensions, prompts, and themes, all linked to the checkout.
+- Stock behavior by default. The o90 `AGENTS.md` and `APPEND_SYSTEM.md` link
+  only with `--with pi-text`. Three screens on 2026-09-01 and 02 measured that
+  text at 1.5x to 1.9x tokens with no task effect (o90-evals experiments 10
+  to 12), so it is opt-in until real-task evidence says otherwise.
 - The Claude plugin's skills (currently `clean-writing`), linked. A
   `pi/skills/` entry with the same name overrides the shared copy; none exist
   today.

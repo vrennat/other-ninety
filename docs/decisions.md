@@ -19,6 +19,7 @@ history can explain does not.
 | D7 | Codex and Cursor adapters | Resolved |
 | D8 | User-level skills and their drift | Resolved |
 | D9 | What Pi loads as CLAUDE.md | Resolved |
+| D10 | Pi default: stock or the o90 text | Resolved |
 
 ---
 
@@ -136,3 +137,14 @@ Thirty-day invocation counts from 119 transcripts: `adversarial-reviewer` 27, `b
 
 
 **Resolution (2026-09-01):** (b), not (a). The Pi eval run the same day (stock 8/8 at 167k tokens; public 8/8 at 267k; private behavior overlay 8/8 at 423k, 2.53x tokens, no task wins) showed the persona-and-workflow overlay costs without helping, and the retired link was exactly that overlay. Removed. Making the public Pi `AGENTS.md` and `APPEND_SYSTEM.md` opt-in is a Pi-side change left to the eval work.
+
+## D10. Pi default: stock or the o90 text — Resolved
+
+Three paired screens in o90-evals on 2026-09-01 and 02 (Pi 0.84.2, openai-codex/gpt-5.6-sol, one repeat, saturated suites): the stripped public layer used 1.53x stock's total tokens on the 8-fixture mechanism probe and 1.62x on the 12 regression sentinels with 20/20 completion on both arms; a two-rule candidate (clarity and stakes rules only) used 1.89x. The o90 text was higher on 26 of 28 pairs and loaded no skills, so the always-loaded text itself carries the overhead.
+
+- **(a) Stock Pi by default; `AGENTS.md` and `APPEND_SYSTEM.md` link only with `--with pi-text`; the drift check flags a leftover link.** ← chosen
+- (b) Keep the text linked by default and trim it further.
+- (c) Delete the Pi text from the repository.
+
+**Resolution (2026-09-02):** (a). (b) already failed in its minimal form. (c) throws away the opt-in for a machine where someone wants the rules in Pi. The real-task ledger is the only lane that could still show a quality effect; until it does, Pi runs stock.
+
