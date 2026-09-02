@@ -129,6 +129,69 @@ esac
             result = self.run_hook("pre-push-guard.sh", {"tool_name": "Read"}, Path(directory))
             self.assertEqual(result.returncode, 0)
 
+    def test_ssh_wrapped_push_allows_regardless_of_local_clone(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); config = root / "config"; config.mkdir()
+            work = root / "work"; work.mkdir(); fake_bin = root / "bin"
+            fake_bin.mkdir()
+            git = fake_bin / "git"
+            git.write_text("""#!/bin/sh
+[ "$1" = -C ] && [ "$2" = "$EXPECTED_CWD" ] || exit 1
+case "$*" in
+  *"rev-parse --git-dir") exit 0 ;;
+  *"rev-parse --abbrev-ref HEAD") echo main ;;
+  *"fetch origin main") exit 0 ;;
+  *"merge-base --is-ancestor origin/main HEAD") exit 1 ;;
+  *"rev-list --count"*) echo 1 ;;
+  *) exit 1 ;;
+esac
+""")
+            git.chmod(0o755)
+            result = self.run_hook(
+                "pre-push-guard.sh",
+                {"tool_name": "Bash", "tool_input": {"command": "ssh tundra 'git -C ~/Developer/x push origin main'", "cwd": None}},
+                config, cwd=work,
+                extra_env={"PATH": f"{fake_bin}:{os.environ['PATH']}", "EXPECTED_CWD": str(work.resolve())},
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_git_dash_C_names_the_repo_not_the_cwd(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); config = root / "config"; config.mkdir()
+            repo = root / "repo"; repo.mkdir(); elsewhere = root / "elsewhere"; elsewhere.mkdir()
+            fake_bin = root / "bin"
+            fake_bin.mkdir()
+            git = fake_bin / "git"
+            git.write_text("""#!/bin/sh
+[ "$1" = -C ] && [ "$2" = "$EXPECTED_CWD" ] || exit 1
+case "$*" in
+  *"rev-parse --git-dir") exit 0 ;;
+  *"rev-parse --abbrev-ref HEAD") echo main ;;
+  *"fetch origin main") exit 0 ;;
+  *"merge-base --is-ancestor origin/main HEAD") exit 1 ;;
+  *"rev-list --count"*) echo 1 ;;
+  *) exit 1 ;;
+esac
+""")
+            git.chmod(0o755)
+            result = self.run_hook(
+                "pre-push-guard.sh",
+                {"tool_name": "Bash", "tool_input": {"command": f"git -C {repo.resolve()} push origin main", "cwd": None}},
+                config, cwd=elsewhere,
+                extra_env={"PATH": f"{fake_bin}:{os.environ['PATH']}", "EXPECTED_CWD": str(repo.resolve())},
+            )
+            self.assertEqual(result.returncode, 2, result.stderr)
+
+    def test_webfetch_guard_blocks_reddit_and_archive_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory)
+            for url, code in (("https://www.reddit.com/r/x/", 2), ("https://old.reddit.com/r/x", 2),
+                              ("https://web.archive.org/web/2024/https://a.b", 2), ("https://example.com/reddit.com", 0)):
+                result = self.run_hook("webfetch-guard.sh", {"tool_name": "WebFetch", "tool_input": {"url": url}}, config)
+                self.assertEqual(result.returncode, code, (url, result.stderr))
+            result = self.run_hook("webfetch-guard.sh", {"tool_name": "Bash", "tool_input": {"command": "curl reddit.com"}}, config)
+            self.assertEqual(result.returncode, 0)
+
     def test_plugin_session_start_needs_no_bun_and_injects_routing(self):
         result = subprocess.run(
             [sys.executable, str(PLUGIN_HOOK)],

@@ -33,12 +33,25 @@ if [[ -z "$cmd" ]]; then
 fi
 
 # Only act on git push commands
-if ! [[ "$cmd" =~ (^|[[:space:]\;\&\|])git[[:space:]]+push([[:space:]]|$) ]]; then
+if ! [[ "$cmd" =~ (^|[[:space:]\;\&\|])git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+push([[:space:]]|$) ]]; then
   exit 0
 fi
 
-# Resolve the working directory for the tool call
+# A push wrapped in ssh runs on another host against that host's clone; this
+# machine's clone says nothing about it. (2026-09-02: a diverged local clone
+# blocked a fast-forward push happening on tundra.)
+if [[ "$cmd" =~ ^[[:space:]]*ssh[[:space:]] ]]; then
+  exit 0
+fi
+
+# Resolve the working directory for the tool call: an explicit `git -C DIR push`
+# names the repo; otherwise the tool's cwd; otherwise the hook's own cwd.
 workdir=$(python3 -c 'import json, sys; data=json.load(sys.stdin).get("tool_input") or {}; print(data.get("cwd") or "")' <<<"$payload")
+if [[ "$cmd" =~ git[[:space:]]+-C[[:space:]]+([^[:space:]]+)[[:space:]]+push ]]; then
+  workdir="${BASH_REMATCH[1]}"
+  workdir="${workdir%\"}"; workdir="${workdir#\"}"; workdir="${workdir%\'}"; workdir="${workdir#\'}"
+  workdir="${workdir/#\~/$HOME}"
+fi
 if [[ -z "$workdir" ]]; then
   workdir=$(pwd)
 fi
@@ -57,10 +70,12 @@ for ((i=0; i<${#tokens[@]}; i++)); do
   tok="${tokens[i]}"
 
   # Detect the start of a git push invocation
-  if [[ "$in_push_args" != "true" && "$tok" == "git" && "${tokens[i+1]:-}" == "push" ]]; then
-    in_push_args=true
-    ((i++))  # skip the "push" token on next iteration
-    continue
+  if [[ "$in_push_args" != "true" && "$tok" == "git" ]]; then
+    if [[ "${tokens[i+1]:-}" == "push" ]]; then
+      in_push_args=true; ((i++)); continue          # skip the "push" token
+    elif [[ "${tokens[i+1]:-}" == "-C" && "${tokens[i+3]:-}" == "push" ]]; then
+      in_push_args=true; ((i+=3)); continue         # skip "-C DIR push"
+    fi
   fi
 
   if [[ "$in_push_args" != "true" ]]; then
