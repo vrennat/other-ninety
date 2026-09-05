@@ -20,6 +20,7 @@ history can explain does not.
 | D8 | User-level skills and their drift | Resolved |
 | D9 | What Pi loads as CLAUDE.md | Resolved |
 | D10 | Pi default: stock or the o90 text | Resolved |
+| D11 | Autonomy follows requested scope and existing authorization | Resolved |
 
 ---
 
@@ -148,3 +149,23 @@ Three paired screens in o90-evals on 2026-09-01 and 02 (Pi 0.84.2, openai-codex/
 
 **Resolution (2026-09-02):** (a). (b) already failed in its minimal form. (c) throws away the opt-in for a machine where someone wants the rules in Pi. The real-task ledger is the only lane that could still show a quality effect; until it does, Pi runs stock.
 
+
+
+## D11. Autonomy follows requested scope and existing authorization — Resolved
+
+The stop-before list required another confirmation for actions already requested,
+while its reversibility rule allowed unrelated local changes. `/impl` also treated
+technical diagnosis as a reason to ask the user, and Pi's autonomous mode could
+skip decisions that actually belonged to the user.
+
+- **(a) Complete the requested outcome and necessary supporting work; preserve
+  existing authorization across turns and delegates; ask for missing product
+  decisions, materially broader scope, or external actions not yet authorized.** ← chosen
+- (b) Keep reversibility and a confirmation-mode switch as the primary boundary.
+- (c) Require a reviewed implementation plan before every change.
+
+**Resolution (2026-09-05):** (a). Explicit proposal-only and other user stop points
+remain binding. Technical uncertainty prompts investigation. Reversible edits
+must still serve the requested outcome. Examples in `docs/autonomy-scenarios.md`
+cover both needless pauses and unsolicited expansion; they are review scenarios,
+not a claim that model behavior has been measured.

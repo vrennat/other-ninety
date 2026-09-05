@@ -8,25 +8,28 @@ Execute this work end-to-end: $ARGUMENTS
 ## Procedure
 
 1. **Parse Input**
-   - If input matches `[A-Z]+-\d+` (e.g. Linear ticket): check for Linear MCP tools (`linear_*` or `mcpScript`). If available, fetch the ticket details and update status to "In Progress".
+   - If input matches `[A-Z]+-\d+` (e.g. Linear ticket): check for Linear MCP tools (`linear_*` or `mcpScript`). If available, fetch the ticket details. Move it to "In Progress" only after any dry-run or explicit plan-before-code stop point.
    - If input is a file path: read the spec file completely.
    - Otherwise treat as a task description.
-   - If `--dry-run` is present: print the classification and planned routing, then stop.
+   - Note whether `--dry-run` is present; it stops before edits or ticket updates.
 
 2. **Read Mode & Classify**
    - Read `.o90/mode`, falling back to legacy `.claude/other-ninety-mode` when absent. Treat both absent as `default`. Modes: `default`, `cautious`, or `autonomous`.
    - Classify independently across three orthogonal axes:
-     - **Clarity**: `clear` (one obvious approach) or `ambiguous` (2+ approaches with real tradeoffs, missing requirement, or multi-cause bug).
+     - **Clarity**: `clear` (outcome and scope are settled) or `ambiguous` (an unresolved product requirement or materially broader scope needs the user's judgment). Investigate technical choices and multi-cause bugs yourself.
      - **Complexity**: `simple` (1 file, <50 LOC), `medium` (2-3 files, clear scope), or `complex` (>3 files or shared infrastructure).
      - **Stakes**: `normal` or `high` (touches auth, payments/money, data integrity, security, privacy, remote persistence, or is hard to undo).
    - Print the mode and classification as the top two lines:
      `Mode: <mode>`
      `Clarity: clear/ambiguous | Complexity: simple/medium/complex | Stakes: normal/high`
 
-3. **Branch on Clarity & Mode**
-   - `default`: If ambiguous, ask all open questions in ONE batched questionnaire using `ask_user_question` (or a batched numbered list) and wait for user response before proceeding. If clear, proceed silently.
-   - `cautious`: Same as default, plus: before executing medium or complex tasks even when clear, print the planned routing and wait for user confirmation.
-   - `autonomous`: Never block on clarity. Pick the most sensible default, state the assumption in one line, and proceed. (Stakes-gated reviews and destructive operations still apply).
+3. **Set Scope & Apply Mode**
+   - If `--dry-run` is present: print the planned routing and stop before edits or ticket updates.
+   - Name the requested outcome, existing authorization, and explicit exclusions. Include necessary supporting changes and verification; leave unrelated cleanup, UI changes, and refactors out.
+   - `default`: Proceed on settled requirements. Ask once for a missing product decision or materially broader scope; continue independent work while waiting.
+   - `cautious`: Present the approach before medium or complex work. Honor an explicitly requested plan-before-code checkpoint; existing approval of that work satisfies it without another pause.
+   - `autonomous`: Choose routine implementation defaults and proceed. This mode does not authorize new product decisions, materially broader scope, or external actions by itself.
+   - Every mode honors the user's current request and prior authorization, including explicit proposal-only limits. Investigate technical uncertainty yourself.
 
 4. **Second Look (Medium / Complex only)**
    - Before writing code, interrogate the chosen direction in one deliberate pass:
@@ -66,11 +69,12 @@ Execute this work end-to-end: $ARGUMENTS
 Files modified: <list of absolute paths>
 Verdict: <validator / test output>
 Lesson: <the line appended | none>
-Next: test locally; commit when ready.
+Next: <remaining blocker or decision | none>
 ```
 
 ## Rules
-- Ambiguity is strict: 2+ real-tradeoff approaches, missing requirement, or multi-cause bug. Many files represent complexity, not ambiguity.
+- Ask for missing product decisions or materially broader scope, not file count or technical uncertainty. Reversibility does not expand scope. Preserve deliberate design decisions; a reviewer suggestion is not authorization to add a feature or refactor.
 - Stakes is orthogonal to complexity: a 1-line auth or payment change is high-stakes and always gets `adversarial-reviewer`.
 - Parallel subagents only when all three hold: provably disjoint write surfaces, no step needs another's output, each result verifiable alone. Read-only fan-out (search, audit, review) always qualifies.
-- Do NOT auto-commit, push, or create pull requests unprompted.
+- Carry the outcome, exclusions, owned paths, acceptance checks, and existing authorization into every worker brief. Workers report a needed wider surface to the lead instead of expanding it.
+- Finish already-authorized commits, pushes, PRs, or deployments after their required checks without asking again. An implementation request alone does not authorize release, purchases, data deletion, or infrastructure changes.

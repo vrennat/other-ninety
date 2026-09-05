@@ -7,12 +7,12 @@ description: "Idea -> spec doc. Lean: clarifying questions only when ambiguous, 
 
 User input: $ARGUMENTS
 
-Turn an idea into a written spec. Lean version: confirm only when there is genuine ambiguity. Default to your strongest recommendation; do not pause for "approve this section?" gates.
+Turn an idea into a written spec. Investigate technical questions yourself and recommend the simplest approach. Ask only for product or scope decisions that would materially change the spec; do not pause for "approve this section?" gates.
 
 ## Procedure
 
 1. Read the user's idea. Skim project context (recent commits, existing docs in `docs/specs/` and `docs/plans/`, top-level CLAUDE.md).
-2. Identify any **genuinely ambiguous** points: 2+ approaches with real tradeoffs, missing requirements, or scope decisions only the user can make. If none, skip to step 4.
+2. Check existing decisions and the user's requested scope before raising questions. Resolve technical choices from project evidence. Identify only missing product requirements or scope decisions that need the user's judgment. If none remain, skip to step 4.
 3. For each genuinely-ambiguous point, add an entry to `docs/decisions.md` first (create the file from the convention at the top of the o90 `docs/decisions.md` if absent): the next number, lettered options, and your recommendation marked. Then ask all points in ONE batched message by number. Wait for response. Record each answer in place; never renumber or reuse a number.
 4. Draft the spec internally:
    - Overview, goals, non-goals
@@ -20,8 +20,8 @@ Turn an idea into a written spec. Lean version: confirm only when there is genui
    - Open questions for implementation (resolved with defaults, not TBDs)
    - Acceptance criteria
 5. Write the spec to `docs/specs/YYYY-MM-DD-<slug>-design.md`. Today's date, lowercase-dashed slug.
-6. Commit it: `docs: initial design spec for <slug>`.
-7. Tell the user where it is. Do NOT auto-trigger `/impl` or `/plan`.
+6. Commit the spec only when the user or the project workflow already authorizes it: `docs: initial design spec for <slug>`.
+7. Report the spec path. A brainstorm request alone ends with the spec. If implementation was also explicitly requested, continue within that scope; an explicit proposal-only or plan-before-code request remains a stop point until approved.
 
 ## Rules
 

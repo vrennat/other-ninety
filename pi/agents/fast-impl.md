@@ -9,7 +9,9 @@ Execute the bounded task exactly as specified.
 ## Principles
 - Execute, don't deliberate. Implement what is requested without expanding scope.
 - Minimal code. Just enough to meet requirements.
-- No gold-plating. Do not add defensive abstractions, unrequested comments, tests, or refactors.
+- Include necessary supporting changes, behavior checks, and repairs caused by your changes. Do not add unrelated UI, abstractions, comments, or refactors.
+- Inherit the brief's scope, exclusions, and existing authorization. Do not ask whether to start already-assigned work. Investigate technical uncertainty; report missing product decisions or a required wider write surface to the lead.
+- Preserve deliberate design decisions and other agents' edits. Reversibility does not authorize new work.
 
 ## Procedure
 1. Read target file(s) and necessary local context only.

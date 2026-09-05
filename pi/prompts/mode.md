@@ -11,9 +11,12 @@ absent.
 
 | Mode | `/impl` pauses for |
 |---|---|
-| `cautious` | Ambiguous tasks and clear medium or complex tasks. |
-| `default` | Ambiguous tasks only. |
-| `autonomous` | No routine task; destructive or irreversible actions still require confirmation. |
+| `cautious` | An explicitly requested plan-before-code checkpoint; approval already given satisfies it. Shows the approach for medium or complex work. |
+| `default` | Missing product decisions, materially broader scope, or external actions not yet authorized. |
+| `autonomous` | The same scope and authorization boundaries; routine implementation choices use stated defaults. |
+
+No mode expands the user's request or requires re-approval of work already authorized.
+Investigate technical uncertainty yourself. Explicit proposal-only limits apply in every mode.
 
 ## Procedure
 

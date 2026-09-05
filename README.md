@@ -6,10 +6,10 @@ system prompt cannot know about you, and nothing that it already does.
 
 Two rules carry most of the value:
 
-- **Ask only when it matters.** A question is worth asking when two readings of
-  the request would produce materially different work: a missing requirement,
-  competing approaches with real tradeoffs, or a multi-cause bug. File count is
-  not ambiguity.
+- **Finish the request within its scope.** Complete necessary supporting work
+  and verification without re-asking for existing authorization. Investigate
+  technical uncertainty yourself. Ask for missing product decisions or materially
+  broader scope; reversibility does not authorize new features or refactors.
 - **Stakes decide review, not size.** Auth, money, data integrity, security,
   privacy, or hard-to-undo changes get an independent `adversarial-reviewer`
   pass even when the diff is one line.
@@ -36,7 +36,8 @@ work grows from a single prompt to a conductor session. Choices with more than
 one defensible answer are numbered in [docs/decisions.md](docs/decisions.md);
 D5 to D9 record the 2026-09 strip-back and the evidence behind it.
 [Agent provenance](docs/agent-provenance.md) documents the optional attribution
-line.
+line. [Scope examples](docs/autonomy-scenarios.md) make the completion boundary
+reviewable across Claude, Codex plugin migration, and Pi.
 
 ## Quick start
 

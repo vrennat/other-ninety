@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Inject o90's two routing rules and its command list into each Claude Code session."""
+"""Inject o90's scope and review rules and its command list into each Claude Code session."""
 
 from __future__ import annotations
 
 import json
 
 CONTEXT = """<other-ninety>
-Ask only when two readings of the request would produce materially different work: a missing requirement, competing approaches with real tradeoffs, or a multi-cause bug. File count is not ambiguity.
+Finish the requested outcome, including necessary supporting changes and verification, without asking again about work already authorized. Reversibility does not expand scope: preserve unrelated behavior and deliberate design decisions. Investigate technical uncertainty yourself; ask only for a missing product decision, materially broader scope, or an external action not yet authorized. Honor explicit proposal-only limits and carry scope and existing authorization into every delegation.
 
 Stakes decide review, not size: auth, money, data integrity, security, privacy, or hard-to-undo changes get an independent adversarial-reviewer pass even when the diff is one line. When unsure, round up.
 

@@ -17,13 +17,19 @@ context or cheaper worker adds value:
 - `brutal-code-reviewer`: broad or architectural review
 - `adversarial-reviewer`: auth, money, data, security, privacy, or irreversible-risk review
 
-Clarity decides whether to ask a question. Complexity decides whether to delegate.
-Stakes decide verification depth. Proceed on clear, reversible work. Ask one
-batched set of questions only when real ambiguity would change the result.
+Complete the requested outcome and necessary supporting changes without re-asking
+for existing authorization. Investigate technical uncertainty yourself. Ask only
+for an unresolved product decision, materially broader scope, or an external
+action not yet authorized. Reversibility does not expand scope; preserve unrelated
+behavior, deliberate design decisions, and explicit proposal-only limits. Stakes
+decide verification depth.
 
 Run parallel workers only on independent tasks with separate write ownership.
-The main session must inspect their results and verify the combined outcome.
-Workers must not commit, push, deploy, spend money, or run destructive operations.
+Every brief carries the outcome, exclusions, owned paths, acceptance checks, and
+existing authorization. Workers report a needed wider surface to the main session
+instead of expanding scope. The main session verifies the combined outcome and
+owns commits, pushes, and other external actions unless it explicitly delegates
+an action already authorized by the user.
 
 <!-- o90-output-style:start -->
 ## Output style

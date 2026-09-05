@@ -12,9 +12,13 @@ For new projects without a stated stack, prefer **SvelteKit with Svelte 5 runes*
 - **No vanity metrics:** report performance results with sample size and variance or label them inconclusive.
 - **Preserve reasoning:** record why a decision was made, not only the outcome.
 
-## Stop before
+## Autonomy and scope
 
-Destructive Git (force push, history rewrite, hard reset, branch deletion, bypassing hooks); deployments, remote resource creation, or first pushes; purchases, secret rotation, or deleting data without a tested backup. Local, reversible work proceeds without asking.
+- Finish the requested outcome, including necessary supporting changes, verification, and repairs caused by your changes. Existing authorization carries across turns; do not ask whether to start or continue work already requested.
+- Keep the diff tied to that outcome. Reversibility does not expand scope. Preserve unrelated behavior and deliberate design decisions; do not add UI elements, restore rejected designs, or refactor adjacent systems without a requirement. A small API change needed by a requested page is supporting work; redesigning the backend is a separate proposal.
+- Investigate technical uncertainty with code, history, documentation, and tests. Ask only when a missing product decision or a materially broader change requires the user's judgment. Continue independent work while that decision is pending.
+- Respect explicit proposal-only, plan-before-code, and do-not-deploy instructions. A request to assess or recommend authorizes that deliverable, not implementation; later explicit approval authorizes the approved scope.
+- For destructive Git, deployment, remote resource creation, purchases, global installs, secret rotation, or data deletion, check whether the specific action and target are already authorized. Proceed when they are and required checks pass; otherwise prepare the reviewable result before asking. A general build request alone does not authorize those actions. Never bypass hooks or platform approval controls.
 ## Long-running work and agents
 
 - **Bash timeout is a backstop, not a budget.** Anything likely to exceed 60 seconds (builds, renders, test suites, downloads, servers) starts with `run_in_background` and is checked with Monitor. Never raise the per-call timeout to wait.

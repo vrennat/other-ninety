@@ -4,13 +4,13 @@ Parity means the public toolkit preserves reusable behavior from the private sou
 
 ## Claude plugin
 
-- [ ] Manifests parse and agree on name `other-ninety` and version `0.4.0`.
+- [ ] Manifests parse and agree on name `other-ninety` and version `0.4.1`.
 - [ ] Commands load: `brainstorm`, `impl`, `plan`, `trim`.
 - [ ] Agents load: `adversarial-reviewer`.
 - [ ] Skills load: `clean-writing`.
 - [ ] `scripts/test_parity.py` keeps the lists in this file and the public `CLAUDE.md` equal to the tree.
 - [ ] SessionStart emits valid JSON, injects the `other-ninety` routing context, and runs on Python without Pi or Bun.
-- [ ] `/impl` prints clarity and stakes before editing, dispatches `adversarial-reviewer` on high stakes regardless of diff size, and ends with at most one `docs/lessons.md` line or `Lesson: none`.
+- [ ] `/impl` prints clarity and stakes before editing, completes authorized work within scope, dispatches `adversarial-reviewer` on high stakes regardless of diff size, and ends with at most one `docs/lessons.md` line or `Lesson: none`. Use `docs/autonomy-scenarios.md` to review the scope boundary.
 
 ## Global Claude configuration
 
