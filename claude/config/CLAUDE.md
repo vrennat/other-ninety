@@ -25,6 +25,8 @@ For new projects without a stated stack, prefer **SvelteKit with Svelte 5 runes*
 - **Compact early.** On 1M-context models, `/compact` around 250k tokens; do not run to the window edge. Every call re-reads the whole context.
 - **Long-lived agents stay small.** A wake re-sends the agent's entire context, so brief standing agents narrowly and batch messages to them. Reviewers and other read-only agents are spawned without worktree isolation.
 - **Reddit and web.archive.org are blocked for WebFetch.** Use the reddit MCP for Reddit.
+- **End the turn after launching background work.** Say what is running and what will signal completion; do not poll with TaskOutput or sleep. The focus hook and the app notify the user when a session goes idle.
+- **Close a task with state, not a summary.** At a task boundary end with: outcome, decisions and why, files touched and their git state, what is still running, and the next action. That is what compaction keeps and what a fresh session needs, so the user can `/compact` or start clean.
 
 
 ## Git and deployment
@@ -44,3 +46,7 @@ For new projects without a stated stack, prefer **SvelteKit with Svelte 5 runes*
 - Stakes decide review, not size: auth, money, data integrity, security, privacy, or hard-to-undo changes get an independent `adversarial-reviewer` pass even when the diff is one line.
 - `/brainstorm` turns an idea into a spec in `docs/specs/`. `/impl` executes a spec, ticket, or description and prints its classification first. `/plan` writes a reviewable plan when you want one. `/trim` asks only what can be deleted.
 - `clean-writing` for deliberate prose. `conductor` only for long-running delegated sessions with named ownership. `summarize` and `i-have-adhd` for catch-up and ADHD-shaped output.
+
+# Compact instructions
+
+Keep: the requested outcome and its acceptance checks; decisions made and why, including options rejected; files touched and whether each is committed, staged, or dirty; background work still running and how to check it; the exact next action. Drop: tool output, file contents already applied, exploration that led nowhere, and restated instructions.

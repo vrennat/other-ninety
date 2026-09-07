@@ -169,3 +169,31 @@ remain binding. Technical uncertainty prompts investigation. Reversible edits
 must still serve the requested outcome. Examples in `docs/autonomy-scenarios.md`
 cover both needless pauses and unsolicited expansion; they are review scenarios,
 not a claim that model behavior has been measured.
+
+## D12. Structural breaks and notifications: warn, do not block — Resolved
+
+Measured 2026-09-07 over 14 days of transcripts on taiga and tundra: the median
+gap between Claude's reply and the next prompt was 2.8 and 2.4 minutes, with 44%
+and 31% of gaps under 2 minutes; the most expensive session on either host (83
+prompts, 5,456 calls, 868M input tokens) ran from 2 to 4 am; model-initiated
+PushNotification calls happened twice. Claude Code has no built-in quiet-hours or
+break setting, and Notification hooks cannot block, so any structure has to be a
+hook.
+
+- **(a) One warn-only hook (`focus.py`) on UserPromptSubmit and Notification: a
+  per-host streak that resets after a 10-minute gap, a `systemMessage` plus desktop
+  notification at 50 minutes and every 25 after, a quiet-hours line 23:00–06:00,
+  the streak in the statusline, and a deterministic away-notification when a
+  session goes idle 10 or more minutes after the last prompt.** ← chosen
+- (b) The same with a hard block at 90 minutes and hard quiet hours, overridable
+  with a `go:` prefix.
+- (c) Nothing in the harness; rely on the desktop app's own push notifications.
+
+**Resolution (2026-09-07):** (a). Tanner's call: start warn-only; if a block ever
+locks him out he would rip the whole thing out, so the hard block is not worth
+its first false positive. (c) fails on evidence: the app pushes exist and the
+measured pattern happened anyway. Automation is exempt by `O90_FOCUS=off`, an
+Agent SDK entrypoint, or `claude -p` without `--sdk-url`. The hook logs every
+nudge and notification to `~/.local/state/other-ninety/focus.log`, which is the
+positive control for "it fired". Re-measure with the session-audit probes before
+claiming the median gap moved.

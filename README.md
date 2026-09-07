@@ -26,10 +26,12 @@ them from drifting, and keep private context out of the public copy.
 | Pi | Agents, extensions, prompt templates, themes, and pinned packages; the o90 behavior text is opt-in (`--with pi-text`) | `pi/` |
 | Repository tooling | Bootstrap, rollback, drift, leak, and verification checks | `bootstrap.sh`, `install.sh`, `scripts/` |
 
-The Claude plugin works without Pi. Pi works without the plugin. The two hooks
+The Claude plugin works without Pi. Pi works without the plugin. The hooks
 under `claude/config/hooks/` are the only always-running pieces: one lists
-other live Claude sessions in the same repository at session start, the other
-blocks a non-fast-forward or forced push to `main` from inside Claude.
+other live Claude sessions in the same repository at session start, one
+blocks a non-fast-forward or forced push to `main` from inside Claude, one
+refuses WebFetch to hosts known to be unreachable, and `focus.py` gives
+warn-only break and quiet-hours nudges plus away-notifications (D12).
 
 [When to move up a rung](docs/ladder.md) says which workflow to reach for as
 work grows from a single prompt to a conductor session. Choices with more than
