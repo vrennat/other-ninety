@@ -61,8 +61,7 @@ describe("parseQuotaError", () => {
 		}
 	});
 
-	it("handles unparseable reset timestamp grace period (60-minute default)", () => {
-		// A quota error with a timestamp format we can't parse — returns resetAt undefined
+	it("handles unparseable reset timestamp (returns resetAt undefined for 60-min default)", () => {
 		const result = parseQuotaError(
 			'429: Usage limit reached. Resets at some unknown time.',
 		);
