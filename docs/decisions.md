@@ -198,6 +198,12 @@ nudge and notification to `~/.local/state/other-ninety/focus.log`, which is the
 positive control for "it fired". Re-measure with the session-audit probes before
 claiming the median gap moved.
 
+Amended the same evening after the first `/retro`: in a 50-minute session the
+streak reset three times because idle was measured from the last prompt, so a
+long agent turn counted as the user stepping away (prompt gaps 13, 15.5, and
+11.4 minutes against true idle of 7.7, 2.5, and 4.8). A Stop hook now records
+the last reply and idle is the gap since the later of prompt and reply.
+
 ## D13. Matt Pocock's skills: borrow the mechanics, adopt none of the catalogue — Resolved
 
 Compared all 37 skills in `mattpocock/skills` at `3cca18b` (2026-09-07) against

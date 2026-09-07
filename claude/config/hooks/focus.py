@@ -143,7 +143,9 @@ def quiet_now(now: float) -> bool:
 
 def on_prompt(payload: dict, state: dict, now: float) -> dict:
     sid = payload.get("session_id") or "unknown"
-    last = float(state.get("last_prompt") or 0)
+    # Idle is measured from the later of the last prompt and the last reply, so a
+    # long agent turn does not count as the user stepping away.
+    last = max(float(state.get("last_prompt") or 0), float(state.get("last_reply") or 0))
     if now - last > IDLE_RESET_MIN * 60:
         state["streak_start"] = now
         state["nudged_at"] = 0
@@ -203,6 +205,11 @@ def on_prompt(payload: dict, state: dict, now: float) -> dict:
     return out
 
 
+def on_stop(payload: dict, state: dict, now: float) -> dict:
+    state["last_reply"] = now
+    return {}
+
+
 def on_notification(payload: dict, state: dict, now: float) -> dict:
     kind = payload.get("notification_type") or ""
     if kind not in NOTIFY_TYPES:
@@ -239,6 +246,8 @@ def main() -> int:
         out = on_prompt(payload, state, now)
     elif event == "Notification":
         out = on_notification(payload, state, now)
+    elif event == "Stop":
+        out = on_stop(payload, state, now)
     else:
         return 0
     save_state(state)

@@ -29,6 +29,8 @@ except ValueError:
 for number, line in enumerate(lines[1:end], 2):
     if not line or line[0].isspace() or line.startswith("-"):
         continue
+    if line.rstrip().endswith(":") and ": " not in line:  # nested mapping opener, e.g. metadata:
+        continue
     _, separator, value = line.partition(": ")
     if not separator:
         print(f"FAIL: {path}:{number} has invalid YAML frontmatter")
@@ -47,6 +49,14 @@ check_frontmatter() {
   check_yaml_safety "$file"
   grep -q '^name: ' "$file" || { echo "FAIL: $file missing name"; errors=$((errors + 1)); }
   grep -q '^description: ' "$file" || { echo "FAIL: $file missing description"; errors=$((errors + 1)); }
+}
+
+check_refs() {
+  local file="$1" dir ref
+  dir=$(dirname "$file")
+  while IFS= read -r ref; do
+    [[ -f "$dir/$ref" ]] || { echo "FAIL: $file names $ref, which does not exist"; errors=$((errors + 1)); }
+  done < <(grep -oE '(references|reference)/[A-Za-z0-9_.-]+\.md' "$file" | sort -u)
 }
 
 check_banned() {
@@ -68,6 +78,8 @@ if [[ -n "$last_tag" ]] && ! git diff --quiet "$last_tag" -- "$plugin"; then
 fi
 
 for file in "$plugin"/skills/*/SKILL.md; do [[ -f "$file" ]] && { check_length "$file" 80; check_frontmatter "$file"; check_banned "$file"; }; done
+for file in claude/config/skills/*/SKILL.md; do [[ -f "$file" ]] && { check_length "$file" 150; check_frontmatter "$file"; check_banned "$file"; }; done
+for file in "$plugin"/skills/*/SKILL.md claude/config/skills/*/SKILL.md; do [[ -f "$file" ]] && check_refs "$file"; done
 for file in "$plugin"/commands/*.md; do [[ -f "$file" ]] && { check_length "$file" 150; check_frontmatter "$file"; check_banned "$file"; }; done
 for file in "$plugin"/agents/*.md; do [[ -f "$file" ]] && { check_length "$file" 60; check_frontmatter "$file"; check_banned "$file"; }; done
 for file in pi/prompts/*.md pi/skills/*/SKILL.md pi/agents/*.md; do [[ -f "$file" ]] && check_yaml_safety "$file"; done

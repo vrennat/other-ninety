@@ -1,6 +1,6 @@
 ---
 name: wizard
-description: Generate an interactive bash wizard that walks a human through steps only they can do: provisioning, credentials and CI secrets, an unfamiliar third-party dashboard, a one-off migration or cutover. Steps the agent can run itself stay with the agent.
+description: "Generate an interactive bash wizard that walks a human through steps only they can do: provisioning, credentials and CI secrets, an unfamiliar third-party dashboard, a one-off migration or cutover. Steps the agent can run itself stay with the agent."
 disable-model-invocation: true
 license: MIT
 metadata:

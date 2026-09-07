@@ -1,6 +1,6 @@
 ---
 name: svelte5-best-practices
-description: Svelte 5 runes, SvelteKit, and Cloudflare-edge best practices: $state/$derived/$effect pitfalls, adapter-cloudflare config, PWA caching, offline-first sync, D1/R2/KV/Durable Objects. Invoke before writing or reviewing code on that stack.
+description: "Svelte 5 runes, SvelteKit, and Cloudflare-edge best practices: $state/$derived/$effect pitfalls, adapter-cloudflare config, PWA caching, offline-first sync, D1/R2/KV/Durable Objects. Invoke before writing or reviewing code on that stack."
 disable-model-invocation: true
 ---
 
