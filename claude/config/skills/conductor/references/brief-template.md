@@ -1,5 +1,20 @@
 # Spawn brief template
 
+## The six parts
+
+Six parts, in this order. The fill-in version follows.
+
+1. **Exclusive authority, stated as exclusivity.**
+2. **An explicit instruction to refuse.**
+3. **The authorization channel, named.**
+4. **Hard gates, numbered, with the reasoning attached.**
+5. **Pre-loaded operating knowledge.**
+6. **A reporting contract, plus permission to fail.**
+
+Give each agent a **first task that is recon only, changing nothing**. It builds context and surfaces what is already broken before new work can be blamed for it.
+
+## Fill-in version
+
 Fill in and pass this as the worker prompt. Delete sections that genuinely do not apply; sections 1, 2, 3, and 6 always apply.
 
 ---

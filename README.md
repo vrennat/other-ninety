@@ -22,7 +22,7 @@ them from drifting, and keep private context out of the public copy.
 | Surface | Contents | Source |
 |---|---|---|
 | Claude plugin | `/brainstorm`, `/impl`, `/plan`, `/trim`; the `adversarial-reviewer` agent; the `clean-writing` skill; a SessionStart hook that injects the two rules | `claude/plugin/` |
-| Claude config | Public-safe global `CLAUDE.md`, `rules/`, hooks, the `teammate` agent protocol, and reusable skills (`conductor`, `i-have-adhd`, `summarize`, `svelte5-best-practices`) | `claude/config/` |
+| Claude config | Public-safe global `CLAUDE.md`, `rules/`, hooks, the `teammate` agent protocol, and reusable skills (`conductor`, `i-have-adhd`, and the user-invoked `summarize`, `svelte5-best-practices`, `retro`, `wizard`) | `claude/config/` |
 | Pi | Agents, extensions, prompt templates, themes, and pinned packages; the o90 behavior text is opt-in (`--with pi-text`) | `pi/` |
 | Repository tooling | Bootstrap, rollback, drift, leak, and verification checks | `bootstrap.sh`, `install.sh`, `scripts/` |
 

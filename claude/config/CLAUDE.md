@@ -21,7 +21,7 @@ For new projects without a stated stack, prefer **SvelteKit with Svelte 5 runes*
 - For destructive Git, deployment, remote resource creation, purchases, global installs, secret rotation, or data deletion, check whether the specific action and target are already authorized. Proceed when they are and required checks pass; otherwise prepare the reviewable result before asking. A general build request alone does not authorize those actions. Never bypass hooks or platform approval controls.
 ## Long-running work and agents
 
-- **Bash timeout is a backstop, not a budget.** Anything likely to exceed 60 seconds (builds, renders, test suites, downloads, servers) starts with `run_in_background` and is checked with Monitor. Never raise the per-call timeout to wait.
+- **Bash timeout is a backstop, not a budget.** Anything likely to exceed 60 seconds (builds, renders, test suites, downloads, servers) starts with `run_in_background` and is checked with Monitor. Waiting happens there, with the per-call timeout left at its default.
 - **Compact early.** On 1M-context models, `/compact` around 250k tokens; do not run to the window edge. Every call re-reads the whole context.
 - **Long-lived agents stay small.** A wake re-sends the agent's entire context, so brief standing agents narrowly and batch messages to them. Reviewers and other read-only agents are spawned without worktree isolation.
 - **Reddit and web.archive.org are blocked for WebFetch.** Use the reddit MCP for Reddit.
@@ -39,13 +39,13 @@ For new projects without a stated stack, prefer **SvelteKit with Svelte 5 runes*
 ## Code
 
 - bun for Node work unless the repository has another lockfile. Never commit secrets, `.env` files, auth state, or session data.
-- No production `console.log`, commented-out code, unexplained `any`, or TODOs without an issue reference. Small files by feature. Test behavior, not implementation.
+- Production code logs through the project's logger, keeps dead code out of the tree, explains every `any`, and gives each TODO an issue reference. Small files by feature. Test behavior, not implementation.
 
 ## Workflow
 
 - Stakes decide review, not size: auth, money, data integrity, security, privacy, or hard-to-undo changes get an independent `adversarial-reviewer` pass even when the diff is one line.
 - `/brainstorm` turns an idea into a spec in `docs/specs/`. `/impl` executes a spec, ticket, or description and prints its classification first. `/plan` writes a reviewable plan when you want one. `/trim` asks only what can be deleted.
-- `clean-writing` for deliberate prose. `conductor` only for long-running delegated sessions with named ownership. `summarize` and `i-have-adhd` for catch-up and ADHD-shaped output.
+- `clean-writing` for deliberate prose. `conductor` only for long-running delegated sessions with named ownership. `i-have-adhd` for ADHD-shaped output. User-invoked only: `/summarize` for catch-up, `/svelte5-best-practices` before SvelteKit work, `/retro` to review the agent's environment after a session, `/wizard` to script steps only a human can do.
 
 # Compact instructions
 

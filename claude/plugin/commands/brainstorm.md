@@ -10,9 +10,9 @@ Turn an idea into a written spec. Investigate technical questions yourself and r
 ## Procedure
 
 1. Read the user's idea. Skim project context (recent commits, existing docs in `docs/specs/` and `docs/plans/`, top-level CLAUDE.md).
-2. Check existing decisions and the user's requested scope before raising questions. Resolve technical choices from project evidence. Identify only missing product requirements or scope decisions that need the user's judgment. If none remain, skip to step 4.
-3. For each genuinely-ambiguous point, add an entry to `docs/decisions.md` first (create the file from the convention at the top of the o90 `docs/decisions.md` if absent): the next number, lettered options, and your recommendation marked. Then ask all points in ONE batched message by number. Wait for response. Record each answer in place; never renumber or reuse a number.
-4. Draft the spec internally:
+2. Check existing decisions and the user's requested scope before raising questions. Resolve technical choices from project evidence. Facts are yours to find: look up anything the repo or environment can answer, dispatching a subagent for slow lookups, and ask the user only for decisions. Identify only missing product requirements or scope decisions that need the user's judgment. If none remain, skip to step 4.
+3. For each genuinely-ambiguous point, add an entry to `docs/decisions.md` first (create the file from the convention at the top of the o90 `docs/decisions.md` if absent): the next number, lettered options, and your recommendation marked. Then ask all points in ONE batched message by number. Ask only points whose prerequisites are settled; a point that depends on another open answer waits for the next round. Wait for response. Record each answer in place; a number stays with its question forever. Repeat rounds until nothing is left silently assumed.
+4. When the frontier is empty (every branch visited, nothing silently assumed), draft the spec internally:
    - Overview, goals, non-goals
    - Architecture / approach (your recommended path; mention alternatives only if you genuinely think the user might want one)
    - Open questions for implementation (resolved with defaults, not TBDs)
@@ -23,8 +23,8 @@ Turn an idea into a written spec. Investigate technical questions yourself and r
 
 ## Rules
 
-- "Approve this section?" gates are forbidden. The whole spec is one artifact for review at the end, not five.
-- Recommend, don't ask "what do you think?" — make the call, justify it in one sentence.
+- The whole spec is one artifact for review at the end, not five sections each waiting on approval.
+- Make the call and justify it in one sentence; the user reacts to a recommendation, not a menu.
 - "Open questions" must have a default decision next to them, not "TBD".
 - A number in `docs/decisions.md` is assigned when the question is raised, not when it is answered. Only choices with more than one defensible answer go there.
 - If the spec covers >1 independent subsystem, decompose. Each subsystem gets its own spec.

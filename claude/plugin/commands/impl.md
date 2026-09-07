@@ -32,9 +32,9 @@ Execute work. Input is one of:
 
 7. **Implement in this session.** Delegate only for the reasons in `rules/agents.md`: parallel work on disjoint write surfaces, isolating noisy exploration, or independent review. Size alone is not a reason. With `--tdd`, write the test, run it, show the failure, then implement.
 
-8. **Review by stakes and size.** High stakes: dispatch `adversarial-reviewer` after implementation, whatever the diff size, and resolve blocking findings before claiming done. More than five files or shared infrastructure: run `/code-review` as well.
+8. **Review by stakes and size.** High stakes: dispatch `adversarial-reviewer` after implementation, whatever the diff size, and resolve blocking findings before claiming done. More than five files or shared infrastructure: run `/code-review` as well. When the input was a spec or ticket, review fidelity too: requirements missing or partial, behavior nobody asked for, and requirements that look done but wrong, each with the source line quoted.
 
-9. **Verify.** Run the repository's typecheck, tests, lint, and build, and paste the output verbatim. Exercise the changed behavior, not only the commands. If verification fails, diagnose with a stated hypothesis and a minimal experiment before the next fix; stop after three failed repair cycles and report the evidence.
+9. **Verify.** Run the repository's typecheck, tests, lint, and build, and paste the output verbatim. Exercise the changed behavior, not only the commands. Before diagnosing any failure, name one command that goes red on the exact symptom and run it once; until that command exists, say so and ask for a repro artifact instead of theorizing. Then diagnose with a stated hypothesis and a minimal experiment before the next fix; stop after three failed repair cycles and report the evidence. Tag temporary debug output with one prefix such as `[DEBUG-a4f2]` and grep it out before reporting.
 
 10. **Ticket:** move it to "In Review".
 

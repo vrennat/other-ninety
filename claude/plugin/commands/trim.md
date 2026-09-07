@@ -47,7 +47,7 @@ Lean already. Ship.
 
 - Every finding names a concrete replacement, not "consider simplifying."
 - Flag only what is safe to remove or shrink without changing behavior. A deletion that alters behavior is a correctness call — out of scope.
-- No praise, no preamble, no "overall this looks good." Findings and the closing line only.
+- Output is the findings and the closing line, nothing before, between, or after.
 
 ## Example
 

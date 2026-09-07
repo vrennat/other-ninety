@@ -197,3 +197,37 @@ Agent SDK entrypoint, or `claude -p` without `--sdk-url`. The hook logs every
 nudge and notification to `~/.local/state/other-ninety/focus.log`, which is the
 positive control for "it fired". Re-measure with the session-audit probes before
 claiming the median gap moved.
+
+## D13. Matt Pocock's skills: borrow the mechanics, adopt none of the catalogue — Resolved
+
+Compared all 37 skills in `mattpocock/skills` at `3cca18b` (2026-09-07) against
+the plugin, the four live user-level skills, and the rules. Fourteen duplicate
+`/brainstorm`, `/impl`, `/code-review` plus `adversarial-reviewer`, `clean-writing`,
+or `conductor`; six of those also depend on his setup skill writing an issue
+tracker and label vocabulary into the repo. Six name real gaps. Seventeen are
+specific to his courses and layout. The mechanism that matters: 22 of his skills
+carry `disable-model-invocation: true`, so their descriptions never load; all
+four o90 skills paid a description line every turn (about 1,000 tokens), and two
+had zero uses in 30 days at D8.
+
+- **(a) Adopt no skill as-is. Mark `summarize` and `svelte5-best-practices`
+  user-invoked. Fold the gaps into existing commands: spec-fidelity review and a
+  red-repro gate with tagged debug output in `/impl`; frontier rounds, fact
+  dispatch, and an empty-frontier completion criterion in `/brainstorm`. Add two
+  user-invoked skills, `retro` (the agent's environment, not the code; what D5 to
+  D11 did by hand) and `wizard` (bash walkthrough for human-only steps). Reshape
+  `conductor` into a router with the brief structure, authorization gates, and
+  session operations behind stated conditions. One pass restating
+  prohibition-shaped lines as the positive default where the default was
+  unspecified.** ← chosen
+- (b) Install the six additive skills as they are.
+- (c) Take only the `disable-model-invocation` flag.
+
+**Resolution (2026-09-07):** (a). A user-invoked skill costs nothing unused, so
+it never needs to clear D6's measured-use bar; the bar still applies to anything
+model-invoked. `summarize` now needs `/summarize` rather than "catch me up"; if
+that turns out to matter, drop the flag on that one skill. The private overlay's
+`researcher` and `skill-creator` directories, cut in D8 but never deleted, are
+gone. Lines kept as prohibitions on purpose: amend-never, secrets-never, the
+conductor's three "do not" bullets (each carries its reason), and the vendored
+`i-have-adhd` forbidden-phrase lists.

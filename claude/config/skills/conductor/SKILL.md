@@ -1,6 +1,6 @@
 ---
 name: conductor
-description: Run a session as a low-context conductor over named, long-lived agents that each hold exclusive authority over one domain (deploy, QA, review, backlog). Use when asked to act as conductor or project manager and delegate rather than implement, when a session must stay alive across many hours of work in several domains, or when work needs an authority structure where an agent can refuse the conductor. Also covers manager mode (fan implementation out to named pi worker sessions on cheap models -- references/pi-workers.md) and loop mode (unattended operation under references/loop-protocol.md). Not for ordinary per-task delegation -- use the repository's normal agent-routing rules.
+description: Run a session as a low-context conductor over named, long-lived agents that each hold exclusive authority over one domain (deploy, QA, review, backlog), including manager mode (pi worker seats on cheap models) and loop mode (unattended). Use when asked to act as conductor or project manager, or when a session must stay alive across hours of work in several domains. Ordinary per-task delegation routes through rules/agents.md.
 ---
 
 # Conductor
@@ -38,52 +38,9 @@ Routing, synthesis, and adjudication of what agents report. Refuse to accept cle
 - **Keep standing agents small.** A wake re-sends the whole context; agents that idle at 250k+ context are the cost, not the wakes. Batch messages to one agent and prefer a fresh one-shot agent over a standing one when nothing is accumulated.
 - **Keep the principal informed without requiring them to understand or investigate the codebase.** Every report upward is a decision to make or a state to know, never a pointer to go look. If the principal has to open a file to understand what happened, the synthesis was not done.
 
-## Spawn brief structure
+## Read next, when
 
-Six parts, in this order. Use `references/brief-template.md` for the fill-in version.
-
-1. **Exclusive authority, stated as exclusivity.**
-2. **An explicit instruction to refuse.**
-3. **The authorization channel, named.**
-4. **Hard gates, numbered, with the reasoning attached.**
-5. **Pre-loaded operating knowledge.**
-6. **A reporting contract, plus permission to fail.**
-
-Give each agent a **first task that is recon only, changing nothing**. It builds context and surfaces what is already broken before new work can be blamed for it.
-
-## Authorization gates
-
-**Carry the user's authorization, not just the prohibitions.** Each brief names the requested outcome, owned paths, acceptance checks, explicit exclusions, and actions already authorized, with the user's words and source turn when available. Existing authorization survives delegation and follow-up. The conductor resolves routine coordination within that scope without sending the user another approval request.
-
-**Separate ownership from permission.** Exclusive authority names who performs an action; it does not authorize new work. Workers investigate technical uncertainty and complete necessary supporting work within their surface. A wider surface comes back to the conductor; a material product or scope change comes back to the user. Reversibility does not widen either boundary.
-
-**Check the authorization channel before an action needs it.** A brief relaying an identifiable user instruction is enough to carry that instruction within its stated scope. A bare claim that "the user approved" does not expand scope. Resolve a missing or conflicting instruction with the conductor first. Ask the user only if their decision is still absent; do not treat silence as approval.
-
-**Write unresolved gates so they bind the conductor too.** The conductor cannot substitute its judgment for the user's missing authorization. An explicit proposal-only or deployment hold remains until the user lifts it. Do not recreate a gate that the user has already satisfied.
-
-**A reviewer's blocking finding is closed only by the reviewer or by the user accepting the risk on the record, with a name and an expiry.** Neither the agent under review nor the conductor can downgrade it. Review findings do not authorize unrelated features, UI changes, or refactors.
-
-## Follow-up messages
-
-Via the session's agent-message mechanism. The structure that works:
-
-1. Specific praise for the reasoning, not the outcome.
-2. Standing decisions restated.
-3. The new task, with falsifiable framing explicit.
-4. Limits, with reasoning.
-5. Explicit permission to fail.
-
-## Failure modes
-
-| Symptom | What went wrong |
-|---|---|
-| Conductor is reading diffs and running greps | Lost the pattern; it is now an implementer with extra latency |
-| Agent defers to the conductor on its own domain | Authority was granted but not stated as exclusive |
-| Reports arrive as transcripts | No reporting contract in the brief |
-| An inconclusive result was reported as a pass | No permission to fail in the brief |
-| Conductor authorized something on its own read | Gate was written to bind agents but not its author |
-| Fresh agent spawned for follow-up | Accumulated context was discarded |
-
-## Record what happened outside the session
-
-An in-session review leaves no durable trace. If agent review is the review process, post the review, verdicts, gate lifts, and other future-useful decisions to the project's durable record. Choices with more than one defensible answer go in `docs/decisions.md`: numbered when raised, lettered options, an explicit recommendation, resolution recorded in place.
+- **Writing or revising a spawn brief:** `references/brief-template.md` for the six-part structure and the fill-in version.
+- **Relaying an approval, lifting a gate, or closing a reviewer's finding:** `references/authorization.md`. The gates bind the conductor too.
+- **Sending a follow-up to a standing agent, or a report looks wrong:** `references/session-ops.md` for the follow-up structure, the failure-mode table, and what has to be recorded outside the session.
+- **Manager mode:** `references/pi-workers.md`. **Loop mode:** `references/loop-protocol.md` before the first unattended wake.

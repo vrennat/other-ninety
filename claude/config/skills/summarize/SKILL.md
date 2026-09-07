@@ -1,6 +1,7 @@
 ---
 name: summarize
-description: 'One-shot catch-up in the ADHD shape: what got done, where we are, the one next action. Use when the user asks to summarize or recap, says "catch me up", "where were we", "what did we do", "what''s next", or returns after a break. With an argument, summarize that thing (file, PR, doc) in the same shape. Also invocable as /summarize. One response only; does not turn on the persistent i-have-adhd mode.'
+description: 'One-shot catch-up in the ADHD shape: what got done, where we are, the one next action. With an argument, summarize that file, PR, or doc in the same shape. One response; does not turn on the persistent i-have-adhd mode.'
+disable-model-invocation: true
 license: MIT
 metadata:
   source: https://github.com/ayghri/i-have-adhd

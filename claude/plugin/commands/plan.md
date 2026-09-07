@@ -26,8 +26,8 @@ Use this when you want a written plan you can review before any code is touched.
 
 ## Rules
 
-- No placeholders. No "TBD" / "TODO" / "implement later" / "add appropriate error handling".
-- No "see Task N" cross-references. Repeat the code if needed.
+- Every code block is complete as written: real code where a placeholder, "TBD", or "add appropriate error handling" would go.
+- Each task carries its own code; repeat it rather than point at another task.
 - Each task is self-contained and committable independently.
 
 ## When NOT to use
