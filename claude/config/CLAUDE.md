@@ -45,7 +45,7 @@ For new projects without a stated stack, prefer **SvelteKit with Svelte 5 runes*
 
 - Stakes decide review, not size: auth, money, data integrity, security, privacy, or hard-to-undo changes get an independent `adversarial-reviewer` pass even when the diff is one line.
 - `/brainstorm` turns an idea into a spec in `docs/specs/`. `/impl` executes a spec, ticket, or description and prints its classification first. `/plan` writes a reviewable plan when you want one. `/trim` asks only what can be deleted.
-- `clean-writing` for deliberate prose. `conductor` only for long-running delegated sessions with named ownership. `i-have-adhd` for ADHD-shaped output. User-invoked only: `/summarize` for catch-up, `/svelte5-best-practices` before SvelteKit work, `/retro` to review the agent's environment after a session, `/wizard` to script steps only a human can do.
+- `clean-writing` for deliberate prose. `conductor` only for long-running delegated sessions with named ownership. `i-have-adhd` for ADHD-shaped output. `wizard` to script steps only a human can do. User-invoked only: `/summarize` for catch-up, `/svelte5-best-practices` before SvelteKit work, `/retro` to review the agent's environment after a session.
 
 # Compact instructions
 
