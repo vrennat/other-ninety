@@ -20,13 +20,48 @@ one.
 """.strip()
 
 
-def find_model_policy() -> Path:
-    override = os.environ.get("OTHER_NINETY_PI_MODEL_POLICY")
+def capture_login_shell_env(timeout: float = 20.0) -> dict:
+    """Capture env vars the user's interactive login shell would set.
+
+    Calling harnesses commonly invoke this script through a non-interactive
+    shell, so PATH (Node version) and provider credentials exported from
+    dotfiles that only load interactively (~/.zshrc, a sourced secrets file)
+    never reach os.environ here even when they're configured and valid.
+    Shell out once and use what a real interactive shell reports instead of
+    guessing which dotfile a given machine uses.
+    """
+    shell = os.environ.get("SHELL") or "/bin/zsh"
+    try:
+        result = subprocess.run(
+            [shell, "-ic", "env -0"],
+            capture_output=True,
+            timeout=timeout,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return {}
+    if result.returncode != 0 or not result.stdout:
+        return {}
+    captured = {}
+    for pair in result.stdout.split(b"\0"):
+        if not pair:
+            continue
+        key, sep, value = pair.partition(b"=")
+        if not sep:
+            continue
+        try:
+            captured[key.decode()] = value.decode()
+        except UnicodeDecodeError:
+            continue
+    return captured
+
+
+def find_model_policy(env: dict) -> Path:
+    override = env.get("OTHER_NINETY_PI_MODEL_POLICY")
     if override:
         policy = Path(override).expanduser()
     else:
         config_dir = Path(
-            os.environ.get("PI_CODING_AGENT_DIR", Path.home() / ".pi" / "agent")
+            env.get("PI_CODING_AGENT_DIR", str(Path.home() / ".pi" / "agent"))
         ).expanduser()
         policy = config_dir / "extensions" / "model-policy.ts"
     if not policy.is_file():
@@ -48,12 +83,16 @@ def main() -> int:
     if os.environ.get("PI_CODING_AGENT") or os.environ.get("OTHER_NINETY_PI_LEAF"):
         print("refusing recursive Pi leaf invocation", file=sys.stderr)
         return 2
-    pi = shutil.which("pi")
+
+    env = os.environ.copy()
+    env.update(capture_login_shell_env())
+
+    pi = shutil.which("pi", path=env.get("PATH"))
     if not pi:
         print("pi executable not found", file=sys.stderr)
         return 127
     try:
-        model_policy = find_model_policy()
+        model_policy = find_model_policy(env)
     except FileNotFoundError as error:
         print(error, file=sys.stderr)
         return 2
@@ -68,9 +107,8 @@ def main() -> int:
     for variable, flag in (("OTHER_NINETY_PI_PROVIDER", "--provider"),
                            ("OTHER_NINETY_PI_MODEL", "--model"),
                            ("OTHER_NINETY_PI_THINKING", "--thinking")):
-        if os.environ.get(variable):
-            args += [flag, os.environ[variable]]
-    env = os.environ.copy()
+        if env.get(variable):
+            args += [flag, env[variable]]
     env["OTHER_NINETY_PI_LEAF"] = "1"
     env["PI_SKIP_VERSION_CHECK"] = "1"
     try:
