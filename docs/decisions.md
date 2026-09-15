@@ -21,6 +21,9 @@ history can explain does not.
 | D9 | What Pi loads as CLAUDE.md | Resolved |
 | D10 | Pi default: stock or the o90 text | Resolved |
 | D11 | Autonomy follows requested scope and existing authorization | Resolved |
+| D12 | Structural breaks and notifications: warn, do not block | Resolved |
+| D13 | Matt Pocock's skills: borrow the mechanics, adopt none of the catalogue | Resolved |
+| D14 | Conversation residue in commits: a rule line, not a blocking hook | Resolved |
 
 ---
 
@@ -237,3 +240,44 @@ that turns out to matter, drop the flag on that one skill. The private overlay's
 gone. Lines kept as prohibitions on purpose: amend-never, secrets-never, the
 conductor's three "do not" bullets (each carries its reason), and the vendored
 `i-have-adhd` forbidden-phrase lists.
+
+## D14. Conversation residue in commits: a rule line, not a blocking hook — Resolved
+
+Prompted by `ChufanS008/ship-the-result` (r/ClaudeAI, 2026-09-14): a skill
+stating that commit text, comments, and names are written for the reader of the
+artifact rather than the person in the chat, a six-family regex scanner, and a
+PreToolUse hook that blocks `git commit` and `gh pr create` on a hit, passing the
+identical command on its second run. Measured 2026-09-14 against local history
+before deciding:
+
+| Corpus | Size | Scanner hits | Real residue on inspection |
+|---|---|---|---|
+| Commit subjects, all local repos, 90 days | 3,541 | 20 | 5 ("address review feedback") |
+| o90 commit bodies, 90 days | 555 lines | 8 | 0 |
+| Code comments, mulligan-labs | 26,539 | 375 | sample all decision phrasing |
+| Code comments, o90 | 156 | 3 | 0 |
+
+The residue the post describes ("as requested", "sorry", "fixed version",
+`_no_ketchup` filenames) does not occur in the subjects at all. The remaining
+hits are decision phrasing ("instead of a sprite sheet", "rather than a guess",
+"(non-secret)") that the "preserve reasoning" rule asks for. Scanner defects:
+conventional-commit scopes beginning with "no" or "sans" match the negated-draft
+family (`fix(normalize):`, `feat(notes):`, `fix(nonce):`), and test names
+containing new, old, final, real, or working are flagged as identifiers. The hook
+runs Python on every Bash call with no prefilter: median 92 ms against 25 ms for
+`pre-push-guard.sh` (n=20 each).
+
+- **(a) One sentence under "Git and deployment" in `CLAUDE.md`: outward-facing
+  text describes the artifact for a reader who never saw the chat, and a phrase
+  that only makes sense against a rejected draft or a correction is rewritten
+  from the final state. About 60 tokens, always loaded, blocks nothing.** ← chosen
+- (b) Install the skill and hook as published.
+- (c) Vendor the scanner with the scope bug fixed and run it warn-only from the
+  pre-push guard.
+
+**Resolution (2026-09-14):** (a). (b) fails D12 (a block with the false-positive
+rate above would be ripped out on its first hit), D13 (a model-invoked skill with
+a 120-word description loaded every turn has no measured use to justify it), and
+the "preserve reasoning" rule it would police. (c) adds a moving part for five
+occurrences in ninety days. The audience principle is the useful part and fits
+in one line; revisit if `/retro` finds residue reaching history after the rule.

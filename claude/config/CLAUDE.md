@@ -32,6 +32,7 @@ For new projects without a stated stack, prefer **SvelteKit with Svelte 5 runes*
 ## Git and deployment
 
 - Conventional commits. New commits, never amend published history. Follow repository-local contribution rules.
+- Commit messages, comments, and names describe the artifact for a reader who never saw the chat. A phrase that only makes sense against a rejected draft or a correction ("as requested", "fixed version", "without X" when X was never a requirement) is rewritten from the final state.
 - Before pushing `main`: fetch upstream and resolve divergence without force. Read both sides of a conflict.
 - Check other live sessions and worktrees before repo-wide or destructive changes.
 - Typecheck and build before deploying. After deploying, hit the changed routes cold, more than once. A green deploy command is not proof.
