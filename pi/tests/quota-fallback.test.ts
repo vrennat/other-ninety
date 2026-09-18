@@ -200,8 +200,13 @@ describe("pickFallback", () => {
 describe("DEFAULT_FALLBACK_CHAIN", () => {
 	it("has the expected entries in order", () => {
 		expect(DEFAULT_FALLBACK_CHAIN).toEqual([
+			// deepseek-v4-pro leads via the NATIVE deepseek provider, not via
+			// openrouter: both are authenticated, and the direct provider skips
+			// openrouter's markup. An unregistered provider would be skipped by
+			// isModelAvailable rather than breaking the chain, so this ordering
+			// only takes effect because deepseek is in auth.json (mb-d5rm).
+			{ provider: "deepseek", id: "deepseek-v4-pro" },
 			{ provider: "zai", id: "glm-5.3" },
-			{ provider: "openrouter", id: "deepseek/deepseek-v4-pro" },
 			{ provider: "google", id: "gemini-flash-latest" },
 			{ provider: "openai-codex", id: "gpt-5.6-terra" },
 		]);
