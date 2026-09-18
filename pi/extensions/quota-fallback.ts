@@ -6,7 +6,7 @@
  * It skips providers whose quota is known to be exhausted and queues a
  * follow-up user message so the task continues instead of stopping.
  *
- * Default chain: zai/glm-5.3 -> openrouter/deepseek/deepseek-v4-pro ->
+ * Default chain: deepseek/deepseek-v4-pro -> zai/glm-5.3 ->
  *   google/gemini-flash-latest -> openai-codex/gpt-5.6-terra
  *
  * Override by editing this file or importing DEFAULT_FALLBACK_CHAIN and
@@ -25,8 +25,8 @@ export interface ChainEntry {
 }
 
 export const DEFAULT_FALLBACK_CHAIN: ChainEntry[] = [
+	{ provider: "deepseek", id: "deepseek-v4-pro" },
 	{ provider: "zai", id: "glm-5.3" },
-	{ provider: "openrouter", id: "deepseek/deepseek-v4-pro" },
 	{ provider: "google", id: "gemini-flash-latest" },
 	{ provider: "openai-codex", id: "gpt-5.6-terra" },
 ];
