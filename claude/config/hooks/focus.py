@@ -186,11 +186,11 @@ def on_prompt(payload: dict, state: dict, now: float) -> dict:
             )
             messages.append(text)
             log("quiet", f"session={sid}")
-        context.append(
-            f"It is quiet hours ({QUIET_START_HOUR:02d}:00-{QUIET_END_HOUR:02d}:00 local). "
-            "If this request could run unattended from a written brief, say so in one line at the top, "
-            "then proceed as asked."
-        )
+            context.append(
+                f"It is quiet hours ({QUIET_START_HOUR:02d}:00-{QUIET_END_HOUR:02d}:00 local). "
+                "If this request could run unattended from a written brief, say so in one line at the top, "
+                "then proceed as asked."
+            )
 
     out: dict = {}
     if messages:

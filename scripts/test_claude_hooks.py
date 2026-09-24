@@ -10,7 +10,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 HOOKS = ROOT / "claude" / "config" / "hooks"
-PLUGIN_HOOK = ROOT / "claude" / "plugin" / "hooks" / "session-start.py"
 
 
 class HookTests(unittest.TestCase):
@@ -191,28 +190,6 @@ esac
                 self.assertEqual(result.returncode, code, (url, result.stderr))
             result = self.run_hook("webfetch-guard.sh", {"tool_name": "Bash", "tool_input": {"command": "curl reddit.com"}}, config)
             self.assertEqual(result.returncode, 0)
-
-    def test_plugin_session_start_needs_no_bun_and_injects_routing(self):
-        result = subprocess.run(
-            [sys.executable, str(PLUGIN_HOOK)],
-            capture_output=True,
-            text=True,
-            env={"PATH": "/usr/bin:/bin"},
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        payload = json.loads(result.stdout)
-        self.assertEqual(payload["hookSpecificOutput"]["hookEventName"], "SessionStart")
-        context = payload["hookSpecificOutput"]["additionalContext"]
-        self.assertIn("<other-ninety>", context)
-        self.assertIn("adversarial-reviewer", context)
-        self.assertIn("/impl", context)
-        self.assertNotIn("Mode:", context)
-        self.assertLess(len(context), 1200)
-
-        hook_config = json.loads((ROOT / "claude" / "plugin" / "hooks" / "hooks.json").read_text())
-        command = hook_config["hooks"]["SessionStart"][0]["hooks"][0]["command"]
-        self.assertTrue(command.startswith("python3 "), command)
-        self.assertNotIn("bun", command)
 
 
 if __name__ == "__main__":

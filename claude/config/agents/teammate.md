@@ -1,7 +1,7 @@
 ---
 name: teammate
 description: Named long-lived agent for multi-agent coordination. Follows the task lifecycle protocol.
-model: sonnet
+model: inherit
 effort: high
 ---
 

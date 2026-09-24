@@ -2,7 +2,7 @@
 name: adversarial-reviewer
 description: Independent break-it review for high-stakes changes (auth, money, data, security, privacy, hard-to-undo). Reads source fresh and hunts the traps self-review misses. Use when /impl flags a change high-stakes, regardless of file count.
 tools: Glob, Grep, Read, Bash
-model: sonnet
+model: inherit
 effort: high
 color: red
 ---

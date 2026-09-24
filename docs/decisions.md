@@ -24,6 +24,7 @@ history can explain does not.
 | D12 | Structural breaks and notifications: warn, do not block | Resolved |
 | D13 | Matt Pocock's skills: borrow the mechanics, adopt none of the catalogue | Resolved |
 | D14 | Conversation residue in commits: a rule line, not a blocking hook | Resolved |
+| D15 | Opus 5.5 default: plugin SessionStart injection and model pins | Resolved |
 
 ---
 
@@ -281,3 +282,22 @@ a 120-word description loaded every turn has no measured use to justify it), and
 the "preserve reasoning" rule it would police. (c) adds a moving part for five
 occurrences in ninety days. The audience principle is the useful part and fits
 in one line; revisit if `/retro` finds residue reaching history after the rule.
+
+## D15. Opus 5.5 default: plugin SessionStart injection and model pins — Resolved
+
+With Opus 5.5 as the default main model (effort `high`, no advisor), the 2026-09-23 setup
+audit found the plugin's SessionStart hook injecting a block that repeats the global
+`CLAUDE.md` (scope, stakes review, `/brainstorm` `/impl` `/plan` `/trim`) on every start,
+resume, clear, and compact, and found `adversarial-reviewer` and `teammate` pinned to
+Sonnet, below the model whose work they review.
+
+- **(a) Delete the plugin SessionStart hook; `CLAUDE.md` is the one copy. Agents inherit the
+  main model; routing names only the mechanical (haiku) and survey (sonnet) exceptions.** ← chosen
+- (b) Keep the hook and trim `CLAUDE.md` instead. The hook only reaches sessions with the plugin
+  enabled, and `CLAUDE.md` reaches every session.
+- (c) Keep both copies.
+
+**Resolution (2026-09-24):** (a). The injection is pure duplication, and a reviewer weaker than
+the author defeats the point of independent review on stakes. The routing line written for a
+Fable-priced main session ("Fable stays in the main session") no longer describes the setup.
+
