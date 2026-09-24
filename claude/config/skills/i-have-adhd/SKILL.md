@@ -100,7 +100,9 @@ Good: "Test fails at `auth.spec.ts:42`: expected 200, got 401. Cause: missing au
 
 ### 9. Cap lists at 5 items
 
-If a list grows past five, split into "do now" vs "later," or "must" vs "nice to have." Five items ranked beats ten unranked.
+If a list grows past five, split into "do now" vs "later," or "must" vs "nice to have." Five items ranked beats ten unranked. For long lists, group related items and rank the most relevant first; keep the visible working set small and show the rest only when asked or when they become the next items to address.
+
+Never omit relevant items when completeness matters. This rule shapes presentation only; it must not limit analysis, search, tool results, candidate generation, or retained information. (Folded from upstream ayghri/i-have-adhd.)
 
 ### 10. No preamble, no recap, no closing pleasantries
 
