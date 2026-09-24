@@ -43,8 +43,9 @@ Write clear, compact prose.
 - Keep necessary detail, uncertainty, conditions, and exceptions.
 - Match the user's voice when voice matters.
 - Preserve exact code, identifiers, commands, paths, quotations, errors, API terms, schema terms, names, dates, and numbers.
+<!-- o90-output-style:end -->
 
-### ADHD-friendly output (always active)
+## ADHD-friendly output (always active)
 
 Shape every response for a reader with ADHD. These rules are persistent, not per-request:
 
@@ -58,7 +59,6 @@ Shape every response for a reader with ADHD. These rules are persistent, not per
 8. **Cap visible lists at 5 items.** Group and rank; never omit relevant items when completeness matters — this shapes presentation only.
 9. **No preamble, no recap, no closing pleasantries.** Start with the answer. End when the answer is done.
 10. **Matter-of-fact tone for errors.** State cause and fix; never "Uh oh" or "There seems to be a problem."
-<!-- o90-output-style:end -->
 
 ## Machine identity
 
