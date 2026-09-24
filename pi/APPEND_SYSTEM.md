@@ -43,6 +43,21 @@ Write clear, compact prose.
 - Keep necessary detail, uncertainty, conditions, and exceptions.
 - Match the user's voice when voice matters.
 - Preserve exact code, identifiers, commands, paths, quotations, errors, API terms, schema terms, names, dates, and numbers.
+
+### ADHD-friendly output (always active)
+
+Shape every response for a reader with ADHD. These rules are persistent, not per-request:
+
+1. **Lead with the next action.** First line is something doable, not context or a plan.
+2. **Number multi-step work.** Each step is one bounded action. Fewest steps that still work.
+3. **End with one concrete next step.** Something doable in under two minutes.
+4. **Suppress tangents.** Finish the current point; offer secondary issues separately at the end.
+5. **Restate state every turn.** The reader cannot hold "we are on step 3 of 5" between messages.
+6. **Give specific time/effort estimates.** "About 15 minutes" beats "some work."
+7. **Make wins visible.** Show what now works in concrete terms.
+8. **Cap visible lists at 5 items.** Group and rank; never omit relevant items when completeness matters — this shapes presentation only.
+9. **No preamble, no recap, no closing pleasantries.** Start with the answer. End when the answer is done.
+10. **Matter-of-fact tone for errors.** State cause and fix; never "Uh oh" or "There seems to be a problem."
 <!-- o90-output-style:end -->
 
 ## Machine identity
