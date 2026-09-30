@@ -25,6 +25,9 @@ history can explain does not.
 | D13 | Matt Pocock's skills: borrow the mechanics, adopt none of the catalogue | Resolved |
 | D14 | Conversation residue in commits: a rule line, not a blocking hook | Resolved |
 | D15 | Opus 5.5 default: plugin SessionStart injection and model pins | Resolved |
+| D16 | Cut workflow layers and share configuration ownership | Resolved |
+| D17 | Unattended merges require behavior-aware classification | Resolved |
+| D18 | Capture portable private Codex configuration with native profiles | Resolved |
 
 ---
 
@@ -301,3 +304,53 @@ Sonnet, below the model whose work they review.
 the author defeats the point of independent review on stakes. The routing line written for a
 Fable-priced main session ("Fable stays in the main session") no longer describes the setup.
 
+## D16. Cut workflow layers and share configuration ownership — Resolved
+
+The public/private audit found workflow rules duplicated across commands,
+obsolete Pi mode and marker prompts, installer and drift catalogs maintained
+separately, and personal fallback routes compiled into a public extension.
+
+- **(a) Cut the duplicate workflow layers. Keep Pi implementation in the main
+  session by default, retain stakes review, and delegate for a concrete reason.
+  Reuse the installer's target plan for drift and package selection; put personal
+  routing in the private overlay.** ← chosen
+- (b) Keep the layers and add synchronization rules and configuration receipts.
+
+**Resolution (2026-09-30):** (a), with a preference for cuts across both repos.
+One target plan removes ownership disagreement without another state file.
+Overlay settings replace; existing public settings remain preserved. Real
+Claude skill directories stay unmanaged unless an overlay owns them. Pi text
+requires explicit opt-in, and missing fallback configuration disables automatic
+substitution. The eight Pi agents remain until usage evidence supports a cut.
+
+## D17. Unattended merges require behavior-aware classification — Resolved
+
+The old gates treated any Markdown path as documentation and a patch/minor
+dependency bump with green CI as safe. Instructions change agent behavior, and
+dependency behavior is not established by a version label or existing tests.
+
+- **(a) Allow reviewed human-facing documentation on a recorded allowlist;
+  require authorization for the specific dependency bump plus independent
+  behavior review and relevant checks. Keep deployment and high-stakes gates.** ← chosen
+- (b) Keep the extension and semver shortcuts.
+
+**Resolution (2026-09-30):** (a), in both public and private conductor policies.
+Existing user authorization carries forward; missing authority or review parks
+the merge while authorized preparation continues.
+
+## D18. Capture portable private Codex configuration with native profiles — Resolved
+
+Codex is now used daily, but its live home mixes portable preferences with
+machine trust, credentials, plugins, hooks, and application state. The personal
+instructions also retained unavailable tools and missing companion paths.
+
+- **(a) Keep trimmed personal instructions and a native named preference
+  profile in the private overlay. Link only those two files through an explicit
+  component using the existing install, drift, and rollback plan.** ← chosen
+- (b) Copy the complete Codex home or rebuild the retired public workflow adapter.
+
+**Resolution (2026-09-30):** (a). Native profile layering preserves host settings
+without a TOML merge engine or another mirrored command catalog. The bundled
+CLI loads the profile and validates its settings locally; selection is explicit.
+The base configuration and desktop model selection remain local. This extends
+personal configuration ownership without reversing D7's public adapter cut.

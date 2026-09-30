@@ -13,13 +13,13 @@ Opt-in only. The plugin does NOT auto-enforce TDD on every implementation. Use t
 
 ## Procedure
 
-1. **SCAFFOLD:** define the interface. Types, function signature, throw `Not implemented`. Commit.
+1. **SCAFFOLD:** define the interface needed for the first test.
 2. **RED:** write the failing test(s). Cover happy path, edge cases (empty/null/max), error conditions. Run tests; verify they FAIL for the right reason.
 3. **GREEN:** write the minimum code to pass. No gold-plating. Run tests; verify PASS.
 4. **REFACTOR:** improve naming, extract helpers, reduce complexity. Run tests after each change; must stay green.
 5. **REPEAT:** next behavior or scenario, back to RED.
 
-Commit after each phase that produces working state (after GREEN, after REFACTOR). Don't commit RED — the test is failing.
+Commit only under existing user and repository authorization, after verification passes.
 
 ## Rules
 

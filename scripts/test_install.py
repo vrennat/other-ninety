@@ -199,7 +199,7 @@ class InstallerTest(InstallerHarness):
             root = Path(temporary)
             claude, pi, _, _ = self.targets(root)
             result = self.run_installer("--apply", *self.arguments(root))
-            self.assertIn("Pi text:       not linked (stock Pi)", result.stdout)
+            self.assertIn("Pi text:       not linked", result.stdout)
             self.assertFalse(os.path.lexists(pi / "AGENTS.md"))
             self.assertFalse(os.path.lexists(pi / "APPEND_SYSTEM.md"))
             self.assertTrue((pi / "agents").is_symlink())
@@ -295,6 +295,222 @@ class DriftCheckerTest(InstallerHarness):
             drift = self.run_drift(root, "--with", "claude", "--overlay", overlay)
             self.assertNotEqual(drift.returncode, 0, drift.stdout)
             self.assertIn("expected symlink", drift.stdout)
+
+    def test_preserved_public_skill_is_unmanaged_until_overlay_claims_it(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            claude, _, _, _ = self.targets(root)
+            skill = claude / "skills" / "conductor"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("private instructions")
+            self.run_installer("--apply", "--with", "claude", *self.arguments(root))
+            result = self.run_drift(root, "--with", "claude")
+            self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertIn(f"UNMANAGED: {skill}", result.stdout)
+            overlay = root / "overlay"
+            owned = overlay / "claude" / "skills" / "conductor"
+            owned.mkdir(parents=True)
+            (owned / "SKILL.md").write_text("overlay instructions")
+            result = self.run_drift(root, "--with", "claude", "--overlay", overlay)
+            self.assertEqual(result.returncode, 1, result.stdout)
+            self.assertIn(f"{skill}: differs", result.stdout)
+
+    def test_overlay_copy_checks_bytes_even_with_identical_size_and_mtime(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            claude, _, _, _ = self.targets(root)
+            overlay = root / "overlay"
+            owned = overlay / "claude" / "skills" / "conductor"
+            owned.mkdir(parents=True)
+            source = owned / "SKILL.md"
+            source.write_text("original")
+            result = self.run_installer("--apply", "--with", "claude", "--overlay", overlay, *self.arguments(root))
+            target = claude / "skills" / "conductor" / "SKILL.md"
+            target.write_text("modified")
+            os.utime(target, ns=(source.stat().st_atime_ns, source.stat().st_mtime_ns))
+            drift = self.run_drift(root, "--with", "claude", "--overlay", overlay)
+            self.assertEqual(drift.returncode, 1, drift.stdout)
+            self.assertIn("differs", drift.stdout)
+            manifest = Path(next(line for line in result.stdout.splitlines() if line.startswith("manifest")).split(maxsplit=1)[1])
+            entries = json.loads(manifest.read_text())["entries"]
+            self.assertEqual(sum(entry["target"] == str(target.parent) for entry in entries), 1)
+            self.run_installer("--rollback", manifest)
+            self.assertFalse(target.parent.exists())
+
+    def test_overlay_pi_text_obeys_component_selection(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            _, pi, _, _ = self.targets(root)
+            overlay = root / "overlay"
+            (overlay / "pi").mkdir(parents=True)
+            text = overlay / "pi" / "AGENTS.md"
+            text.write_text("private Pi behavior")
+            self.run_installer("--apply", "--overlay", overlay, *self.arguments(root))
+            self.assertFalse(os.path.lexists(pi / "AGENTS.md"))
+            self.assertEqual(self.run_drift(root, "--overlay", overlay).returncode, 0)
+            self.run_installer("--apply", "--with", "pi", "--with", "pi-text", "--overlay", overlay, *self.arguments(root))
+            self.assertEqual((pi / "AGENTS.md").resolve(), text.resolve())
+            self.assertEqual(self.run_drift(root, "--with", "pi", "--with", "pi-text", "--overlay", overlay).returncode, 0)
+            self.assertEqual(self.run_drift(root, "--overlay", overlay).returncode, 1)
+
+    def test_settings_subset_and_overlay_exactness_are_preserved(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            _, pi, _, _ = self.targets(root)
+            self.run_installer("--apply", *self.arguments(root))
+            settings = pi / "settings.json"
+            value = json.loads(settings.read_text())
+            value["privatePreference"] = True
+            settings.write_text(json.dumps(value))
+            self.assertEqual(self.run_drift(root).returncode, 0)
+            overlay = root / "overlay"
+            (overlay / "pi").mkdir(parents=True)
+            (overlay / "pi" / "settings.json").write_bytes((ROOT / "pi" / "settings.json").read_bytes())
+            self.assertEqual(self.run_drift(root, "--overlay", overlay).returncode, 1)
+            settings.write_bytes((overlay / "pi" / "settings.json").read_bytes())
+            self.assertEqual(self.run_drift(root, "--overlay", overlay).returncode, 0)
+
+    def test_overlay_pi_runtime_config_is_linked_and_checked(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            _, pi, _, _ = self.targets(root)
+            overlay = root / "overlay"
+            (overlay / "pi").mkdir(parents=True)
+            config = overlay / "pi" / "quota-fallback.json"
+            config.write_text('[{"provider": "private", "id": "model"}]')
+            self.run_installer("--apply", "--overlay", overlay, *self.arguments(root))
+            target = pi / "quota-fallback.json"
+            self.assertEqual(target.resolve(), config.resolve())
+            self.assertEqual(self.run_drift(root, "--overlay", overlay).returncode, 0)
+            target.unlink()
+            target.write_bytes(config.read_bytes())
+            result = self.run_drift(root, "--overlay", overlay)
+            self.assertEqual(result.returncode, 1, result.stdout)
+            self.assertIn(f"{target}: expected symlink", result.stdout)
+
+    def test_symlinked_overlay_skill_source_matches_installed_copy(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            claude, _, _, _ = self.targets(root)
+            source = root / "private-skill"
+            source.mkdir()
+            (source / "SKILL.md").write_text("private instructions")
+            (source / "reference.md").symlink_to("SKILL.md")
+            overlay = root / "overlay"
+            (overlay / "claude" / "skills").mkdir(parents=True)
+            (overlay / "claude" / "skills" / "conductor").symlink_to(source)
+            self.run_installer("--apply", "--with", "claude", "--overlay", overlay, *self.arguments(root))
+            target = claude / "skills" / "conductor"
+            self.assertFalse(target.is_symlink())
+            self.assertEqual(self.run_drift(root, "--with", "claude", "--overlay", overlay).returncode, 0)
+            (target / "reference.md").unlink()
+            (target / "reference.md").symlink_to("other.md")
+            drift = self.run_drift(root, "--with", "claude", "--overlay", overlay)
+            self.assertEqual(drift.returncode, 1, drift.stdout)
+            self.assertIn(f"{target}: differs", drift.stdout)
+
+    def test_invalid_overlay_is_not_silently_ignored_by_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.run_installer("--apply", *self.arguments(root))
+            result = self.run_drift(root, "--overlay", root / "missing")
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("overlay is not a directory", result.stderr)
+
+
+class CodexOverlayTest(InstallerHarness):
+    def overlay(self, root: Path) -> Path:
+        overlay = root / "overlay"
+        source = overlay / "codex"
+        source.mkdir(parents=True)
+        (source / "AGENTS.md").write_text("portable personal instructions\n")
+        (source / "other-ninety.config.toml").write_text('model = "test-model"\n')
+        # These must never be installed, even if an overlay accidentally contains them.
+        (source / "config.toml").write_text('host_setting = "private"\n')
+        (source / "auth.json").write_text('{"fixture":true}\n')
+        return overlay
+
+    def test_codex_apply_drift_and_rollback_preserve_host_state(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            overlay = self.overlay(root)
+            target = root / "codex"
+            target.mkdir()
+            (target / "AGENTS.md").write_text("previous instructions\n")
+            (target / "config.toml").write_text('host_setting = "existing"\n')
+            (target / "auth.json").write_text('{"fixture":"existing"}\n')
+            args = ["--with", "codex", "--overlay", overlay, "--codex-dir", target, *self.arguments(root)]
+            result = self.run_installer("--apply", *args)
+            manifest = Path(next(line.split(maxsplit=1)[1] for line in result.stdout.splitlines() if line.startswith("manifest ")))
+            self.assertEqual((target / "AGENTS.md").resolve(), (overlay / "codex" / "AGENTS.md").resolve())
+            self.assertTrue((target / "other-ninety.config.toml").is_symlink())
+            self.assertEqual((target / "config.toml").read_text(), 'host_setting = "existing"\n')
+            self.assertEqual((target / "auth.json").read_text(), '{"fixture":"existing"}\n')
+            self.assertEqual(len(json.loads(manifest.read_text())["entries"]), 2)
+            drift = subprocess.run(["python3", str(DRIFT_CHECKER), *map(str, args[:-2])], capture_output=True, text=True)
+            self.assertEqual(drift.returncode, 0, drift.stdout + drift.stderr)
+            (target / "AGENTS.md").unlink()
+            (target / "AGENTS.md").write_text("wrong instructions\n")
+            drift = subprocess.run(["python3", str(DRIFT_CHECKER), *map(str, args[:-2])], capture_output=True, text=True)
+            self.assertEqual(drift.returncode, 1, drift.stdout + drift.stderr)
+            self.run_installer("--rollback", manifest)
+            self.assertEqual((target / "AGENTS.md").read_text(), "previous instructions\n")
+            self.assertFalse(os.path.lexists(target / "other-ninety.config.toml"))
+            self.assertEqual((target / "config.toml").read_text(), 'host_setting = "existing"\n')
+            self.assertEqual((target / "auth.json").read_text(), '{"fixture":"existing"}\n')
+            self.assertFalse((root / "claude").exists())
+            self.assertFalse((root / "pi").exists())
+
+    def test_codex_uses_codex_home_and_requires_owned_overlay_files(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            overlay = self.overlay(root)
+            target = root / "custom-codex-home"
+            args = ["--with", "codex", "--overlay", overlay, *self.arguments(root)]
+            result = subprocess.run(["python3", str(INSTALLER), *map(str, args)],
+                                    env={**os.environ, "CODEX_HOME": str(target)}, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(str(target / "AGENTS.md"), result.stdout)
+            self.assertFalse(target.exists())
+            missing = self.run_installer("--apply", "--with", "codex", *self.arguments(root), check=False)
+            self.assertNotEqual(missing.returncode, 0)
+            self.assertIn("requires --overlay", missing.stderr)
+            for name in installer_module.CODEX_FILES:
+                (overlay / "codex" / name).unlink()
+            missing = self.run_installer("--apply", *args, check=False)
+            self.assertNotEqual(missing.returncode, 0)
+            self.assertIn("must contain", missing.stderr)
+            self.assertFalse((root / "state").exists())
+
+    def test_source_alias_to_target_is_rejected_before_writes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            overlay = root / "overlay"
+            (overlay / "codex").mkdir(parents=True)
+            target = root / "codex"
+            target.mkdir()
+            original = target / "AGENTS.md"
+            original.write_text("original instructions\n")
+            (overlay / "codex" / "AGENTS.md").symlink_to(original)
+            result = self.run_installer("--apply", "--with", "codex", "--overlay", overlay,
+                                        "--codex-dir", target, *self.arguments(root), check=False)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("source would be replaced", result.stderr)
+            self.assertFalse(original.is_symlink())
+            self.assertEqual(original.read_text(), "original instructions\n")
+            self.assertFalse((root / "state").exists())
+
+    def test_source_inside_replaced_directory_is_rejected_before_writes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            destination = root / "rules"
+            destination.mkdir()
+            source = destination / "source.md"
+            source.write_text("original\n")
+            with self.assertRaisesRegex(ValueError, "source would be replaced"):
+                installer_module.apply([installer_module.Operation("link", source, destination)], root / "state", [root])
+            self.assertEqual(source.read_text(), "original\n")
+            self.assertFalse((root / "state").exists())
 
 
 class CatalogParityTest(unittest.TestCase):

@@ -4,29 +4,14 @@
 from __future__ import annotations
 
 import argparse
-import filecmp
 import json
-import os
+import sys
 from pathlib import Path
 
 
+from install import COMPONENTS, PI_TEXT, lexists, plan_operations, target_dirs
+
 VOLATILE = {"lastChangelogVersion", "model"}
-
-CLAUDE_LINKS = ("CLAUDE.md", "rules", "hooks", "agents")
-CLAUDE_COPIES = {"settings.json", "keybindings.json"}
-PI_LINKS = ("agents", "extensions", "prompts", "themes")
-PI_TEXT_LINKS = ("AGENTS.md", "APPEND_SYSTEM.md")
-PI_COPIES = {"settings.json", "mcp.json"}
-COMPONENTS = ("pi", "claude", "pi-text")
-
-
-def linked_names(base: tuple[str, ...], overlay_dir: Path | None, copied: set[str]) -> list[str]:
-    """Names install.py symlinks: the base set plus whatever else the overlay carries."""
-    names = list(base)
-    if overlay_dir and overlay_dir.is_dir():
-        extra = (item.name for item in overlay_dir.iterdir() if item.name != "skills" and item.name not in copied)
-        names.extend(name for name in sorted(extra) if name not in names)
-    return names
 
 
 def stray_links(directories: list[Path], sources: list[Path]) -> tuple[list[str], int]:
@@ -51,13 +36,14 @@ def stray_links(directories: list[Path], sources: list[Path]) -> tuple[list[str]
 
 
 def same_tree(left: Path, right: Path) -> bool:
+    if left.is_symlink() or right.is_symlink():
+        return left.is_symlink() and right.is_symlink() and left.readlink() == right.readlink()
     if left.is_file() and right.is_file():
         return left.read_bytes() == right.read_bytes()
     if left.is_dir() and right.is_dir():
-        comparison = filecmp.dircmp(left, right)
-        if comparison.left_only or comparison.right_only or comparison.diff_files or comparison.funny_files:
-            return False
-        return all(same_tree(left / name, right / name) for name in comparison.common_dirs)
+        left_names = {item.name for item in left.iterdir()}
+        right_names = {item.name for item in right.iterdir()}
+        return left_names == right_names and all(same_tree(left / name, right / name) for name in left_names)
     return False
 
 
@@ -89,31 +75,19 @@ def main() -> int:
     )
     parser.add_argument("--overlay", type=Path)
     parser.add_argument("--claude-dir", type=Path)
+    parser.add_argument("--codex-dir", type=Path)
     parser.add_argument("--pi-dir", type=Path)
     parser.add_argument("--pi-root", type=Path)
     args = parser.parse_args()
 
     repo = Path(__file__).resolve().parents[1]
     components = set(args.components) if args.components else {"pi"}
-    if "pi-text" in components and "pi" not in components:
-        parser.error("--with pi-text requires --with pi")
-    claude_base = repo / "claude" / "config"
-    pi_base = repo / "pi"
     overlay = args.overlay.expanduser().resolve() if args.overlay else None
-    claude_overlay = overlay / "claude" if overlay else None
-    pi_overlay = overlay / "pi" if overlay else None
-    pi_root_overlay = overlay / "pi-root" if overlay else None
-
-    claude_dir = (args.claude_dir or Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))).expanduser().absolute()
-    pi_dir = (args.pi_dir or Path(os.environ.get("PI_CODING_AGENT_DIR", Path.home() / ".pi" / "agent"))).expanduser().absolute()
-    pi_root = (args.pi_root or Path(os.environ.get("PI_ROOT_DIR", pi_dir.parent))).expanduser().absolute()
+    claude_dir, pi_dir, pi_root, codex_dir = target_dirs(args)
+    operations = plan_operations(repo, components, overlay, claude_dir, pi_dir, pi_root, codex_dir)
 
     drift: list[str] = []
     checked = 0
-
-    def source(base: Path, override: Path | None, name: str) -> Path:
-        candidate = override / name if override else None
-        return candidate if candidate and candidate.exists() else base / name
 
     def check_link(src: Path, dst: Path) -> None:
         nonlocal checked
@@ -141,47 +115,26 @@ def main() -> int:
         if not matches:
             drift.append(f"{dst}: differs from {src}")
 
-    if "claude" in components:
-        for name in linked_names(CLAUDE_LINKS, claude_overlay, CLAUDE_COPIES):
-            check_link(source(claude_base, claude_overlay, name), claude_dir / name)
+    for operation in operations:
+        src, dst = operation.source, operation.target
+        if operation.action == "link-if-missing" and lexists(dst) and not dst.is_symlink():
+            print(f"UNMANAGED: {dst} (preserved user copy)")
+        elif operation.action in {"link", "link-if-missing"}:
+            check_link(src, dst)
+        else:
+            # Public mutable defaults allow user additions; an overlay owns its
+            # complete replacement. Keybindings have always compared exactly.
+            check_copy(src.resolve(), dst, json_subset=src.suffix == ".json",
+                       exact=operation.action == "copy-replace" or dst.name == "keybindings.json")
 
-        claude_settings = source(claude_base, claude_overlay, "settings.json") if claude_overlay and (claude_overlay / "settings.json").exists() else claude_base / "settings.example.json"
-        check_copy(claude_settings, claude_dir / "settings.json", json_subset=True, exact=bool(claude_overlay and (claude_overlay / "settings.json").exists()))
-        check_copy(source(claude_base, claude_overlay, "keybindings.json"), claude_dir / "keybindings.json", json_subset=True, exact=True)
-
-        # A linked skill and an identical copy both compare equal; an overlay-owned
-        # skill compares against the overlay's copy.
-        expected_claude_skills = {item.name: item for item in (claude_base / "skills").glob("*")}
-        if claude_overlay and (claude_overlay / "skills").is_dir():
-            expected_claude_skills.update({item.name: item for item in (claude_overlay / "skills").glob("*")})
-        for name, src in sorted(expected_claude_skills.items()):
-            check_copy(src, claude_dir / "skills" / name)
-
-    if "pi" in components:
-        for name in linked_names(PI_LINKS, pi_overlay, PI_COPIES):
-            if name in PI_TEXT_LINKS and "pi-text" not in components:
-                continue
-            check_link(source(pi_base, pi_overlay, name), pi_dir / name)
-        for name in PI_TEXT_LINKS:
-            if "pi-text" in components:
-                check_link(source(pi_base, pi_overlay, name), pi_dir / name)
-            else:
-                target = pi_dir / name
-                checked += 1
-                if target.is_symlink() and target.resolve().is_relative_to(repo.resolve()):
-                    drift.append(f"{target}: o90 text linked without --with pi-text (Pi is stock by default)")
-        for name in ("settings.json", "mcp.json"):
-            src = source(pi_base, pi_overlay, name)
-            check_copy(src, pi_dir / name, json_subset=True, exact=bool(pi_overlay and (pi_overlay / name).exists()))
-        web_source = source(pi_base, pi_root_overlay, "web-search.json")
-        check_copy(web_source, pi_root / "web-search.json", json_subset=True, exact=bool(pi_root_overlay and (pi_root_overlay / "web-search.json").exists()))
-
-        expected_pi_skills = {item.name: item for item in (repo / "claude" / "plugin" / "skills").glob("*")}
-        expected_pi_skills.update({item.name: item for item in (pi_base / "skills").glob("*")})
-        if pi_overlay and (pi_overlay / "skills").is_dir():
-            expected_pi_skills.update({item.name: item for item in (pi_overlay / "skills").glob("*")})
-        for name, src in sorted(expected_pi_skills.items()):
-            check_link(src, pi_dir / "skills" / name)
+    if "pi" in components and "pi-text" not in components:
+        for name in PI_TEXT:
+            target = pi_dir / name
+            checked += 1
+            if target.is_symlink() and any(
+                target.resolve().is_relative_to(source.resolve()) for source in [repo, *([overlay] if overlay else [])]
+            ):
+                drift.append(f"{target}: o90 text linked without --with pi-text")
 
     stray_directories: list[Path] = []
     if "pi" in components:
@@ -206,4 +159,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except (OSError, ValueError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        raise SystemExit(1)

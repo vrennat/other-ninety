@@ -1,67 +1,31 @@
 # When to move up a rung
 
-o90 ships one workflow per rung of a ladder. Each rung costs more setup and
-more tokens than the one below it, so start low and move up only when the
-symptom below appears. Moving back down is fine; most work belongs on the
-first two rungs.
+Start with a plain prompt. Add planning or parallel sessions only when the work
+needs them; diff size alone does not justify more agents.
 
-| Rung | Use | Outgrown when |
-|---|---|---|
-| 0 | A plain prompt in the session | You re-explain the same context each request, or the agent changed something you did not ask for. |
-| 1 | `/impl` | Two pieces of work in flight touch the same files, or you wait for one to finish before starting the next. |
-| 2 | A branch per feature, with `/brainstorm` or `/plan` first | You want two agents running at once. |
-| 3 | A worktree per agent | Several domains (deploy, QA, review) each accumulate hours of context. |
-| 4 | `conductor` | Only if the symptom in rung 3 persists. Most projects never need this. |
+| Use | When it helps |
+|---|---|
+| A plain prompt | Outcome and scope are clear. |
+| `/impl` | You want explicit clarity/stakes classification and verification. |
+| `/brainstorm` or `/plan` | Product requirements need exploration, or you want a plan to review before implementation. |
+| Separate branches or worktrees | Independent work needs isolated edits. |
+| `conductor` | Several long-lived domains need routing and decisions across sessions. |
 
-## Rung 0: a plain prompt
+`/impl` works in the Claude plugin and Pi prompt templates. Global Claude rules
+also guide plain prompts when the Claude configuration is installed; plugin-only
+installation does not provide them. Pi's extra behavior text is opt-in.
 
-Works while the whole change fits in your head. The SessionStart hook already
-applies the clarity and stakes rules here, so a small fix gets asked about only
-when it is genuinely ambiguous and reviewed independently when it is dangerous.
+Planning is optional. `/brainstorm` develops a spec; `/plan` creates a reviewable
+plan. Neither starts implementation or commits by itself. Use `/trim` when you
+want a removal pass. `/impl` records at most one lesson when the code, tests, and
+history could not teach a future agent the same thing.
 
-## Rung 1: `/impl`
+Parallel execution pays off when write surfaces are disjoint, inputs independent,
+and each result can be verified separately. Worktrees isolate sessions; they do
+not replace review. Check other active sessions before repo-wide or destructive
+changes. The Claude session hook helps only when registered in your settings.
 
-Adds three things: the classification is printed before any edit, high-stakes
-work gets an `adversarial-reviewer` pass whatever its size, and "done" requires
-verification output. Use it for anything you would describe as a feature or a
-fix rather than a tweak. `/trim` before merging and the lesson step at the end
-of `/impl` keep the codebase from quietly degrading while it still works.
-
-## Rung 2: a branch per feature, planned first
-
-Stop working on `main` once a broken build costs you more than a minute. Use
-`/brainstorm` when you cannot state the feature in two sentences; it writes a
-spec you can hand to `/impl`. Use `/plan` only when you want to read the plan
-before execution. Both are opt-in, not gates.
-
-## Rung 3: a worktree per agent
-
-A worktree is a second checkout of the same repository on its own branch. Give
-each agent one, so parallel agents cannot edit the same working copy. Rules
-that keep this cheap:
-
-- One agent, one worktree, one branch. Never share.
-- Agents edit their worktree copy, not the main checkout.
-- Merge back through the project's normal review path. A worktree is not a
-  review.
-- Run two agents at once only when all three hold: provably disjoint write
-  surfaces, no step needs another's output, and each result is verifiable
-  alone. Read-only fan-out (search, audit, review) always qualifies.
-- The SessionStart hook lists other live sessions in the same repository;
-  read it before repo-wide or destructive changes.
-
-## Rung 4: `conductor`
-
-A low-context session that owns routing and decisions while named, long-lived
-agents own domains (deploy, QA, review). You make product decisions and read
-reports; the conductor never reads diffs. Its cost is measured in orchestrator
-context, not files touched, and it only pays off when several domains are
-active for hours. Signs you moved up too early: the conductor is reading
-source, or only one feature is in flight.
-
-## At every rung
-
-- `/trim` before merging: what can be removed?
-- `docs/lessons.md` after `/impl`: one line on what would have saved time if
-  known up front, only when the code and history could not have told a future
-  agent the same thing.
+High-stakes changes require a fresh `adversarial-reviewer` pass regardless of
+size. A conductor coordinates domain agents and reads their reports; if it has
+only one active feature or needs to read source routinely, use an ordinary
+implementation session.

@@ -15,22 +15,14 @@ Use this when you want a written plan you can review before any code is touched.
 
 1. Read the input spec or freeform description.
 2. Map the file structure: which files are created vs modified, and what each is responsible for.
-3. Decompose into atomic tasks. Each task = one file or one logical unit (2-5 minutes of work). Each task ends with a commit.
+3. Group the work into logical steps, ordered by dependencies.
 4. For each task, write:
-   - Files (create / modify with line ranges)
-   - Steps as a checkbox list (`- [ ]`)
-   - Complete code blocks for any code change (no placeholders, no "implement similar to task N")
-   - The exact commands to run with expected output
-5. Self-review: spec coverage (every requirement has a task), placeholder scan, type/name consistency across tasks.
+   - Paths to create or modify and their responsibilities
+   - The intended behavior, key decisions and why, and dependencies
+   - Acceptance checks and relevant verification commands
+5. Self-review for requirement coverage, scope, dependency order, and unresolved decisions.
 6. Write the plan to `docs/plans/YYYY-MM-DD-<slug>.md`.
-7. Commit: `docs: implementation plan for <slug>`.
-8. Report path. Do NOT auto-execute.
-
-## Rules
-
-- No placeholders. No "TBD" / "TODO" / "implement later" / "add appropriate error handling".
-- No "see Task N" cross-references. Repeat the code if needed.
-- Each task is self-contained and committable independently.
+7. Report the path and unresolved decisions. Do not execute or commit unless requested.
 
 ## When NOT to use
 

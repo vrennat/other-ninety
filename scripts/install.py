@@ -20,8 +20,9 @@ class Operation:
     target: Path
 
 
-COMPONENTS = ("pi", "claude", "pi-text")
+COMPONENTS = ("pi", "claude", "pi-text", "codex")
 PI_TEXT = ("AGENTS.md", "APPEND_SYSTEM.md")
+CODEX_FILES = ("AGENTS.md", "other-ninety.config.toml")
 ACTIONS = {"link", "link-if-missing", "copy-if-missing", "copy-replace"}
 
 
@@ -116,6 +117,8 @@ def add_overlay_operations(
     pi = overlay / "pi"
     if "pi" in components and pi.is_dir():
         for source in sorted(pi.iterdir()):
+            if source.name in PI_TEXT and "pi-text" not in components:
+                continue
             if source.name == "skills" and source.is_dir():
                 for skill in sorted(source.iterdir()):
                     operations.append(Operation("link", skill, pi_dir / "skills" / skill.name))
@@ -128,6 +131,55 @@ def add_overlay_operations(
     if "pi" in components and pi_root_overlay.is_dir():
         for source in sorted(pi_root_overlay.iterdir()):
             operations.append(Operation("copy-replace", source, pi_root / source.name))
+
+
+def plan_operations(
+    repo: Path, components: set[str], overlay: Path | None,
+    claude_dir: Path, pi_dir: Path, pi_root: Path, codex_dir: Path | None = None,
+) -> list[Operation]:
+    """One owner per target; an overlay replaces the public operation."""
+    if "pi-text" in components and "pi" not in components:
+        raise ValueError("--with pi-text requires --with pi")
+    operations: list[Operation] = []
+    if "pi" in components:
+        operations.extend(add_pi_operations(repo, pi_dir, pi_root, include_text="pi-text" in components))
+    if "claude" in components:
+        operations.extend(add_claude_operations(repo, claude_dir))
+    if overlay:
+        add_overlay_operations(operations, overlay, components, claude_dir, pi_dir, pi_root)
+    if "codex" in components:
+        if overlay is None:
+            raise ValueError("--with codex requires --overlay; no public Codex adapter ships")
+        sources = [overlay / "codex" / name for name in CODEX_FILES if (overlay / "codex" / name).is_file()]
+        if not sources:
+            raise ValueError("Codex overlay must contain AGENTS.md or other-ninety.config.toml")
+        codex_dir = codex_dir or Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")).expanduser().absolute()
+        # Only portable instructions and the named profile; never copy base config or runtime state.
+        operations.extend(Operation("link", source, codex_dir / source.name) for source in sources)
+    return list({operation.target: operation for operation in operations}.values())
+
+
+def target_dirs(args: argparse.Namespace) -> tuple[Path, Path, Path, Path]:
+    claude_dir = (args.claude_dir or Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))).expanduser().absolute()
+    pi_dir = (args.pi_dir or Path(os.environ.get("PI_CODING_AGENT_DIR", Path.home() / ".pi" / "agent"))).expanduser().absolute()
+    pi_root = (args.pi_root or Path(os.environ.get("PI_ROOT_DIR", pi_dir.parent))).expanduser().absolute()
+    codex_dir = (args.codex_dir or Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))).expanduser().absolute()
+    return claude_dir, pi_dir, pi_root, codex_dir
+
+
+def pi_packages(operations: list[Operation], pi_dir: Path) -> list[str]:
+    settings = next(operation for operation in operations if operation.target == pi_dir / "settings.json")
+    source = settings.target if settings.action == "copy-if-missing" and lexists(settings.target) else settings.source
+    value = json.loads(source.read_text())
+    if not isinstance(value, dict) or not isinstance(value.get("packages", []), list):
+        raise ValueError(f"invalid Pi packages in {source}: expected an array")
+    packages: list[str] = []
+    for entry in value.get("packages", []):
+        package = entry.get("source") if isinstance(entry, dict) else entry
+        if not isinstance(package, str) or not package.strip() or "\n" in package or "\r" in package or "\0" in package or package.startswith("-"):
+            raise ValueError(f"invalid Pi package source in {source}: {entry!r}")
+        packages.append(package)
+    return packages
 
 
 def describe(operation: Operation) -> str:
@@ -184,6 +236,7 @@ def apply(operations: list[Operation], state_dir: Path, roots: list[Path]) -> Pa
     for root in roots:
         if root == Path(root.anchor):
             raise ValueError(f"refusing filesystem root as an install target: {root}")
+    targets = {location(operation.target) for operation in operations}
     for operation in operations:
         if operation.action not in ACTIONS:
             raise ValueError(f"unknown install action: {operation.action}")
@@ -191,6 +244,9 @@ def apply(operations: list[Operation], state_dir: Path, roots: list[Path]) -> Pa
             raise ValueError(f"source is missing: {operation.source}")
         if not within(operation.target, roots):
             raise ValueError(f"target is outside configured roots: {operation.target}")
+        source = operation.source.resolve()
+        if any(source == target or source.is_relative_to(target) for target in targets):
+            raise ValueError(f"source would be replaced by this install: {operation.source}")
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     backup_dir = state_dir / "backups" / timestamp
@@ -324,13 +380,15 @@ def parse_args() -> argparse.Namespace:
     action.add_argument("--rollback", type=Path, metavar="MANIFEST", help="restore a prior apply")
     parser.add_argument(
         "--with", dest="components", action="append", choices=COMPONENTS, default=[],
-        metavar="COMPONENT", help="select an exact component set (repeat for pi, claude, pi-text)",
+        metavar="COMPONENT", help="select an exact component set (repeat for pi, claude, pi-text, codex)",
     )
     parser.add_argument("--overlay", type=Path, help="external private overlay directory")
     parser.add_argument("--claude-dir", type=Path, help="Claude config target")
+    parser.add_argument("--codex-dir", type=Path, help="Codex home target (private overlay only)")
     parser.add_argument("--pi-dir", type=Path, help="Pi agent config target")
     parser.add_argument("--pi-root", type=Path, help="Pi root target for web-search.json")
     parser.add_argument("--state-dir", type=Path, help="backup and manifest directory")
+    parser.add_argument("--print-pi-packages", action="store_true", help="print effective Pi target and package sources without writes (for bootstrap)")
     return parser.parse_args()
 
 
@@ -342,32 +400,31 @@ def main() -> int:
 
     repo = Path(__file__).resolve().parents[1]
     components = set(args.components) if args.components else {"pi"}
-    if "pi-text" in components and "pi" not in components:
-        raise ValueError("--with pi-text requires --with pi")
-
-    claude_dir = (args.claude_dir or Path(os.environ.get("CLAUDE_CONFIG_DIR", Path.home() / ".claude"))).expanduser().absolute()
-    pi_dir = (args.pi_dir or Path(os.environ.get("PI_CODING_AGENT_DIR", Path.home() / ".pi" / "agent"))).expanduser().absolute()
-    pi_root = (args.pi_root or Path(os.environ.get("PI_ROOT_DIR", pi_dir.parent))).expanduser().absolute()
+    claude_dir, pi_dir, pi_root, codex_dir = target_dirs(args)
     state_dir = (args.state_dir or Path(os.environ.get("OTHER_NINETY_STATE_DIR", Path.home() / ".local" / "state" / "other-ninety"))).expanduser().absolute()
 
-    operations: list[Operation] = []
-    if "pi" in components:
-        operations.extend(add_pi_operations(repo, pi_dir, pi_root, include_text="pi-text" in components))
-    if "claude" in components:
-        operations.extend(add_claude_operations(repo, claude_dir))
-    if args.overlay:
-        add_overlay_operations(
-            operations, args.overlay.expanduser().resolve(), components, claude_dir, pi_dir, pi_root
-        )
+    operations = plan_operations(repo, components, args.overlay.expanduser().resolve() if args.overlay else None, claude_dir, pi_dir, pi_root, codex_dir)
+    if args.print_pi_packages:
+        if args.apply or "pi" not in components:
+            raise ValueError("--print-pi-packages requires Pi and cannot be combined with --apply")
+        if "\n" in str(pi_dir) or "\r" in str(pi_dir):
+            raise ValueError("Pi target cannot contain a newline")
+        packages = pi_packages(operations, pi_dir)
+        print(pi_dir)
+        for package in packages:
+            print(package)
+        return 0
 
     selected = [name for name in COMPONENTS if name in components]
     print(f"Components:    {', '.join(selected)}")
     if "pi" in components:
         print(f"Pi target:     {pi_dir}")
         print(f"Pi root:       {pi_root}")
-        print("Pi text:       " + ("linked (opt-in)" if "pi-text" in components else "not linked (stock Pi)"))
+        print("Pi text:       " + ("linked (opt-in)" if "pi-text" in components else "not linked"))
     if "claude" in components:
         print(f"Claude target: {claude_dir}")
+    if "codex" in components:
+        print(f"Codex target:  {codex_dir}")
     print("Mode:          apply" if args.apply else "Mode:          dry-run (no writes)")
     for operation in operations:
         print(describe(operation))
@@ -381,6 +438,8 @@ def main() -> int:
         roots.extend((pi_dir, pi_root))
     if "claude" in components:
         roots.append(claude_dir)
+    if "codex" in components:
+        roots.append(codex_dir)
     manifest = apply(operations, state_dir, roots)
     print(f"Rollback: {Path(__file__).resolve()} --rollback {manifest}")
     return 0

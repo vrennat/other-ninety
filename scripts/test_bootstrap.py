@@ -19,7 +19,7 @@ class BootstrapTests(unittest.TestCase):
             "git": "exit 0",
             "python3": "if [ \"${FAKE_OLD_PYTHON:-}\" = 1 ] && [ \"${1:-}\" = -c ]; then exit 1; fi\nexec /usr/bin/python3 \"$@\"",
             "bun": "echo bun >>\"$CALLS\"",
-            "pi": "echo pi:$* >>\"$CALLS\"",
+            "pi": "echo pi:$* >>\"$CALLS\"\necho pi-dir:$PI_CODING_AGENT_DIR >>\"$CALLS\"\necho pi-cwd:$PWD >>\"$CALLS\"\nif [ \"${2#./}\" != \"$2\" ]; then test -d \"$2\"; fi",
             "claude": """echo claude:$* >>\"$CALLS\"
 if [ \"$*\" = \"plugin marketplace list --json\" ]; then
   if [ \"${FAKE_EXISTING:-}\" = 1 ]; then echo '[{\"name\":\"other-ninety\",\"repo\":\"vrennat/other-ninety\"}]'
@@ -135,6 +135,84 @@ fi""",
             {path.stem for path in (ROOT / "claude" / "plugin" / "agents").glob("*.md")},
             PUBLIC_AGENTS,
         )
+
+    def test_overlay_packages_and_custom_pi_dir_are_effective(self):
+        overlay = Path(self.tmp.name) / "overlay"
+        (overlay / "pi").mkdir(parents=True)
+        (overlay / "pi" / "settings.json").write_text(json.dumps({"packages": ["npm:private-package@1.0.0"]}))
+        custom = Path(self.tmp.name) / "custom-agent"
+        custom.mkdir()
+        (custom / "settings.json").write_text('{"packages": ["npm:old-live@1.0.0"]}')
+        result = self.run_bootstrap("--apply", "--overlay", str(overlay), "--pi-dir", str(custom))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.log.read_text()
+        self.assertIn("pi:install npm:private-package@1.0.0", calls)
+        self.assertNotIn("pi:install npm:pi-mcp-adapter", calls)
+        self.assertNotIn("pi:install npm:old-live", calls)
+        self.assertIn(f"pi-dir:{custom}", calls)
+        self.assertTrue((custom / "agents").is_symlink())
+        self.assertFalse((Path(self.tmp.name) / "pi").exists())
+
+    def test_kept_live_package_settings_are_used(self):
+        agent = Path(self.env["PI_CODING_AGENT_DIR"])
+        agent.mkdir()
+        settings = agent / "settings.json"
+        original = json.dumps({"packages": [{"source": "npm:live-package@1.0.0", "extensions": []}], "personal": True})
+        settings.write_text(original)
+        result = self.run_bootstrap("--apply")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.log.read_text()
+        self.assertIn("pi:install npm:live-package@1.0.0", calls)
+        self.assertNotIn("pi:install npm:pi-mcp-adapter", calls)
+        self.assertIn(f"pi-dir:{agent}", calls)
+        self.assertEqual(settings.read_text(), original)
+
+    def test_bad_package_settings_fail_before_commands_or_config_writes(self):
+        overlay = Path(self.tmp.name) / "overlay"
+        (overlay / "pi").mkdir(parents=True)
+        settings = overlay / "pi" / "settings.json"
+        for value in ('invalid JSON', '{"packages": "not-an-array"}', '{"packages": [null]}', '{"packages": ["--unsafe"]}'):
+            with self.subTest(settings=value):
+                settings.write_text(value)
+                result = self.run_bootstrap("--apply", "--overlay", str(overlay))
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(self.log.exists())
+                self.assertFalse(Path(self.env["PI_CODING_AGENT_DIR"]).exists())
+                self.assertFalse(Path(self.env["OTHER_NINETY_STATE_DIR"]).exists())
+
+    def test_relative_live_package_is_installed_from_agent_dir(self):
+        agent = Path(self.env["PI_CODING_AGENT_DIR"])
+        (agent / "local-extension").mkdir(parents=True)
+        (agent / "settings.json").write_text('{"packages": ["./local-extension"]}')
+        result = self.run_bootstrap("--apply")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.log.read_text()
+        self.assertIn("pi:install ./local-extension", calls)
+        self.assertEqual(Path(next(line.removeprefix("pi-cwd:") for line in calls.splitlines() if line.startswith("pi-cwd:"))).resolve(), agent.resolve())
+
+    def test_empty_package_list_installs_no_packages(self):
+        overlay = Path(self.tmp.name) / "overlay"
+        (overlay / "pi").mkdir(parents=True)
+        (overlay / "pi" / "settings.json").write_text('{"packages": []}')
+        result = self.run_bootstrap("--apply", "--overlay", str(overlay))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("pi:install", self.log.read_text())
+
+    def test_codex_only_is_config_only_and_honors_target(self):
+        for runtime in ("pi", "bun", "claude"):
+            (self.bin / runtime).unlink()
+        self.env["PATH"] = f"{self.bin}:/usr/bin:/bin"
+        overlay = Path(self.tmp.name) / "overlay"
+        (overlay / "codex").mkdir(parents=True)
+        (overlay / "codex" / "AGENTS.md").write_text("personal instructions\n")
+        target = Path(self.tmp.name) / "codex-home"
+        result = self.run_bootstrap("--apply", "--with=codex", "--overlay", str(overlay), f"--codex-dir={target}")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Components: Codex", result.stdout)
+        self.assertTrue((target / "AGENTS.md").is_symlink())
+        self.assertFalse(self.log.exists())
+        self.assertFalse(Path(self.env["PI_CODING_AGENT_DIR"]).exists())
+        self.assertFalse(Path(self.env["CLAUDE_CONFIG_DIR"]).exists())
 
 if __name__ == "__main__":
     unittest.main()

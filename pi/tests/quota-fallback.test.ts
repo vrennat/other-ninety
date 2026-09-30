@@ -1,5 +1,9 @@
-import { describe, expect, it } from "bun:test";
-import { DEFAULT_FALLBACK_CHAIN, parseQuotaError, pickFallback } from "../extensions/quota-fallback";
+import { afterEach, describe, expect, it } from "bun:test";
+import quotaFallback, { loadFallbackChain, parseQuotaError, pickFallback } from "../extensions/quota-fallback";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { ChainEntry } from "../extensions/quota-fallback";
 
 const EXACT_1308_BODY =
@@ -72,10 +76,10 @@ describe("parseQuotaError", () => {
 
 describe("pickFallback", () => {
 	const chain: ChainEntry[] = [
-		{ provider: "zai", id: "glm-5.3" },
-		{ provider: "openrouter", id: "deepseek/deepseek-v4-pro" },
-		{ provider: "google", id: "gemini-flash-latest" },
-		{ provider: "openai-codex", id: "gpt-5.6-terra" },
+		{ provider: "alpha", id: "first" },
+		{ provider: "beta", id: "second" },
+		{ provider: "gamma", id: "third" },
+		{ provider: "delta", id: "fourth" },
 	];
 
 	const alwaysAvailable: (entry: ChainEntry) => boolean = () => true;
@@ -84,78 +88,78 @@ describe("pickFallback", () => {
 	it("returns the next entry after the current model", () => {
 		const result = pickFallback(
 			chain,
-			{ provider: "zai", id: "glm-5.3" },
+			{ provider: "alpha", id: "first" },
 			{},
 			now,
 			alwaysAvailable,
 		);
-		expect(result).toEqual({ provider: "openrouter", id: "deepseek/deepseek-v4-pro" });
+		expect(result).toEqual({ provider: "beta", id: "second" });
 	});
 
 	it("wraps around when current model is the last entry", () => {
 		const result = pickFallback(
 			chain,
-			{ provider: "openai-codex", id: "gpt-5.6-terra" },
+			{ provider: "delta", id: "fourth" },
 			{},
 			now,
 			alwaysAvailable,
 		);
-		expect(result).toEqual({ provider: "zai", id: "glm-5.3" });
+		expect(result).toEqual({ provider: "alpha", id: "first" });
 	});
 
 	it("skips an exhausted provider and picks the next", () => {
 		const exhaustedAt = new Date("2026-09-08T12:00:00"); // still in the future
 		const result = pickFallback(
 			chain,
-			{ provider: "zai", id: "glm-5.3" },
-			{ openrouter: exhaustedAt },
+			{ provider: "alpha", id: "first" },
+			{ beta: exhaustedAt },
 			now,
 			alwaysAvailable,
 		);
-		// Skips openrouter, picks google
-		expect(result).toEqual({ provider: "google", id: "gemini-flash-latest" });
+		// Skips beta, picks gamma
+		expect(result).toEqual({ provider: "gamma", id: "third" });
 	});
 
 	it("skips an entry that is not available in the registry", () => {
 		const result = pickFallback(
 			chain,
-			{ provider: "zai", id: "glm-5.3" },
+			{ provider: "alpha", id: "first" },
 			{},
 			now,
-			(entry) => entry.provider !== "openrouter",
+			(entry) => entry.provider !== "beta",
 		);
-		expect(result).toEqual({ provider: "google", id: "gemini-flash-latest" });
+		expect(result).toEqual({ provider: "gamma", id: "third" });
 	});
 
 	it("skips an OpenRouter model not allowed by delegated policy", () => {
 		const result = pickFallback(
 			chain,
-			{ provider: "zai", id: "glm-5.3" },
+			{ provider: "alpha", id: "first" },
 			{},
 			now,
 			(entry) => {
 				// Simulate isDelegatedModelAllowed returning false for this OpenRouter model
-				if (entry.provider === "openrouter") return false;
+				if (entry.provider === "beta") return false;
 				return true;
 			},
 		);
-		// Skips openrouter/deepseek/deepseek-v4-pro, picks google
-		expect(result).toEqual({ provider: "google", id: "gemini-flash-latest" });
+		// Skips beta/second, picks gamma
+		expect(result).toEqual({ provider: "gamma", id: "third" });
 	});
 
 	it("returns undefined when all entries are exhausted or unavailable", () => {
 		const exhaustedUntil: Record<string, Date | undefined> = {
-			zai: new Date("2026-09-08T12:00:00"),
-			openrouter: new Date("2026-09-08T12:00:00"),
-			google: new Date("2026-09-08T12:00:00"),
-			"openai-codex": new Date("2026-09-08T12:00:00"),
+			alpha: new Date("2026-09-08T12:00:00"),
+			beta: new Date("2026-09-08T12:00:00"),
+			gamma: new Date("2026-09-08T12:00:00"),
+			"delta": new Date("2026-09-08T12:00:00"),
 		};
-		const result = pickFallback(chain, { provider: "zai", id: "glm-5.3" }, exhaustedUntil, now, alwaysAvailable);
+		const result = pickFallback(chain, { provider: "alpha", id: "first" }, exhaustedUntil, now, alwaysAvailable);
 		expect(result).toBeUndefined();
 	});
 
 	it("returns undefined for an empty chain", () => {
-		const result = pickFallback([], { provider: "zai", id: "glm-5.3" }, {}, now, alwaysAvailable);
+		const result = pickFallback([], { provider: "alpha", id: "first" }, {}, now, alwaysAvailable);
 		expect(result).toBeUndefined();
 	});
 
@@ -167,15 +171,15 @@ describe("pickFallback", () => {
 			now,
 			alwaysAvailable,
 		);
-		expect(result).toEqual({ provider: "zai", id: "glm-5.3" });
+		expect(result).toEqual({ provider: "alpha", id: "first" });
 	});
 
 	it("skips the current model even when it wraps around", () => {
 		// If only one entry is available and it's the current model, return undefined
-		const singleChain: ChainEntry[] = [{ provider: "zai", id: "glm-5.3" }];
+		const singleChain: ChainEntry[] = [{ provider: "alpha", id: "first" }];
 		const result = pickFallback(
 			singleChain,
-			{ provider: "zai", id: "glm-5.3" },
+			{ provider: "alpha", id: "first" },
 			{},
 			now,
 			alwaysAvailable,
@@ -187,28 +191,123 @@ describe("pickFallback", () => {
 		const exhaustedAt = new Date("2026-09-08T09:00:00"); // already passed
 		const result = pickFallback(
 			chain,
-			{ provider: "zai", id: "glm-5.3" },
-			{ openrouter: exhaustedAt },
+			{ provider: "alpha", id: "first" },
+			{ beta: exhaustedAt },
 			new Date("2026-09-08T10:00:00"),
 			alwaysAvailable,
 		);
-		// openrouter is no longer exhausted, so it's available
-		expect(result).toEqual({ provider: "openrouter", id: "deepseek/deepseek-v4-pro" });
+		// beta is no longer exhausted, so it's available
+		expect(result).toEqual({ provider: "beta", id: "second" });
 	});
 });
 
-describe("DEFAULT_FALLBACK_CHAIN", () => {
-	it("has the expected entries in order", () => {
-		expect(DEFAULT_FALLBACK_CHAIN).toEqual([
-			// deepseek-v4-pro leads via the NATIVE deepseek provider, not via
-			// openrouter: both are authenticated, and the direct provider skips
-			// openrouter's markup. An unregistered provider would be skipped by
-			// isModelAvailable rather than breaking the chain, so this ordering
-			// only takes effect because deepseek is in auth.json (mb-d5rm).
-			{ provider: "deepseek", id: "deepseek-v4-pro" },
-			{ provider: "zai", id: "glm-5.3" },
-			{ provider: "google", id: "gemini-flash-latest" },
-			{ provider: "openai-codex", id: "gpt-5.6-terra" },
-		]);
+
+const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalDelegated = process.env.OTHER_NINETY_PI_LEAF;
+const tempDirs: string[] = [];
+afterEach(() => {
+	if (originalAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+	else process.env.PI_CODING_AGENT_DIR = originalAgentDir;
+	if (originalDelegated === undefined) delete process.env.OTHER_NINETY_PI_LEAF;
+	else process.env.OTHER_NINETY_PI_LEAF = originalDelegated;
+	for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true });
+});
+function config(source?: string) {
+	const dir = mkdtempSync(join(tmpdir(), "o90-fallback-"));
+	tempDirs.push(dir);
+	process.env.PI_CODING_AGENT_DIR = dir;
+	if (source !== undefined) writeFileSync(join(dir, "quota-fallback.json"), source);
+}
+const routes = [
+	{ provider: "alpha", id: "first" },
+	{ provider: "beta", id: "second" },
+	{ provider: "gamma", id: "third" },
+];
+type Handler = (event: unknown, ctx: ExtensionContext) => Promise<unknown>;
+function harness(change = true, unavailable: string[] = []) {
+	const handlers: Record<string, Handler> = {};
+	const actions: string[] = [];
+	const model = (entry: ChainEntry) => ({ ...entry, cost: { input: 1, output: 1 } });
+	const ctx = {
+		model: model(routes[0]),
+		modelRegistry: { find: (provider: string, id: string) =>
+			unavailable.includes(provider) ? undefined : model({ provider, id }) },
+		ui: { notify: (message: string) => actions.push(message) },
+	} as unknown as ExtensionContext;
+	const pi = {
+		on: (name: string, handler: Handler) => { handlers[name] = handler; },
+		setModel: async (next: ChainEntry) => {
+			actions.push(`set:${next.provider}/${next.id}`);
+			if (change) ctx.model = model(next) as typeof ctx.model;
+			return change;
+		},
+		sendUserMessage: async () => { actions.push("continue"); },
+	} as unknown as ExtensionAPI;
+	quotaFallback(pi);
+	return { handlers, ctx, actions, end: async (errorMessage = "usage_limit_reached") => {
+		await handlers.agent_end?.({ messages: [{ role: "assistant", stopReason: "error", errorMessage }] }, ctx);
+	} };
+}
+describe("configured quota fallback", () => {
+	it("reads the runtime directory and preserves order", () => {
+		config(JSON.stringify(routes));
+		expect(loadFallbackChain()).toEqual(routes);
+	});
+	it("does not substitute without config or with an empty chain", async () => {
+		for (const source of [undefined, "[]"]) {
+			config(source);
+			const run = harness();
+			await run.end();
+			expect(run.actions).toEqual([]);
+		}
+	});
+	it("disables malformed config with a diagnostic", async () => {
+		for (const source of ["{", "{}", '[{"provider":"alpha"}]', '[{"provider":" ","id":"first"}]']) {
+			config(source);
+			expect(() => loadFallbackChain()).toThrow();
+			const run = harness();
+			await run.handlers.session_start({}, run.ctx);
+			await run.end();
+			expect(run.actions).toHaveLength(1);
+			expect(run.actions[0]).toContain("Quota fallback disabled:");
+		}
+	});
+	it("switches before announcing success and queues continuation", async () => {
+		config(JSON.stringify(routes));
+		const run = harness();
+		await run.end();
+		expect(run.actions[0]).toBe("set:beta/second");
+		expect(run.actions[1]).toContain("switched to beta/second");
+		expect(run.actions[2]).toBe("continue");
+	});
+	it("does not announce success or continue on credential failure", async () => {
+		config(JSON.stringify(routes));
+		const run = harness(false);
+		await run.end();
+		expect(run.actions).toEqual(["set:beta/second", "No credential for fallback model beta/second."]);
+	});
+	it("ignores transient rate limits and skips missing models", async () => {
+		config(JSON.stringify(routes));
+		const run = harness(true, ["beta"]);
+		await run.end("429: Too Many Requests");
+		expect(run.actions).toEqual([]);
+		await run.end();
+		expect(run.actions[0]).toBe("set:gamma/third");
+	});
+	it("stops once every provider is exhausted", async () => {
+		config(JSON.stringify(routes));
+		const run = harness();
+		await run.end();
+		await run.end();
+		await run.end();
+		expect(run.actions.filter((action) => action === "continue")).toHaveLength(2);
+		expect(run.actions.at(-1)).toContain("no usable fallback model");
+	});
+	it("honors delegated restrictions before selecting a configured route", async () => {
+		config(JSON.stringify([routes[0], { provider: "openrouter", id: "premium" }, routes[2]]));
+		process.env.OTHER_NINETY_PI_LEAF = "1";
+		const run = harness();
+		await run.end();
+		expect(run.actions[0]).toBe("set:gamma/third");
 	});
 });

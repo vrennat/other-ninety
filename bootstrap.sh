@@ -5,6 +5,7 @@ repo=$(cd "$(dirname "$0")" && pwd)
 apply=false
 with_pi=false
 with_claude=false
+with_codex=false
 with_pi_text=false
 selection_explicit=false
 installer_args=()
@@ -20,6 +21,7 @@ while (( $# )); do
       case "$2" in
         pi) with_pi=true ;;
         claude) with_claude=true ;;
+        codex) with_codex=true ;;
         pi-text) with_pi_text=true ;;
         *) echo "Unknown optional component: $2" >&2; exit 2 ;;
       esac
@@ -32,18 +34,19 @@ while (( $# )); do
       case "$component" in
         pi) with_pi=true ;;
         claude) with_claude=true ;;
+        codex) with_codex=true ;;
         pi-text) with_pi_text=true ;;
         *) echo "Unknown optional component: $component" >&2; exit 2 ;;
       esac
       installer_args+=("$1")
       shift
       ;;
-    --overlay|--claude-dir|--pi-dir|--pi-root|--state-dir)
+    --overlay|--claude-dir|--codex-dir|--pi-dir|--pi-root|--state-dir)
       (( $# >= 2 )) || { echo "Missing value for $1" >&2; exit 2; }
       installer_args+=("$1" "$2")
       shift 2
       ;;
-    --overlay=*|--claude-dir=*|--pi-dir=*|--pi-root=*|--state-dir=*)
+    --overlay=*|--claude-dir=*|--codex-dir=*|--pi-dir=*|--pi-root=*|--state-dir=*)
       installer_args+=("$1")
       shift
       ;;
@@ -86,6 +89,7 @@ if $apply; then echo "Mode: apply"; else echo "Mode: dry-run (no writes)"; fi
 components=""
 $with_pi && components="Pi"
 $with_claude && components="${components:+$components + }Claude"
+$with_codex && components="${components:+$components + }Codex"
 $with_pi_text && components="$components (+ o90 Pi text)"
 echo "Components: $components"
 $with_pi && echo "Planned: bun install --frozen-lockfile (in pi/)"
@@ -94,7 +98,7 @@ if $apply; then
 else
   echo "Planned: install.sh$installer_display (dry-run)"
 fi
-$with_pi && echo "Planned: install pinned Pi packages from pi/settings.json"
+$with_pi && echo "Planned: install Pi packages from effective settings (overlay or preserved live settings)"
 $with_claude && echo "Planned: add/update Claude marketplace vrennat/other-ninety"
 $with_claude && echo "Planned: install/update other-ninety@other-ninety at user scope"
 echo "Package/plugin writes are not covered by the config rollback manifest."
@@ -105,6 +109,11 @@ run_installer() {
     "$repo/install.sh" "$@"
   fi
 }
+if $with_pi; then
+  # Command substitution propagates validation failure; process substitution does not.
+  pi_plan=$(run_installer --print-pi-packages)
+  pi_dir=${pi_plan%%$'\n'*}
+fi
 if ! $apply; then
   run_installer
   exit 0
@@ -117,14 +126,12 @@ $with_pi && (
 
 run_installer --apply
 
-$with_pi && while IFS= read -r package; do
-  (cd "$repo/pi" && pi install "$package")
-done < <(python3 - "$repo/pi/settings.json" <<'PY'
-import json, sys
-for package in json.load(open(sys.argv[1]))["packages"]:
-    print(package)
-PY
-)
+if $with_pi; then
+  while IFS= read -r package; do
+    [ -n "$package" ] || continue
+    (cd "$pi_dir" && PI_CODING_AGENT_DIR="$pi_dir" pi install "$package")
+  done <<<"${pi_plan#"$pi_dir"}"
+fi
 
 if $with_claude; then
   marketplaces=$(claude plugin marketplace list --json)

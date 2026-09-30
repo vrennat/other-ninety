@@ -171,9 +171,7 @@ function getFinalOutput(messages: Message[]): string {
 	for (let i = messages.length - 1; i >= 0; i--) {
 		const msg = messages[i];
 		if (msg.role === "assistant") {
-			for (const part of msg.content) {
-				if (part.type === "text") return part.text;
-			}
+			return msg.content.filter((part) => part.type === "text").map((part) => part.text).join("\n");
 		}
 	}
 	return "";
@@ -264,7 +262,7 @@ function getPiInvocation(args: string[]): { command: string; args: string[] } {
 
 type OnUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void;
 
-async function runSingleAgent(
+export async function runSingleAgent(
 	defaultCwd: string,
 	agents: AgentConfig[],
 	agentName: string,
@@ -329,6 +327,7 @@ async function runSingleAgent(
 
 		args.push(`Task: ${task}`);
 		let wasAborted = false;
+		let agentEnded = false;
 
 		const exitCode = await new Promise<number>((resolve) => {
 			const invocation = getPiInvocation(args);
@@ -338,6 +337,37 @@ async function runSingleAgent(
 				stdio: ["ignore", "pipe", "pipe"],
 			});
 			let buffer = "";
+			let exited = false;
+			let killTimer: ReturnType<typeof setTimeout> | undefined;
+			const finishAbort = () => {
+				// Descendants can retain inherited pipes after Pi exits. Cancellation
+				// must not wait for their EOF; normal completion still drains on close.
+				proc.stdout.destroy();
+				proc.stderr.destroy();
+				cleanup();
+				resolve(1);
+			};
+			const killProc = () => {
+				wasAborted = true;
+				if (exited) {
+					finishAbort();
+					return;
+				}
+				proc.kill("SIGTERM");
+				killTimer = setTimeout(() => {
+					if (!exited) proc.kill("SIGKILL");
+				}, 2000);
+			};
+			const cleanup = () => {
+				exited = true;
+				clearTimeout(killTimer);
+				signal?.removeEventListener("abort", killProc);
+			};
+			proc.once("exit", () => {
+				exited = true;
+				clearTimeout(killTimer);
+				if (wasAborted) finishAbort();
+			});
 
 			const processLine = (line: string) => {
 				if (!line.trim()) return;
@@ -346,6 +376,15 @@ async function runSingleAgent(
 					event = JSON.parse(line);
 				} catch {
 					return;
+				}
+
+				if (event.type === "agent_end") {
+					agentEnded = true;
+					currentResult.messages = Array.isArray(event.messages) ? event.messages : [];
+					const final = [...currentResult.messages].reverse().find((message) => message.role === "assistant");
+					currentResult.stopReason = final?.role === "assistant" ? final.stopReason : undefined;
+					currentResult.errorMessage = final?.role === "assistant" ? final.errorMessage : undefined;
+					emitUpdate();
 				}
 
 				if (event.type === "message_end" && event.message) {
@@ -389,27 +428,29 @@ async function runSingleAgent(
 
 			proc.on("close", (code) => {
 				if (buffer.trim()) processLine(buffer);
-				resolve(code ?? 0);
+				cleanup();
+				resolve(code ?? 1);
 			});
 
 			proc.on("error", () => {
+				cleanup();
 				resolve(1);
 			});
 
 			if (signal) {
-				const killProc = () => {
-					wasAborted = true;
-					proc.kill("SIGTERM");
-					setTimeout(() => {
-						if (!proc.killed) proc.kill("SIGKILL");
-					}, 5000);
-				};
 				if (signal.aborted) killProc();
 				else signal.addEventListener("abort", killProc, { once: true });
 			}
 		});
 
 		currentResult.exitCode = exitCode;
+		if (exitCode === 0 && (!agentEnded || currentResult.stopReason !== "stop" ||
+			currentResult.errorMessage || !getFinalOutput(currentResult.messages).trim())) {
+			currentResult.exitCode = 1;
+			currentResult.errorMessage ||= !agentEnded
+				? "Subagent exited without agent_end"
+				: "Subagent ended without a complete final report";
+		}
 		if (wasAborted) throw new Error("Subagent was aborted");
 		return currentResult;
 	} finally {

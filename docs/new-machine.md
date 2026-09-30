@@ -1,41 +1,36 @@
-# New-machine checklist (macOS)
+# New-machine checklist
 
-1. Install Git and Python 3.9+, then install the runtime or runtimes you plan to
-   select: Claude Code or Pi. Pi also requires Bun. This repository does not
-   install runtimes or credentials.
-2. Clone the repository. If you have a private overlay, keep it outside this
-   checkout. Choose a component set from the [install matrix](install-matrix.md)
-   and use the same arguments for dry-run, apply, and drift checks.
-3. Review the dry run:
-
-   ```bash
-   ./bootstrap.sh --with claude --with pi --overlay ../other-ninety-private
-   ```
-
-   Omit all `--with` flags for the Pi-only default. Add `--with pi-text` only
-   if you want the o90 Pi text, which is off by default. Omit `--overlay` when you
-   do not have one. Existing Claude and Pi settings files are preserved rather
-   than merged; if the plan says `keep`, use a complete overlay replacement
-   when you want the o90 defaults too.
-4. Apply the same plan:
+1. Install Git and Python 3.9+, plus the runtime you use. Full Pi bootstrap also
+   needs Bun. Runtime installation and provider authentication are separate.
+2. Clone this repository and any private overlay. Keep the overlay outside the
+   public checkout. Choose plugin-only, config-only, or bootstrap from the
+   [README](../README.md#choose-an-install); use the [install matrix](install-matrix.md)
+   for components and target overrides.
+3. Preview your configuration, adding `--overlay` when applicable:
 
    ```bash
-   ./bootstrap.sh --apply --with claude --with pi --overlay ../other-ninety-private
+   ./install.sh --with claude --with pi --overlay ../other-ninety-private
    ```
 
-5. Restart the selected runtimes and complete their provider login or OAuth
-   interactively.
-6. Check configuration drift with the same overlay argument:
+   Review links and replacements. Existing settings are preserved by a public
+   install; an overlay replaces them completely. No `--with` flags means Pi.
+   Add `--with pi-text` only if you want the extra Pi behavior text.
+4. Repeat with `--apply`, or use `bootstrap.sh --apply` with the same arguments
+   when dependencies and the Claude plugin should also be installed. Save the
+   printed manifest path for configuration rollback.
+5. Restart the selected runtimes and authenticate providers interactively.
+6. Check drift with the same components, overlay, and target overrides:
 
    ```bash
    ./check-drift.sh --with claude --with pi --overlay ../other-ninety-private
    ```
 
-7. Smoke-check each selected runtime. In Claude, start a session and confirm
-   the `<other-ninety>` block appears in the SessionStart context, then run
-   `/impl --dry-run "rename a variable"` and check that `Clarity` and `Stakes`
-   print before anything else. In Pi, run `/impl` the same way; with stock Pi
-   the prompt template still exists, the always-loaded text does not.
-
-Optional broadly useful Claude plugins: `security-guidance` and
-`typescript-lsp`. Install them manually only when needed.
+   Preserved real Claude skill copies are reported as unmanaged. Plugin-only
+   installation has no global configuration to check with this command.
+7. In each runtime where `/impl` is installed, run
+   `/impl --dry-run "rename a variable"`. Confirm that clarity and stakes print
+   and no files or ticket states change. For Claude config, check your settings
+   register the hooks you intend to use; linked hook files alone do not activate
+   them.
+   For private Codex, select `codex --profile other-ninety`; there is no o90 `/impl`
+   adapter. Its personal instructions are global, while the profile is opt-in.

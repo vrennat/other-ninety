@@ -116,12 +116,21 @@ esac
 
     def test_force_push_main_blocks(self):
         with tempfile.TemporaryDirectory() as directory:
-            result = self.run_hook(
-                "pre-push-guard.sh",
-                {"tool_name": "Bash", "tool_input": {"command": "git push --force origin main"}},
-                Path(directory),
-            )
-            self.assertEqual(result.returncode, 2)
+            for command in (
+                "git push --force origin main",
+                "git push --force-with-lease origin main",
+                "git push --force-with-lease=main:expected origin main",
+                "git push origin +main",
+                "git push origin +HEAD:refs/heads/main",
+                "git push -f origin HEAD:refs/heads/main",
+            ):
+                with self.subTest(command=command):
+                    result = self.run_hook(
+                        "pre-push-guard.sh",
+                        {"tool_name": "Bash", "tool_input": {"command": command}},
+                        Path(directory),
+                    )
+                    self.assertEqual(result.returncode, 2, result.stderr)
 
     def test_non_bash_payload_allows(self):
         with tempfile.TemporaryDirectory() as directory:

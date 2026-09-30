@@ -30,11 +30,11 @@ Execute work. Input is one of:
 
 6. **Second look.** Before writing code, challenge the first approach once: what is the reflex pattern here, what can be cut, is there a simpler path dismissed too quickly? One pass, then commit to a direction.
 
-7. **Implement in this session.** Delegate only for the reasons in `rules/agents.md`: parallel work on disjoint write surfaces, isolating noisy exploration, or independent review. Size alone is not a reason. With `--tdd`, write the test, run it, show the failure, then implement.
+7. **Implement in this session.** Delegate for parallel work on disjoint write surfaces, isolating noisy exploration, or independent review. Size alone is not a reason. With `--tdd`, write the test, run it, show the failure, then implement.
 
-8. **Review by stakes and size.** High stakes: dispatch `adversarial-reviewer` after implementation, whatever the diff size, and resolve blocking findings before claiming done. More than five files or shared infrastructure: run `/code-review` as well. When the input was a spec or ticket, review fidelity too: requirements missing or partial, behavior nobody asked for, and requirements that look done but wrong, each with the source line quoted.
+8. **Review.** High stakes: dispatch `adversarial-reviewer` after implementation, whatever the diff size, and resolve blocking findings before claiming done. Changes spanning multiple systems also benefit from a fresh review. When the input was a spec or ticket, review fidelity too: requirements missing or partial, behavior nobody asked for, and requirements that look done but wrong, each with the source line quoted.
 
-9. **Verify.** Run the repository's typecheck, tests, lint, and build, and paste the output verbatim. Exercise the changed behavior, not only the commands. Before diagnosing any failure, name one command that goes red on the exact symptom and run it once; until that command exists, say so and ask for a repro artifact instead of theorizing. Then diagnose with a stated hypothesis and a minimal experiment before the next fix; stop after three failed repair cycles and report the evidence. Tag temporary debug output with one prefix such as `[DEBUG-a4f2]` and grep it out before reporting.
+9. **Verify.** Run checks appropriate to the change and all checks required by the repository. Exercise the changed behavior and summarize commands, results, and any gaps. For a failure, inspect available code, logs, and tests and construct a symptom reproduction before fixing it. Ask for evidence only when it is unavailable locally; state what remains unverified. Diagnose with a stated hypothesis and a minimal experiment before the next fix; stop after three failed repair cycles and report the evidence. Remove temporary debug output before reporting.
 
 10. **Ticket:** move it to "In Review".
 

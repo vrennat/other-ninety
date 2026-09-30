@@ -6,17 +6,14 @@
  * It skips providers whose quota is known to be exhausted and queues a
  * follow-up user message so the task continues instead of stopping.
  *
- * Default chain: deepseek/deepseek-v4-pro -> zai/glm-5.3 ->
- *   google/gemini-flash-latest -> openai-codex/gpt-5.6-terra
- *
- * Override by editing this file or importing DEFAULT_FALLBACK_CHAIN and
- * exporting your own from another extension loaded after this one.
- *
- * Pi's built-in retry waits ~14s (2s/4s/8s) on quota 429s before giving up.
- * Set "retry.maxRetries": 1 in ~/.pi/agent/settings.json to cut that to ~2s.
+ * Configure an ordered array of { provider, id } entries in quota-fallback.json
+ * in Pi's agent directory (PI_CODING_AGENT_DIR, or ~/.pi/agent).
+ * Without that file, automatic model substitution is disabled.
  */
 
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { isDelegatedPi, isDelegatedModelAllowed } from "./model-policy";
 
 export interface ChainEntry {
@@ -24,12 +21,25 @@ export interface ChainEntry {
 	id: string;
 }
 
-export const DEFAULT_FALLBACK_CHAIN: ChainEntry[] = [
-	{ provider: "deepseek", id: "deepseek-v4-pro" },
-	{ provider: "zai", id: "glm-5.3" },
-	{ provider: "google", id: "gemini-flash-latest" },
-	{ provider: "openai-codex", id: "gpt-5.6-terra" },
-];
+export function loadFallbackChain(agentDir = getAgentDir()): ChainEntry[] {
+	let source: string;
+	try {
+		source = readFileSync(join(agentDir, "quota-fallback.json"), "utf8");
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+		throw error;
+	}
+	const value: unknown = JSON.parse(source);
+	if (!Array.isArray(value) || !value.every((entry: unknown) => {
+		if (typeof entry !== "object" || entry === null) return false;
+		const { provider, id } = entry as Record<string, unknown>;
+		return typeof provider === "string" && provider.trim().length > 0 &&
+			typeof id === "string" && id.trim().length > 0;
+	})) {
+		throw new Error("quota-fallback.json must contain an array of { provider, id } entries");
+	}
+	return value.map(({ provider, id }: ChainEntry) => ({ provider, id }));
+}
 
 const QUOTA_PATTERNS = [/usage_limit_reached/i, /Usage limit reached/i, /"code":"1308"/];
 
@@ -104,6 +114,16 @@ export function pickFallback(
 }
 
 export default function quotaFallback(pi: ExtensionAPI) {
+	let chain: ChainEntry[];
+	try {
+		chain = loadFallbackChain();
+	} catch (error) {
+		pi.on("session_start", async (_event, ctx) => {
+			ctx.ui.notify(`Quota fallback disabled: ${String(error)}`, "error");
+		});
+		return;
+	}
+	if (chain.length === 0) return;
 	const exhaustedUntil: Record<string, Date | undefined> = {};
 	let switchCount = 0;
 
@@ -172,9 +192,9 @@ export default function quotaFallback(pi: ExtensionAPI) {
 		markExhausted(currentProvider, parsed.resetAt);
 
 		// Loop guard: at most chain.length switches per run sequence
-		if (switchCount >= DEFAULT_FALLBACK_CHAIN.length) {
+		if (switchCount >= chain.length) {
 			ctx.ui.notify(
-				`Quota exhausted on ${ctx.model?.provider}/${ctx.model?.id}, but all ${DEFAULT_FALLBACK_CHAIN.length} fallback models have been tried. Stopping.`,
+				`Quota exhausted on ${ctx.model?.provider}/${ctx.model?.id}, but all ${chain.length} fallback models have been tried. Stopping.`,
 				"error",
 			);
 			return;
@@ -183,7 +203,7 @@ export default function quotaFallback(pi: ExtensionAPI) {
 		if (!ctx.model) return;
 
 		const fallback = pickFallback(
-			DEFAULT_FALLBACK_CHAIN,
+			chain,
 			{ provider: ctx.model.provider, id: ctx.model.id },
 			exhaustedUntil,
 			new Date(),
@@ -201,23 +221,23 @@ export default function quotaFallback(pi: ExtensionAPI) {
 		const fallbackModel = ctx.modelRegistry.find(fallback.provider, fallback.id);
 		if (!fallbackModel) return;
 
-		switchCount++;
 		const oldLabel = `${ctx.model.provider}/${ctx.model.id}`;
 		const newLabel = `${fallback.provider}/${fallback.id}`;
 		const resetMsg = parsed.resetAt
 			? ` (resets at ${parsed.resetAt.toLocaleString()})`
 			: "";
 
-		ctx.ui.notify(
-			`Quota exhausted on ${oldLabel}; switched to ${newLabel}${resetMsg}`,
-			"warning",
-		);
-
 		const changed = await pi.setModel(fallbackModel);
 		if (!changed) {
 			ctx.ui.notify(`No credential for fallback model ${newLabel}.`, "error");
 			return;
 		}
+
+		switchCount++;
+		ctx.ui.notify(
+			`Quota exhausted on ${oldLabel}; switched to ${newLabel}${resetMsg}`,
+			"warning",
+		);
 
 		await pi.sendUserMessage(
 			`Provider quota exhausted on ${oldLabel}; switched to ${newLabel}. Continue the previous task from where it stopped.`,

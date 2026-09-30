@@ -19,13 +19,14 @@ For new projects without a stated stack, prefer **SvelteKit with Svelte 5 runes*
 - Investigate technical uncertainty with code, history, documentation, and tests. Ask only when a missing product decision or a materially broader change requires the user's judgment. Continue independent work while that decision is pending.
 - Respect explicit proposal-only, plan-before-code, and do-not-deploy instructions. A request to assess or recommend authorizes that deliverable, not implementation; later explicit approval authorizes the approved scope.
 - For destructive Git, deployment, remote resource creation, purchases, global installs, secret rotation, or data deletion, check whether the specific action and target are already authorized. Proceed when they are and required checks pass; otherwise prepare the reviewable result before asking. A general build request alone does not authorize those actions. Never bypass hooks or platform approval controls.
+
 ## Long-running work and agents
 
 - **Bash timeout is a backstop, not a budget.** Anything likely to exceed 60 seconds (builds, renders, test suites, downloads, servers) starts with `run_in_background` and is checked with Monitor. Waiting happens there, with the per-call timeout left at its default.
 - **Compact early.** On 1M-context models, `/compact` around 250k tokens; do not run to the window edge. Every call re-reads the whole context.
 - **Long-lived agents stay small.** A wake re-sends the agent's entire context, so brief standing agents narrowly and batch messages to them. Reviewers and other read-only agents are spawned without worktree isolation.
 - **Reddit and web.archive.org are blocked for WebFetch.** Use the reddit MCP for Reddit.
-- **End the turn after launching background work.** Say what is running and what will signal completion; do not poll with TaskOutput or sleep. The focus hook and the app notify the user when a session goes idle.
+- **Wait for work needed to finish the task.** Use completion events or bounded Monitor checks for background work, then handle the result before closing the task. End the turn with work running only when the user requested unattended execution and a continuation is configured; state what will resume it.
 - **Close a task with state, not a summary.** At a task boundary end with: outcome, decisions and why, files touched and their git state, what is still running, and the next action. That is what compaction keeps and what a fresh session needs, so the user can `/compact` or start clean.
 
 
@@ -46,7 +47,7 @@ For new projects without a stated stack, prefer **SvelteKit with Svelte 5 runes*
 
 - Stakes decide review, not size: auth, money, data integrity, security, privacy, or hard-to-undo changes get an independent `adversarial-reviewer` pass even when the diff is one line.
 - `/brainstorm` turns an idea into a spec in `docs/specs/`. `/impl` executes a spec, ticket, or description and prints its classification first. `/plan` writes a reviewable plan when you want one. `/trim` asks only what can be deleted.
-- `clean-writing` for deliberate prose. `conductor` only for long-running delegated sessions with named ownership. `i-have-adhd` for ADHD-shaped output. `wizard` to script steps only a human can do. User-invoked only: `/summarize` for catch-up, `/svelte5-best-practices` before SvelteKit work, `/retro` to review the agent's environment after a session.
+- `clean-writing` for deliberate prose. `conductor` only for long-running delegated sessions with named ownership. `i-have-adhd` for ADHD-shaped output. `wizard` to script steps only a human can do. User-invoked only: `/summarize` for catch-up, `/svelte5-best-practices` before SvelteKit work, `/retro` to review the agent's environment after a session, `/ponytail` to simplify a coding approach.
 
 # Compact instructions
 

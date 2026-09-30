@@ -1,5 +1,5 @@
 ---
-description: Workhorse implementation workflow with classification, routing, subagent delegation, and verification
+description: Implement authorized work, review by stakes, and verify the result
 argument-hint: "<spec, ticket ID, task description, or --dry-run>"
 ---
 
@@ -13,68 +13,50 @@ Execute this work end-to-end: $ARGUMENTS
    - Otherwise treat as a task description.
    - Note whether `--dry-run` is present; it stops before edits or ticket updates.
 
-2. **Read Mode & Classify**
-   - Read `.o90/mode`, falling back to legacy `.claude/other-ninety-mode` when absent. Treat both absent as `default`. Modes: `default`, `cautious`, or `autonomous`.
-   - Classify independently across three orthogonal axes:
+2. **Classify Clarity & Stakes**
+   - Classify independently:
      - **Clarity**: `clear` (outcome and scope are settled) or `ambiguous` (an unresolved product requirement or materially broader scope needs the user's judgment). Investigate technical choices and multi-cause bugs yourself.
-     - **Complexity**: `simple` (1 file, <50 LOC), `medium` (2-3 files, clear scope), or `complex` (>3 files or shared infrastructure).
-     - **Stakes**: `normal` or `high` (touches auth, payments/money, data integrity, security, privacy, remote persistence, or is hard to undo).
-   - Print the mode and classification as the top two lines:
-     `Mode: <mode>`
-     `Clarity: clear/ambiguous | Complexity: simple/medium/complex | Stakes: normal/high`
+     - **Stakes**: `normal` or `high` (touches auth, payments/money, data integrity, security, privacy, remote persistence, or is hard to undo). When unsure, round up.
+   - Print first: `Clarity: clear/ambiguous | Stakes: normal/high`
 
-3. **Set Scope & Apply Mode**
-   - If `--dry-run` is present: print the planned routing and stop before edits or ticket updates.
+3. **Set Scope**
+   - If `--dry-run` is present: print the planned approach and stop before edits or ticket updates.
    - Name the requested outcome, existing authorization, and explicit exclusions. Include necessary supporting changes and verification; leave unrelated cleanup, UI changes, and refactors out.
-   - `default`: Proceed on settled requirements. Ask once for a missing product decision or materially broader scope; continue independent work while waiting.
-   - `cautious`: Present the approach before medium or complex work. Honor an explicitly requested plan-before-code checkpoint; existing approval of that work satisfies it without another pause.
-   - `autonomous`: Choose routine implementation defaults and proceed. This mode does not authorize new product decisions, materially broader scope, or external actions by itself.
-   - Every mode honors the user's current request and prior authorization, including explicit proposal-only limits. Investigate technical uncertainty yourself.
+   - Proceed on settled requirements. Ask once for a missing product decision or materially broader scope; continue independent work while waiting. Honor explicit proposal-only and plan-before-code stop points; existing approval satisfies them without another pause.
 
-4. **Second Look (Medium / Complex only)**
-   - Before writing code, interrogate the chosen direction in one deliberate pass:
-     - What is the generic pattern reached for by reflex?
-     - What can be cut, simplified, or tightened?
-     - Is there a simpler path dismissed too quickly?
-   - Commit to the sharpened direction.
+4. **Second Look**
+   - Challenge the first approach once: what is the reflex pattern, what can be cut, and is there a simpler path dismissed too quickly? Then commit to a direction.
 
-5. **Execute by Complexity**
-   - **Simple**: Implement directly in the main session, or delegate a bounded edit to `fast-impl` via `subagent` if it preserves frontier context. Then run verification or dispatch `validator`.
-   - **Medium**: Dispatch 1-2 `fast-impl` subagents in parallel using `subagent` (`tasks` array with non-overlapping file ownership). Then dispatch `validator`.
-   - **Complex**: Decompose into atomic sub-tasks with file paths and acceptance criteria. Dispatch `fast-impl` subagents sequentially or in non-overlapping parallel batches. Then dispatch `validator`. If the change touches >5 files or shared infrastructure, also dispatch `brutal-code-reviewer`.
+5. **Implement in This Session**
+   - Use `subagent` only for independent parallel work on disjoint write surfaces, isolating noisy exploration, or fresh review. File count alone is not a reason to delegate.
 
-6. **High Stakes Verification**
-   - If `Stakes: high`: Regardless of complexity tier, dispatch `adversarial-reviewer` via `subagent` after implementation for an independent break-it pass reading source fresh. Resolve all blocking findings before claiming done.
+6. **Review by Stakes**
+   - If `Stakes: high`: dispatch `adversarial-reviewer` via `subagent` after implementation for an independent break-it pass reading source fresh, whatever the diff size. Resolve blocking findings before claiming done.
+   - For a spec or ticket, check fidelity: missing or partial requirements, unrequested behavior, and requirements that look done but are wrong. Cite the source requirement for each finding.
 
-7. **Validator Failure Retry Loop**
-   - If `validator` reports failures or unmet requirements:
-     1. Dispatch `debug-genius` via `subagent` to diagnose root cause from evidence without editing.
-     2. Dispatch `fast-impl` with `debug-genius`'s diagnostic findings to apply the fix.
-     3. Re-run `validator`.
-     4. Repeat up to 3 cycles maximum before escalating to the user.
+7. **Verify**
+   - Run checks appropriate to the change and all checks required by the repository. Exercise the changed behavior and summarize commands, results, and gaps.
+   - For a failure, inspect code, logs, and tests and reproduce the symptom before fixing it. State a hypothesis and run a minimal experiment before the next fix. Stop after three failed repair cycles and report the evidence. Remove temporary debug output.
+   - Ask for evidence only when unavailable locally. Do not claim completion if verification fails or was skipped without explanation.
 
-8. **Verification Gate**
-   - Run the project's verification command (typecheck, test, lint, build) directly or via `validator` and paste the verbatim output.
-   - Do not claim completion if verification fails or was skipped without explanation.
+8. **Linear Status Update**
+   - If a Linear ticket was processed and verification passed, update ticket status to "In Review" via Linear MCP.
 
-9. **Linear Status Update**
-   - If a Linear ticket was processed, update ticket status to "In Review" via Linear MCP.
-
-10. **Capture One Lesson, or None**
+9. **Capture One Lesson, or None**
    - Append at most one line to `docs/lessons.md` (create it if absent): `- YYYY-MM-DD <area>: <what would have saved time if known up front>`.
    - It qualifies only if a future agent could not derive it from the code, tests, git history, or repo instructions. If nothing qualifies, write nothing and report `Lesson: none`. `/trim docs/lessons.md` prunes the file.
 
-11. **Report**
+10. **Report**
 ```
 Files modified: <list of absolute paths>
-Verdict: <validator / test output>
+Verification: <commands and results>
 Lesson: <the line appended | none>
 Next: <remaining blocker or decision | none>
 ```
 
 ## Rules
 - Ask for missing product decisions or materially broader scope, not file count or technical uncertainty. Reversibility does not expand scope. Preserve deliberate design decisions; a reviewer suggestion is not authorization to add a feature or refactor.
-- Stakes is orthogonal to complexity: a 1-line auth or payment change is high-stakes and always gets `adversarial-reviewer`.
-- Parallel subagents only when all three hold: provably disjoint write surfaces, no step needs another's output, each result verifiable alone. Read-only fan-out (search, audit, review) always qualifies.
+- Stakes-gated review always runs; task size and requests for speed do not remove it.
+- Parallel subagents require disjoint write surfaces, independent inputs, and independently verifiable results.
 - Carry the outcome, exclusions, owned paths, acceptance checks, and existing authorization into every worker brief. Workers report a needed wider surface to the lead instead of expanding it.
 - Finish already-authorized commits, pushes, PRs, or deployments after their required checks without asking again. An implementation request alone does not authorize release, purchases, data deletion, or infrastructure changes.

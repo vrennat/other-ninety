@@ -60,7 +60,6 @@ fi
 
 cmd_targets_main=false
 has_force=false
-has_force_with_lease=false
 
 # Walk through the command tokens: find "git push" and then look at what follows.
 # Flags can appear anywhere, so we can't rely on positional regex.
@@ -89,7 +88,7 @@ for ((i=0; i<${#tokens[@]}; i++)); do
 
   # Force flags
   if [[ "$tok" == "--force-with-lease" ]] || [[ "$tok" == --force-with-lease=* ]]; then
-    has_force_with_lease=true
+    has_force=true
     continue
   fi
   if [[ "$tok" == "--force" ]] || [[ "$tok" == "-f" ]]; then
@@ -97,17 +96,17 @@ for ((i=0; i<${#tokens[@]}; i++)); do
     continue
   fi
 
-  # Refspec detection: "main", "HEAD:main", "<anything>:main", "main:main"
-  case "$tok" in
-    main|main:main|HEAD:main|+main|+HEAD:main|+main:main)
-      cmd_targets_main=true ;;
-    *:main)
-      cmd_targets_main=true ;;
+  # A leading + forces a refspec just as --force does.
+  case "${tok#+}" in
+    main|refs/heads/main|*:main|*:refs/heads/main)
+      cmd_targets_main=true
+      [[ "$tok" == +* ]] && has_force=true
+      ;;
   esac
 done
 
 # Hard block: explicit force push to main (detectable from command string alone)
-if [[ "$cmd_targets_main" == "true" && "$has_force" == "true" && "$has_force_with_lease" != "true" ]]; then
+if [[ "$cmd_targets_main" == "true" && "$has_force" == "true" ]]; then
   echo "pre-push-guard: BLOCKED — force push to main is not allowed from Claude Code." >&2
   echo "If you truly need this, run it yourself outside Claude." >&2
   exit 2
@@ -134,16 +133,10 @@ if [[ "$pushes_main" != "true" ]]; then
 fi
 
 # Hard block: force push to main (catches implicit case where HEAD is main and cmd just says "push -f")
-if [[ "$has_force" == "true" && "$has_force_with_lease" != "true" ]]; then
+if [[ "$has_force" == "true" ]]; then
   echo "pre-push-guard: BLOCKED — force push to main is not allowed from Claude Code." >&2
   echo "If you truly need this, run it yourself outside Claude." >&2
   exit 2
-fi
-
-# --force-with-lease: allow but warn (user opted in explicitly)
-if [[ "$has_force_with_lease" == "true" ]]; then
-  echo "pre-push-guard: WARN — --force-with-lease to main. Proceeding." >&2
-  exit 0
 fi
 
 # Fetch latest origin/main so our ancestry check is accurate

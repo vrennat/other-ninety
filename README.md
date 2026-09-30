@@ -21,17 +21,20 @@ them from drifting, and keep private context out of the public copy.
 
 | Surface | Contents | Source |
 |---|---|---|
-| Claude plugin | `/brainstorm`, `/impl`, `/plan`, `/trim`; the `adversarial-reviewer` agent; the `clean-writing` skill; a SessionStart hook that injects the two rules | `claude/plugin/` |
-| Claude config | Public-safe global `CLAUDE.md`, `rules/`, hooks, the `teammate` agent protocol, and reusable skills (`conductor`, `i-have-adhd`, `wizard`, and the user-invoked `summarize`, `svelte5-best-practices`, `retro`) | `claude/config/` |
+| Claude plugin | `/brainstorm`, `/impl`, `/plan`, `/trim`; the `adversarial-reviewer` agent; the `clean-writing` skill | `claude/plugin/` |
+| Claude config | Public-safe global `CLAUDE.md`, `rules/`, hooks, the `teammate` agent protocol, and reusable skills (`conductor`, `i-have-adhd`, `wizard`, `summarize`, `svelte5-best-practices`, `retro`, `ponytail`) | `claude/config/` |
 | Pi | Agents, extensions, prompt templates, themes, and pinned packages; the o90 behavior text is opt-in (`--with pi-text`) | `pi/` |
+| Private Codex config | Overlay-only personal instructions and a portable named profile; no public Codex adapter | `--with codex` |
 | Repository tooling | Bootstrap, rollback, drift, leak, and verification checks | `bootstrap.sh`, `install.sh`, `scripts/` |
 
-The Claude plugin works without Pi. Pi works without the plugin. The hooks
-under `claude/config/hooks/` are the only always-running pieces: one lists
-other live Claude sessions in the same repository at session start, one
-blocks a non-fast-forward or forced push to `main` from inside Claude, one
-refuses WebFetch to hosts known to be unreachable, and `focus.py` gives
-warn-only break and quiet-hours nudges plus away-notifications (D12).
+The Claude plugin and Pi configuration work independently. Plugin-only installs
+provide commands, the reviewer, and `clean-writing`; they do not install global
+`CLAUDE.md`, rules, hooks, or global skills. Linked hooks run only when your Claude
+settings register them. Fresh settings enable session discovery, the push guard,
+and focus nudges; the WebFetch guard is available but not enabled there.
+
+Pi installs extensions and packages by default. Only the additional o90 behavior
+text is opt-in. See [Pi's README](pi/README.md) for runtime options.
 
 [When to move up a rung](docs/ladder.md) says which workflow to reach for as
 work grows from a single prompt to a conductor session. Choices with more than
@@ -41,42 +44,33 @@ D5 to D9 record the 2026-09 strip-back and the evidence behind it.
 line. [Scope examples](docs/autonomy-scenarios.md) make the completion boundary
 reviewable across Claude, Codex plugin migration, and Pi.
 
-## Quick start
+## Choose an install
 
-Core requirements are macOS, Git, and Python 3.9+. Pi additionally needs Bun.
-This repository configures runtimes but does not install their applications or
-credentials. It does install the Claude plugin when Claude is selected.
+This repository configures applications; it does not install Claude Code, Pi,
+or credentials. The scripts require Git and Python 3.9+. Full Pi bootstrap also
+requires Bun and Pi; Claude bootstrap requires Claude Code.
 
 ```bash
 git clone https://github.com/vrennat/other-ninety.git
 cd other-ninety
-
-./bootstrap.sh --with claude          # dry run; writes nothing
-./bootstrap.sh --apply --with claude  # links config, installs the plugin
 ```
 
-With no `--with` flags, bootstrap selects Pi. Once any `--with` flag is present,
-the flags are the exact component set. The [install matrix](docs/install-matrix.md)
-lists the combinations; the [new-machine checklist](docs/new-machine.md) covers
-a complete setup.
+Choose the smallest setup you need:
 
-### What apply changes
+| Setup | Action |
+|---|---|
+| Claude plugin only | In Claude: `/plugin marketplace add vrennat/other-ninety`, then `/plugin install other-ninety@other-ninety` |
+| Configuration only | `./install.sh --with claude --with pi` |
+| Configuration plus dependencies and plugins | `./bootstrap.sh --with claude --with pi` |
 
-1. Links `CLAUDE.md`, `rules`, `hooks`, and `agents` into `~/.claude` (or
-   `CLAUDE_CONFIG_DIR`), with targeted backups and a rollback manifest.
-2. Links each global skill unless a real directory already exists at that name.
-   A real directory is a private copy and is kept.
-3. Copies `settings.json` and `keybindings.json` only when absent.
-4. When Pi is selected, links the Pi config and installs its locked
-   dependencies and pinned packages. Pi stays stock unless `pi-text` is also
-   selected: three screens measured the always-loaded o90 text at 1.5x to
-   1.9x tokens with no task effect.
-5. When Claude is selected, adds or updates the marketplace and plugin at user
-   scope.
+Both scripts preview without writes. Review the output, then repeat with
+`--apply`. Omit a component you do not use. With no `--with` flags, the default
+is Pi; otherwise the flags select the exact set. Add `--with pi-text` alongside
+`--with pi` only to load the additional o90 behavior text.
 
-Plugin and package installation is not covered by the config rollback
-manifest. Provider login, model choice, and trust decisions stay local and
-interactive.
+The [install matrix](docs/install-matrix.md) explains file ownership and target
+overrides. The [new-machine checklist](docs/new-machine.md) covers verification.
+Package and plugin operations persist outside the config rollback manifest.
 
 ## Private overlay
 
@@ -101,7 +95,19 @@ my-private-overlay/
 
 There is no JSON merge or template engine. Maintain a complete replacement when
 the overlay owns a path. Overlay groups apply only when their component is
-selected.
+selected. Codex is an explicit private-only component:
+
+```bash
+./install.sh --with codex --overlay ../my-private-overlay
+```
+
+It manages only `codex/AGENTS.md` and `codex/other-ninety.config.toml` under
+`CODEX_HOME` (or `--codex-dir`); base configuration, credentials, host trust, and
+plugin/app state remain local. Review the plan and repeat with `--apply`.
+
+Installer, bootstrap package selection, and drift checks share the
+same target plan. Preserved real Claude skill directories are reported as
+unmanaged; overlay-owned copies are compared exactly.
 
 ## Rollback, drift, and leaks
 
@@ -124,15 +130,17 @@ installed with:
 then checks the working tree and Git history. It cannot prove free-form prose
 is safe; public releases still require manual review.
 
-## Install the plugin alone
+## Updating
 
-```text
-/plugin marketplace add vrennat/other-ninety
-/plugin install other-ninety@other-ninety
-```
+Pull changes into this checkout, review the install plan, then rerun the same
+setup command and component/overlay arguments. Linked files follow the checkout;
+preserved settings stay local and overlay settings are copied again on apply.
+Restart the selected runtimes after updating.
 
-Plugin caches refresh only on `/plugin marketplace update other-ninety` or a
-version bump; editing this checkout does not reach running sessions by itself.
+Plugin caches are separate from checkout links. Use
+`/plugin marketplace update other-ninety` and `/plugin update other-ninety@other-ninety`
+in Claude, or rerun Claude bootstrap to update both. Package and plugin updates
+are outside configuration rollback.
 
 ## Repository layout
 
@@ -142,7 +150,7 @@ other-ninety/
 ├── claude/
 │   ├── plugin/           # distributable Claude Code plugin
 │   └── config/           # shared global Claude configuration
-├── pi/                   # complete Pi configuration and extensions
+├── pi/                   # Pi defaults, prompts, and extensions
 ├── shared/               # Pi's compact-writing policy
 ├── docs/                 # ladder, decisions, install notes, archive
 ├── scripts/              # installer, checks, and tests

@@ -4,7 +4,7 @@ Delegate for one of three reasons, never for file count:
 
 1. **Parallelism** on provably disjoint write surfaces, where no step needs another's output and each result is verifiable alone. Read-only fan-out (search, audit, review) always qualifies.
 2. **Isolation** of noisy exploration or long verification, so the main context stays clean.
-3. **Independent review** with fresh eyes: `adversarial-reviewer` on stakes, `/code-review` on size.
+3. **Independent review** with fresh eyes: `adversarial-reviewer` on stakes; a separate reviewer for changes spanning multiple systems.
 
 Otherwise do the work in the main session. Verifying a claim routes on how hard it is to falsify, not on size; state it as falsifiable and go looking for the disconfirming result.
 

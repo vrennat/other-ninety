@@ -18,7 +18,7 @@ Improve the environment the agent works in so the next run goes better. The code
 2. **Collect candidates** in these categories. Each names the evidence that makes it apply.
    - **Navigation.** The agent spent several calls finding a file or a fact. Candidate: a pointer in the repo CLAUDE.md, or in a doc it already points to.
    - **Automated checks.** A mistake that a typecheck, lint, test, or filesystem rule would have caught. Candidate: the check, wired into the verify step.
-   - **Reviewer rules.** A mistake `adversarial-reviewer` or `/code-review` should have caught. Candidate: a rule on the reviewer. The implementer carries the context pressure; the reviewer reads a diff and can afford standards.
+   - **Reviewer rules.** A mistake independent review should have caught. Candidate: a rule on the reviewer. The implementer carries the context pressure; the reviewer reads a diff and can afford standards.
    - **Always-loaded text.** A steering line that belongs in a check or a reviewer rule instead, or one the session shows did not change behavior. Settle a disputed no-op by running a session without the line, not by debate.
    - **Tool economy.** An expensive call, a polling loop, or a token-heavy tool with a cheaper equivalent (background Bash plus Monitor, a targeted grep, a smaller model for mechanical work).
    - **Information access.** A fact the agent needed and could not reach: dev server logs, a third-party service, a dashboard. Candidate: read-only access or a tee.
