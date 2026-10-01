@@ -396,4 +396,4 @@ diagnosing-bugs and Superpowers' systematic-debugging against plain Claude Code 
 bugs from one repository, three runs each, solved 9/15 in every arm and cost about three
 minutes more per bug. One repository, n=3 per cell, and the author flags variance, so this is
 consistent with the Anthropic guidance rather than independent proof. Pi's `prompts/impl.md`
-is unchanged; Pi runs stock by default (D10).
+received the same cut afterward so the two `/impl` procedures stay in step.
