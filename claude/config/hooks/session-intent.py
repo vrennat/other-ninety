@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """SessionStart hook (startup|resume): list other live Claude Code sessions in
 the same repository, so a new session checks before repo-wide sweeps or
-destructive git.
+destructive git. Outside a git repository it prints nothing: there is no shared
+history to clobber, and a plain parent folder such as ~/Developer would match
+every session started there.
 
 Reads Claude Code's own per-process registry (<config>/sessions/<pid>.json:
 pid, sessionId, cwd), so there is no registry of our own to maintain and no
@@ -18,7 +20,7 @@ import sys
 from pathlib import Path
 
 
-def repo_key(cwd: str) -> str:
+def repo_key(cwd: str) -> str | None:
     try:
         out = subprocess.run(
             ["git", "-C", cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"],
@@ -28,7 +30,7 @@ def repo_key(cwd: str) -> str:
             return out.stdout.strip()
     except Exception:
         pass
-    return os.path.abspath(cwd)
+    return None
 
 
 def alive(pid: int) -> bool:
@@ -49,6 +51,8 @@ def main() -> int:
     if not me:
         return 0
     here = repo_key(cwd)
+    if here is None:
+        return 0
     rows = []
     for entry in sorted((config / "sessions").glob("*.json")):
         try:

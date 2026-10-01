@@ -62,6 +62,23 @@ class HookTests(unittest.TestCase):
             self.assertEqual(result.stdout.count(f"| pid {live} |"), 1, result.stdout)
             self.assertNotIn(f"| pid {dead.pid} |", result.stdout)
 
+    def test_session_start_outside_a_repository_prints_nothing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = root / "config"
+            config.mkdir()
+            plain = root / "plain"
+            plain.mkdir()
+            self.write_session(config, os.getpid(), "current", plain)
+            self.write_session(config, os.getpid(), "same-directory", plain)
+            result = self.run_hook(
+                "session-intent.py",
+                {"hook_event_name": "SessionStart", "session_id": "current", "cwd": str(plain)},
+                config,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, "")
+
     def test_session_start_without_registry_prints_nothing(self):
         with tempfile.TemporaryDirectory() as directory:
             result = self.run_hook(

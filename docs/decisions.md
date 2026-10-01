@@ -28,6 +28,7 @@ history can explain does not.
 | D16 | Cut workflow layers and share configuration ownership | Resolved |
 | D17 | Unattended merges require behavior-aware classification | Resolved |
 | D18 | Capture portable private Codex configuration with native profiles | Resolved |
+| D19 | Claude 5-era always-loaded text: second strip | Resolved |
 
 ---
 
@@ -354,3 +355,35 @@ without a TOML merge engine or another mirrored command catalog. The bundled
 CLI loads the profile and validates its settings locally; selection is explicit.
 The base configuration and desktop model selection remain local. This extends
 personal configuration ownership without reversing D7's public adapter cut.
+
+## D19. Claude 5-era always-loaded text: second strip — Resolved
+
+Anthropic's Claude 5 guidance (claude.dev "new rules of context engineering", 2026-07-24;
+the Opus 5, Opus 5.5, and Sonnet 5 prompting pages) says the models now verify, finish, and
+report progress without being told, that such instructions cause over-verification and
+over-triggering, and that CLAUDE.md should spend its tokens on gotchas. Claude Code 2.1.285
+(2026-09-29) gives background Bash its own time limits and stop notifications. Measured on
+2026-10-01 over 1,164 transcripts in 30 days: `adversarial-reviewer` 179 spawns, `conductor`
+11, `/impl` 6, figma plugin skills 1. In this session the SessionStart hook listed eleven
+"live" sessions because `~/Developer` is not a repository and every session started there
+matched on its plain path.
+
+- **(a) Cut what the harness or model now does by default: "finish the requested outcome",
+  "investigate technical uncertainty", the Bash-timeout and wait-for-background lines,
+  "compact early" (the model cannot run `/compact`), the command and skill list (the harness
+  already lists skills with their descriptions), and the live-sessions line (the hook covers it).
+  Keep the scope boundary, the authorization list, stack, working rules, git and code
+  conventions, the stakes rule, and compact instructions. Drop the deploy and falsifiability
+  sections from `rules/verification.md`, which repeat `CLAUDE.md` and `rules/agents.md`.
+  The SessionStart hook prints nothing outside a git repository.** ← chosen
+- (b) Delete `rules/verification.md` outright as self-verification scaffolding.
+- (c) Leave the text; rely on `/doctor prompt-audit`.
+
+**Resolution (2026-10-01):** (a). `CLAUDE.md` goes from 6,133 to 3,458 bytes and
+`rules/verification.md` from 2,761 to 2,069. (b) is rejected because the positive-control and
+baseline rules are about external instruments, not the model checking its own work; the
+guidance targets the second kind. Not measured: no paired eval was run, so "no loss" rests on
+Anthropic's internal result, not ours. Left for Tanner, outside this repository: `~/AGENTS.md`
+(the pre-D18 Codex file, 9,594 bytes) loads into every Claude session whose working
+directory is under `~`, and the figma plugin's 14 skill descriptions load globally for one
+use in 30 days.
