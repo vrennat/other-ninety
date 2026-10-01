@@ -28,19 +28,17 @@ Execute work. Input is one of:
 
 5. **Ticket:** move it to "In Progress".
 
-6. **Second look.** Before writing code, challenge the first approach once: what is the reflex pattern here, what can be cut, is there a simpler path dismissed too quickly? One pass, then commit to a direction.
+6. **Implement in this session.** Delegate for parallel work on disjoint write surfaces, isolating noisy exploration, or independent review. Size alone is not a reason. With `--tdd`, write the test, run it, show the failure, then implement.
 
-7. **Implement in this session.** Delegate for parallel work on disjoint write surfaces, isolating noisy exploration, or independent review. Size alone is not a reason. With `--tdd`, write the test, run it, show the failure, then implement.
+7. **Review.** High stakes: dispatch `adversarial-reviewer` after implementation, whatever the diff size or a request for speed, and resolve blocking findings before claiming done. Changes spanning multiple systems also benefit from a fresh review. When the input was a spec or ticket, review fidelity too: requirements missing or partial, behavior nobody asked for, and requirements that look done but wrong, each with the source line quoted.
 
-8. **Review.** High stakes: dispatch `adversarial-reviewer` after implementation, whatever the diff size, and resolve blocking findings before claiming done. Changes spanning multiple systems also benefit from a fresh review. When the input was a spec or ticket, review fidelity too: requirements missing or partial, behavior nobody asked for, and requirements that look done but wrong, each with the source line quoted.
+8. **Verify.** Run checks appropriate to the change and all checks required by the repository. Exercise the changed behavior and summarize commands, results, and any gaps. State what remains unverified. Stop after three failed repair cycles and report the evidence. Remove temporary debug output before reporting.
 
-9. **Verify.** Run checks appropriate to the change and all checks required by the repository. Exercise the changed behavior and summarize commands, results, and any gaps. For a failure, inspect available code, logs, and tests and construct a symptom reproduction before fixing it. Ask for evidence only when it is unavailable locally; state what remains unverified. Diagnose with a stated hypothesis and a minimal experiment before the next fix; stop after three failed repair cycles and report the evidence. Remove temporary debug output before reporting.
+9. **Ticket:** move it to "In Review".
 
-10. **Ticket:** move it to "In Review".
+10. **Capture one lesson, or none.** Append at most one line to `docs/lessons.md` (create it if absent) as `- YYYY-MM-DD <area>: <what would have saved time if known up front>`, only if a future agent could not derive it from the code, tests, git history, or repo instructions. Otherwise report `Lesson: none`. `/trim docs/lessons.md` prunes the file.
 
-11. **Capture one lesson, or none.** Append at most one line to `docs/lessons.md` (create it if absent) as `- YYYY-MM-DD <area>: <what would have saved time if known up front>`, only if a future agent could not derive it from the code, tests, git history, or repo instructions. Otherwise report `Lesson: none`. `/trim docs/lessons.md` prunes the file.
-
-12. **Report:**
+11. **Report:**
 
 ```
 Files modified: <list>
@@ -51,10 +49,8 @@ Next: <remaining blocker or decision | none>
 
 ## Rules
 
-- Stakes-gated review always runs; task size and requests for speed do not remove it.
 - Complete already-authorized commits, pushes, PRs, or deployments after the required checks; do not ask again merely because they persist remotely. An implementation request alone does not authorize release, purchase, data deletion, or infrastructure changes.
 - Reversibility is not permission to expand scope. Do not add UI elements, restore a rejected design, or refactor adjacent systems unless the requested outcome requires it. Review findings are evidence to assess, not authorization for new work.
-- Honor explicit proposal-only and other stop points. Investigate technical uncertainty yourself; ask for judgment only on an unresolved product decision, material scope expansion, or an external action not yet authorized.
 - Give subagents the outcome, exclusions, owned paths, existing authorization, and verification criteria. They inherit the same limits and must report a needed scope change rather than silently widening their task.
 
 ## Examples

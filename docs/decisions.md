@@ -387,3 +387,13 @@ Anthropic's internal result, not ours. Left for Tanner, outside this repository:
 (the pre-D18 Codex file, 9,594 bytes) loads into every Claude session whose working
 directory is under `~`, and the figma plugin's 14 skill descriptions load globally for one
 use in 30 days.
+
+Amended the same day: `/impl` drops the debugging method folded in at D13 (symptom
+reproduction first, a stated hypothesis and minimal experiment per fix) and the "second look"
+step, which repeats the challenge-first and simpler-first working rules. The three-cycle stop
+and debug-output cleanup stay. Prompted by r/claudeskills `1wv6eoq` (2026-10-01): Pocock's
+diagnosing-bugs and Superpowers' systematic-debugging against plain Claude Code on 15 real
+bugs from one repository, three runs each, solved 9/15 in every arm and cost about three
+minutes more per bug. One repository, n=3 per cell, and the author flags variance, so this is
+consistent with the Anthropic guidance rather than independent proof. Pi's `prompts/impl.md`
+is unchanged; Pi runs stock by default (D10).
