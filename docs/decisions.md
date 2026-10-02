@@ -397,3 +397,12 @@ bugs from one repository, three runs each, solved 9/15 in every arm and cost abo
 minutes more per bug. One repository, n=3 per cell, and the author flags variance, so this is
 consistent with the Anthropic guidance rather than independent proof. Pi's `prompts/impl.md`
 received the same cut afterward so the two `/impl` procedures stay in step.
+
+Follow-up 2026-10-02, both items above resolved: `~/AGENTS.md` moved out of `~` once the
+overlay's `codex/AGENTS.md` took over as the Codex global file, and the user-scope plugin set
+was cut to `other-ninety` alone. A `/doctor prompt-audit` run found the removed plugins
+carrying the prompt text this decision strips from our own files (`YOU DO NOT HAVE A CHOICE`
+blocks, reviews delegated to weaker models, a branch-deleting command with no confirmation),
+and every one except the two LSP plugins and `security-guidance` was already disabled. Those
+three were dropped as well to shrink the setup; their usage was not measured, and any one
+is a single `claude plugin install` away.
