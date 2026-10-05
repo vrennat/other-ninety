@@ -47,8 +47,8 @@ In an explicit selection, add `--with pi`.
   skill. These marketplace operations are bootstrap-only; configuration-only
   install does not install the plugin. None of the Claude component requires Pi or Bun.
 - Hooks are activated by settings, not by linking the hook directory. Existing
-  settings remain unchanged; fresh settings enable session discovery, the push
-  guard, and focus, but do not register the WebFetch guard.
+  settings remain unchanged; fresh settings enable session discovery and the push
+  guard, but do not register the WebFetch guard.
 
 ### Private Codex
 

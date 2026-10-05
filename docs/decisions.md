@@ -178,7 +178,7 @@ must still serve the requested outcome. Examples in `docs/autonomy-scenarios.md`
 cover both needless pauses and unsolicited expansion; they are review scenarios,
 not a claim that model behavior has been measured.
 
-## D12. Structural breaks and notifications: warn, do not block — Resolved
+## D12. Structural breaks and notifications: warn, do not block — Superseded
 
 Measured 2026-09-07 over 14 days of transcripts on taiga and tundra: the median
 gap between Claude's reply and the next prompt was 2.8 and 2.4 minutes, with 44%
@@ -211,6 +211,13 @@ streak reset three times because idle was measured from the last prompt, so a
 long agent turn counted as the user stepping away (prompt gaps 13, 15.5, and
 11.4 minutes against true idle of 7.7, 2.5, and 4.8). A Stop hook now records
 the last reply and idle is the gap since the later of prompt and reply.
+
+**Superseded (2026-10-05):** removed entirely — the hook, its settings
+registration, the statusline segment, and the `/retro` evidence line. In use the
+nudges and the injected context added noise to every long session (Claude
+relayed them as break advice mid-task) rather than changing behavior. The
+warn-only design anticipated this exit: if it stopped earning its place, rip it
+out rather than escalate to blocking.
 
 ## D13. Matt Pocock's skills: borrow the mechanics, adopt none of the catalogue — Resolved
 

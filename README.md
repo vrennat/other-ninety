@@ -30,8 +30,8 @@ them from drifting, and keep private context out of the public copy.
 The Claude plugin and Pi configuration work independently. Plugin-only installs
 provide commands, the reviewer, and `clean-writing`; they do not install global
 `CLAUDE.md`, rules, hooks, or global skills. Linked hooks run only when your Claude
-settings register them. Fresh settings enable session discovery, the push guard,
-and focus nudges; the WebFetch guard is available but not enabled there.
+settings register them. Fresh settings enable session discovery and the push guard;
+the WebFetch guard is available but not enabled there.
 
 Pi installs extensions and packages by default. Only the additional o90 behavior
 text is opt-in. See [Pi's README](pi/README.md) for runtime options.

@@ -22,7 +22,7 @@ Improve the environment the agent works in so the next run goes better. The code
    - **Always-loaded text.** A steering line that belongs in a check or a reviewer rule instead, or one the session shows did not change behavior. Settle a disputed no-op by running a session without the line, not by debate.
    - **Tool economy.** An expensive call, a polling loop, or a token-heavy tool with a cheaper equivalent (background Bash plus Monitor, a targeted grep, a smaller model for mechanical work).
    - **Information access.** A fact the agent needed and could not reach: dev server logs, a third-party service, a dashboard. Candidate: read-only access or a tee.
-   - **Session shape.** The focus hook nudged and the session kept going, or work that could have run from a written brief ran interactively. Evidence lives in `~/.local/state/other-ninety/focus.log`.
+   - **Session shape.** Work that could have run from a written brief ran interactively.
 
 3. **Present the candidates** in order of severity: one line each with what the session showed (turn or timestamp), the proposed change, and where it goes. Deletions count as candidates. End with the one to do first.
 
