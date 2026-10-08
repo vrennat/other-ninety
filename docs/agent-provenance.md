@@ -209,7 +209,7 @@ command takes `--actor`, or reads `$BEADS_ACTOR`, and the value lands in a
 structured `author` field rather than in prose:
 
 ```sh
-export BEADS_ACTOR='claude/review · opus-5 · laptop'
+export BEADS_ACTOR='claude/review · <model> · laptop'
 ```
 
 Same four fields, set once when the agent starts, with nothing for it to
