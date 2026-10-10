@@ -217,6 +217,57 @@ esac
             result = self.run_hook("webfetch-guard.sh", {"tool_name": "Bash", "tool_input": {"command": "curl reddit.com"}}, config)
             self.assertEqual(result.returncode, 0)
 
+    def write_transcript(self, path, records):
+        path.write_text("".join(json.dumps(record) + "\n" for record in records))
+
+    def tool_search_result(self, *names):
+        return {"type": "user", "message": {"role": "user", "content": [{
+            "type": "tool_result", "tool_use_id": "t",
+            "content": [{"type": "tool_reference", "tool_name": name} for name in names],
+        }]}}
+
+    def compact_boundary(self, *names):
+        return {"type": "system", "subtype": "compact_boundary",
+                "compactMetadata": {"trigger": "auto", "preCompactDiscoveredTools": list(names)}}
+
+    def test_compact_tools_names_the_latest_boundary_set_plus_later_loads(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            transcript = root / "session.jsonl"
+            self.write_transcript(transcript, [
+                self.tool_search_result("Dropped"),
+                self.compact_boundary("Monitor", "TaskStop"),
+                {"type": "user", "message": {"role": "user", "content": "keep going"}},
+                self.tool_search_result("mcp__claude_ai_Linear__get_issue"),
+            ])
+            result = self.run_hook(
+                "compact-tools.py",
+                {"hook_event_name": "SessionStart", "source": "compact", "transcript_path": str(transcript)},
+                root,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("without ToolSearch: Monitor, TaskStop, mcp__claude_ai_Linear__get_issue.", result.stdout)
+            self.assertNotIn("Dropped", result.stdout)
+            self.assertIn("InputValidationError", result.stdout)
+
+    def test_compact_tools_is_silent_without_loaded_tools_or_outside_compaction(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            empty = root / "empty.jsonl"
+            self.write_transcript(empty, [self.compact_boundary()])
+            loaded = root / "loaded.jsonl"
+            self.write_transcript(loaded, [self.tool_search_result("Monitor")])
+            for payload in (
+                {"source": "compact", "transcript_path": str(empty)},
+                {"source": "startup", "transcript_path": str(loaded)},
+                {"source": "compact", "transcript_path": str(root / "missing.jsonl")},
+                {"source": "compact"},
+            ):
+                with self.subTest(payload=payload):
+                    result = self.run_hook("compact-tools.py", {"hook_event_name": "SessionStart", **payload}, root)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout, "")
+
 
 if __name__ == "__main__":
     unittest.main()

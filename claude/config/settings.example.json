@@ -13,6 +13,16 @@
           }
         ]
       }
+    ,
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/compact-tools.py\""
+          }
+        ]
+      }
     ],
     "PreToolUse": [
       {
