@@ -53,7 +53,7 @@ State the mechanism, not just the prohibition.
 - `<Known-stale docs or config>`
 - `<What is deliberately absent>`
 - `<Other live sessions or worktrees>`
-- `<If isolated: your worktree is the only path you may cd into or write to; other worktrees and the main checkout are out of bounds>`
+- `<If isolated: your worktree is the only path you may cd into or write to; other worktrees and the main checkout are out of bounds. Create and change files with the file-edit tools, not heredocs or inline scripts; use literal paths, not variables or command substitution; run git as plain git <subcommand> from the worktree root. The isolation guard refuses any command it cannot verify statically>`
 
 ## First task: `<RECON ONLY>`. Change nothing.
 
