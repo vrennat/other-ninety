@@ -31,6 +31,7 @@ history can explain does not.
 | D19 | Claude 5-era always-loaded text: second strip | Resolved |
 | D20 | Session audit 2026-10-09: start directory, permissions, push guard, model routing, settings | Resolved |
 | D21 | Second session audit 2026-10-09: text-only push guard, authorization scope, shell environment, repeatable audit | Resolved |
+| D22 | Trim always-loaded guidance for the Claude 5 family | Resolved |
 
 ---
 
@@ -558,3 +559,38 @@ changed in this repository and the options not taken.
 conductor-skill bullets from D20 item 4 are drafted for Tanner, because the classifier refuses
 Claude writing them. Not measured: the next audit should re-count push-guard blocks (baseline 16,
 all false or redundant), NOMATCH and EQUALS errors (1,684 and 220), and bare-approval turns.
+
+## D22. Trim always-loaded guidance for the Claude 5 family — Resolved
+
+Anthropic's Opus 5 prompting guide (read 2026-10-23; the Opus 5.5 guide says Opus 5 prompts carry
+over) says to remove explicit verification instructions such as "use a subagent to verify",
+because they cause over-verification "with no loss in quality" when removed, and notes Opus 5
+already delegates to subagents more readily and widens scope on its own. The Fable 5 guide says
+most behavior can be steered "with a brief instruction rather than enumerating each behavior". An
+inventory measured o90's always-loaded text at about 2,350 tokens with almost no emphatic
+wording, so the problem was direction, not volume.
+
+1. **`rules/verification.md` cut from 2.1 KB to 0.6 KB.** Kept the positive-control and baseline
+   checks, which name specific failures the model does not avoid by default (the guide says Opus
+   5.5 responds to named failure modes). Dropped the general framing and the "source review is not
+   behavioral verification" section.
+2. **Review narrowed.** The adversarial-reviewer pass now covers auth, money, data integrity,
+   security, and hard-to-undo deploys or migrations. "Privacy" and "even when the diff is one
+   line" as blanket triggers are gone; `agents.md` now says not to spawn a subagent to check one's
+   own work.
+3. **`rules/agents.md` cut from 2.6 KB to 1.0 KB.** Kept explicit `model` on every `Agent` call:
+   the guide's "delegates more readily" makes routing more relevant, and D20 item 4 measured the
+   cost of inheriting Opus. Replaced the brief checklist and the two verbatim reporting clauses
+   with one sentence. The clauses stay in the conductor brief template, which loads on demand.
+4. **Authorization block kept, reworded.** Both guides warn about unrequested actions and scope
+   growth, so its meaning is unchanged; it lost little length.
+5. **Duplicates removed** with items 2 and 3: the guide on memory notes that conflicting copies
+   make Claude pick one arbitrarily.
+6. **Conductor skill: no change.** Only the overlay copy is installed, so the public copy costs no
+   context; deleting it would remove the skill from the public repository.
+
+Outside this repository on the same day: the `~/Developer` memory index was pruned, and unused
+claude.ai connectors were listed for Tanner to disconnect (a GUI setting).
+
+Not measured: whether the trimmed rules change behavior. A later session audit should compare
+reviewer-subagent spawns and verification-only tool calls against the 2026-10-09 audits.
