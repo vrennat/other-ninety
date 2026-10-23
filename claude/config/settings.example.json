@@ -12,8 +12,16 @@
             "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/session-intent.py\""
           }
         ]
-      }
-    ,
+      },
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/shell-env.sh\""
+          }
+        ]
+      },
       {
         "matcher": "compact",
         "hooks": [
@@ -31,6 +39,15 @@
           {
             "type": "command",
             "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/pre-push-guard.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|WebFetch|Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/pii-egress-guard.py\""
           }
         ]
       }
