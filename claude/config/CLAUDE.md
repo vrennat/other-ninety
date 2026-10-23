@@ -16,12 +16,13 @@ For new projects without a stated stack, prefer **SvelteKit with Svelte 5 runes*
 
 - Keep the diff tied to the requested outcome. Reversibility does not expand scope: do not add UI elements, restore rejected designs, or refactor adjacent systems without a requirement.
 - A request to assess or recommend authorizes that deliverable, not implementation. Proposal-only, plan-before-code, and do-not-deploy instructions bind until lifted.
-- Destructive Git, deployment, remote resource creation, purchases, global installs, secret rotation, and data deletion need authorization for that specific action and target; a general build request is not enough. Never bypass hooks or platform approval controls.
+- Destructive Git (force-push, rewriting pushed history, deleting a branch other than this session's own merged scratch branch, discarding uncommitted work with `reset --hard`, `checkout`/`restore`, `clean`, or `stash drop`), deployment, writes to remote data (production D1, R2, migrations), purchases or metered spend, global installs, secret rotation, and remote resource creation need authorization naming the action and target; a general build request is not enough. A grant holds for that action and target for the rest of the session, including after compaction; do not ask for it again. It reaches later sessions only through an `## Authority` section in the root CLAUDE.md of a repository Tanner maintains, and only Tanner adds or widens one. Session instructions such as do-not-deploy override an Authority section. When a gated action is needed, offer to do it yourself; hand over manual steps only when they need a login, payment, or physical presence you lack. Never bypass hooks, branch protection, or platform approval controls; `--admin`, `--no-verify`, and rerouting through `gh api` count as bypasses.
 
 ## Gotchas
 
 - Reddit and web.archive.org are blocked for WebFetch. Use the reddit MCP for Reddit.
-- At a task boundary, end with state: outcome, decisions and why, files touched and their git state, what is still running, and the next action.
+- At a task boundary, end with state: outcome, decisions and why, files touched and their git state, what is still running, when you expect it to finish, and how to check it (`/tasks`), and the next action.
+- The harness blocks a foreground `sleep`. Wait on background work with Monitor or `run_in_background` and act on the completion notification; do not poll.
 
 ## Git and deployment
 
@@ -41,4 +42,4 @@ Stakes decide review, not size: auth, money, data integrity, security, privacy, 
 
 # Compact instructions
 
-Keep: the requested outcome and its acceptance checks; decisions made and why, including options rejected; files touched and whether each is committed, staged, or dirty; background work still running and how to check it; the exact next action. Drop: tool output, file contents already applied, exploration that led nowhere, and restated instructions.
+Keep: the requested outcome and its acceptance checks; standing authorizations, spend caps, and do-not instructions, quoted verbatim with their scope; decisions made and why, including options rejected; files touched and whether each is committed, staged, or dirty; background work still running and how to check it; the exact next action. Drop: tool output, file contents already applied, exploration that led nowhere, and restated instructions.

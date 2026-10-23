@@ -23,8 +23,21 @@ Improve the environment the agent works in so the next run goes better. The code
    - **Tool economy.** An expensive call, a polling loop, or a token-heavy tool with a cheaper equivalent (background Bash plus Monitor, a targeted grep, a smaller model for mechanical work).
    - **Information access.** A fact the agent needed and could not reach: dev server logs, a third-party service, a dashboard. Candidate: read-only access or a tee.
    - **Session shape.** Work that could have run from a written brief ran interactively.
+   - **Scratch helpers.** Run `~/.claude/skills/retro/scripts/scratch-helpers.py <transcript.jsonl>`. It lists helper scripts the session wrote to /tmp or the scratchpad and reused three or more times. For each, the candidate is: promote it to the repo's `scripts/` with a usage line, or leave it.
 
 3. **Present the candidates** in order of severity: one line each with what the session showed (turn or timestamp), the proposed change, and where it goes. Deletions count as candidates. End with the one to do first.
+
+## Cross-session mode
+
+When asked to audit many sessions (a week, a month, every repo), mine first, then read only what the numbers point at. The scripts live in `~/.claude/skills/retro/scripts/` and write to `~/.local/state/session-audit/data` (override with `AUDIT_DATA`; never inside a repo, since transcripts can hold pasted secrets and the miner's redaction is pattern-based).
+
+1. `AUDIT_EXCLUDE=<this session id> python3 mine.py` flattens every transcript under `~/.claude/projects` into tool calls, human messages, and per-session stats (about 2 s for 2 GB).
+2. `python3 analyze.py [YYYY-MM-DD]` prints error classes, retry chains, repeated commands, one-off scripts, and user corrections since the date, and writes extracts beside the data.
+3. `python3 ctx.py <session> [call-index] [--before N] [--after M] [--full]` prints the context around one signal. Cite findings as `<session>[<index>]`.
+4. Fan out read-only reviewers by theme when the volume calls for it; each reads the extracts, not raw transcripts.
+5. Compare against the last audit's report so a fix's acceptance check (a count that should drop) is confirmed or refuted. The 2026-10-09 baseline is `~/Developer/session-audit/REPORT.md`; rerun about monthly.
+
+Known limits: the correction regex is about 90% precise; nested-memory attachments are unreliable in main-session transcripts; Codex and pi transcripts need their own adapters. Cost and token usage per week is a separate job (`manabase/scripts/session-audit`, Sunday launchd).
 
 ## Rules
 

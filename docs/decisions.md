@@ -29,6 +29,8 @@ history can explain does not.
 | D17 | Unattended merges require behavior-aware classification | Resolved |
 | D18 | Capture portable private Codex configuration with native profiles | Resolved |
 | D19 | Claude 5-era always-loaded text: second strip | Resolved |
+| D20 | Session audit 2026-10-09: start directory, permissions, push guard, model routing, settings | Resolved |
+| D21 | Second session audit 2026-10-09: text-only push guard, authorization scope, shell environment, repeatable audit | Resolved |
 
 ---
 
@@ -413,3 +415,146 @@ blocks, reviews delegated to weaker models, a branch-deleting command with no co
 and every one except the two LSP plugins and `security-guidance` was already disabled. Those
 three were dropped as well to shrink the setup; their usage was not measured, and any one
 is a single `claude plugin install` away.
+
+## D20. Session audit 2026-10-09: start directory, permissions, push guard, model routing, settings — Resolved
+
+A 14-day audit of every transcript under `~/.claude/projects` (sessions active 2026-09-25 to
+2026-10-09: 341 transcripts, 154 with a human turn, 187 subagent transcripts, about $3.7k notional
+at Opus 5.5 prices fitted from the cost records) found seven things worth changing. Each is here
+because more than one fix was defensible.
+
+1. **Sessions started outside a repository.** 78 of 341 sessions began in `~/Developer`, 55 of
+   them desktop Code-tab or voice sessions. They loaded no project CLAUDE.md, memory, or skills,
+   worktree isolation failed five times, and the SessionStart hook stayed silent by design (D19).
+   - (a) A `~/Developer/CLAUDE.md` telling Claude to move into the target repository. Rejected:
+     Claude Code reads CLAUDE.md from every parent directory, so it would load into every session
+     under `~/Developer`, which is the always-loaded growth D5 and D19 cut.
+   - **(b) The SessionStart hook prints one warning line outside a git repository, naming what is
+     missing and how to reach the target repository's CLAUDE.md and memory index.** ← chosen. It
+     costs context only in the sessions that have the problem. D19's silence was about false
+     "live session" matches on a plain folder; the hook still lists nothing there.
+2. **Permission mode.** Settings default to `bypassPermissions`, but the desktop app remembers the
+   mode selector per folder and that choice overrides `defaultMode` (permission-modes doc, read
+   2026-10-09). The transcripts show auto mode, which drops broad allow rules such as `Bash(*)` and
+   `Agent(*)` on entry and re-reads chat approvals from the transcript, so they vanish at
+   compaction (one session compacted 38 times). 25 classifier blocks, several on deploys and
+   merges the user had just approved in chat.
+   - (a) Turn on bypass in the desktop app per folder. Left to Tanner; it is a GUI toggle.
+   - **(b) Narrow allow rules in the overlay for the recurring blocked operations: `git push`
+     (plain and `git -C`), `bunx wrangler deploy`, `gh pr merge`, and `ssh` to badlands.** ← chosen.
+     Narrow rules survive auto mode and resolve before the classifier; the push guard still runs
+     first, and a hook block beats an allow rule. Compatible with (a).
+     (Revised by D21: an adversarial review found the push, deploy, merge, and ssh rules unsafe
+     as global rules; they were never written, and D21 replaces them.)
+3. **Push guard false positives.** (Superseded by D21: the guard no longer reads a branch at all.) 26% of Bash calls start with `cd`, and the guard resolved the
+   branch from the tool cwd, so five legitimate force-with-lease pushes to `claude/*` branches from
+   worktrees were blocked in three sessions. Fixed in place: a leading `cd DIR` segment names the
+   repo, an unresolvable `cd` falls back to the tool cwd, and the block message names the `git -C`
+   form. No alternative was considered; the hook's own comment already described `git -C` as the
+   intended escape and nothing told the model so.
+4. **Agent model routing.** 166 of 202 `Agent` calls inherited Opus, including mechanical photo and
+   sound labeling batches, and one conductor kept 12 standing Opus teammates for about $542.
+   `rules/agents.md` now requires an explicit `model` on every call; the conductor skill caps
+   standing agents at truly parallel write surfaces, stops idle ones, and reports a blocked item
+   once. The alternative, a hook that rejects an `Agent` call without `model`, was not taken:
+   D12 settled that structural breaks warn rather than block.
+5. **Settings that did not do what they looked like.** The overlay settings still registered the
+   focus hook removed under D12 on three events; converged with the live file. (This item first
+   also claimed `autoCompactWindow: 250000` and `subagentPromptCacheTtl: "1h"` were invalid. The
+   settings reference says otherwise: the top-level key takes a token count from 100000 to 1000000
+   or a percentage string, and the TTL takes `"5m"` or `"1h"`. Both stay as they are; see D21.) Only $4 of recorded usage ran on the `[1m]`
+   model against $742 on plain Opus 5.5, so the `model` setting is not reaching desktop sessions;
+   the desktop dropdown is the fix and is Tanner's.
+6. **Approval friction.** 94 of 480 human turns were a bare approval, and one conductor repeated
+   the same waiting-on-approval line seven times in seven minutes. The scope rule gains one clause:
+   an authorization given for a named action and target holds for the rest of the session. The
+   compact instructions now keep authorizations across compaction.
+7. **Sleep polling.** D19 cut the wait-for-background line as something the harness now handles.
+   The audit counted 454 Bash calls with a blocked foreground `sleep` in 14 days, 365 of them after
+   the D19 strip, so the harness block alone does not stop the attempts. One Gotchas line returns,
+   narrowed to the blocked form and its two replacements.
+
+**Resolution (2026-10-09):** chosen as above. Items 1, 3, 6, 7, and the `rules/agents.md` half of
+4 were applied from the audit session. The auto-mode classifier refused the rest as
+self-modification when the session tried to write them: the overlay `claude/settings.json`
+(items 2 and 5: allow rules and the stale focus hooks)
+and the conductor skill text in both repositories (item 4). Those land by hand or from a bypass
+session; the entry above is the intended diff. Not measured: no paired evaluation. The next audit
+should re-count classifier blocks, push-guard blocks, `sleep` attempts, bare-approval turns, and
+sessions started outside a repository against these baselines.
+
+## D21. Second session audit 2026-10-09: text-only push guard, authorization scope, shell environment, repeatable audit — Resolved
+
+A second, concurrent audit (`~/Developer/session-audit/REPORT.md`: 1,246 transcripts from 2026-07
+to 2026-10-09, six themed read-only reviewers, load-bearing claims re-checked against raw
+transcripts) was merged with D20 on 2026-10-10. Two sessions split the work: the other one took
+the Playwright MCP registration and a benchmark's resume notes. This entry records what
+changed in this repository and the options not taken.
+
+1. **Push guard reads text only.** Supersedes D20 item 3. All 16 of the old guard's blocks came
+   from its non-fast-forward check: 10 on pushes to other branches, 3 on pushes git would have
+   rejected anyway, and the model twice routed around a block with `gh api -X DELETE`.
+   - (a) Keep resolving the branch, but better. Rejected: branch resolution from the tool cwd,
+     `cd`, and `git -C` was the source of every false positive, and git already refuses a
+     non-fast-forward push that is not forced.
+   - **(b) Block only what git does not: a forced or deleting push aimed at main or master,
+     decided from the command text with no git call.** ← chosen. A forced push whose destination
+     is not written (no refspec, `HEAD`, `@`, a variable, `--mirror`) is blocked with a message
+     that names the fix, since the hook cannot tell the branch. An adversarial review found
+     the first text-only draft open to a forced push to main on a second line, after `2>&1`,
+     inside `( )` or `bash -c`, behind `git -c`, as `-uf`, to master, or over ssh; all are fixed and
+     tested (18 hook tests). The ssh exemption is gone: an ssh'd push reaches the same remote.
+     Known false positive: those words inside a quoted string, such as a commit message. Known
+     gap: a destination computed by `$(…)` at run time, and `gh api` ref writes, which no
+     push hook sees.
+2. **Authorization scope (CLAUDE.md Scope, third bullet).** The audit found agents stopping before
+   routine actions and Tanner retyping grants after compaction (C1, C2), and agents handing Tanner
+   work they could do (C3). The first draft let a repository's `## Authority` section grant
+   commits, pushes, merges, and deploys, told agents to "ask once per repo and session", and said
+   "a grant stands until revoked". The review found that an agent could write itself an Authority
+   section, that a cloned repository could carry one, that the unscoped grant leaked across
+   repositories, and that listing destructive Git dropped discarding uncommitted work. Chosen text:
+   destructive Git is spelled out (including `reset --hard`, `clean`, `stash drop`); remote data
+   writes and metered spend are gated; a grant names its action and target and survives
+   compaction; only an Authority section in a repository Tanner maintains carries a grant into
+   later sessions, and only Tanner writes one; session instructions override it; the agent offers
+   to do gated work itself; `--admin`, `--no-verify`, and `gh api` reroutes count as bypasses.
+   "Ask once per repo and session" was dropped: without an Authority section, behavior stays as it
+   was. Which repositories get an Authority section is Tanner's call.
+3. **Allow rules, revising D20 item 2(b).** The review showed each global rule removing the only
+   check on a dangerous shape: `bunx wrangler* deploy` skips mulligan-labs' deploy guard and
+   remote migrations, `gh pr merge *` merges in any repository including with `--admin`,
+   `ssh * badlands *` matches any host, and `git push *` would have left only the hook. None was
+   written (the classifier also refuses Claude writing allow rules into the overlay). The
+   replacement, for Tanner to apply by hand: merge and exact deploy rules in the committed
+   `.claude/settings.json` of solo repositories only; `ssh badlands *` only if Badlands is declared
+   fully trusted; push rules only now that the hook holds; `autoMode` prose that names the real
+   `lane/*` and `integration/*` branches and excludes integration branches in shared repositories,
+   which a second person reviews. Drafts are in `~/Developer/session-audit/HANDOFF.md`.
+4. **D20 item 5 correction.** `autoCompactWindow` and `subagentPromptCacheTtl` are valid as set
+   (settings reference, read 2026-10-10); D20 now says so.
+5. **Shell environment hook.** Bash runs in zsh, where `NOMATCH` and `EQUALS` broke 1,684 and 220
+   commands (an unmatched glob, and a word starting with `=`). PATH also differed by shell
+   snapshot: one lacked `/usr/sbin` (lsof, sysctl), the other put `/usr/bin` first, giving Python
+   3.9 and the Xcode git shim behind the 2026-09-27 license outage. A SessionStart hook (`hooks/shell-env.sh`) appends `setopt NO_NOMATCH
+   NO_EQUALS` and a PATH line to `CLAUDE_ENV_FILE`. Positive control: a headless session failed
+   `echo ===` without the hook and passed with it, resolving python3 and git from Homebrew and
+   lsof from `/usr/sbin`. The alternative, a CLAUDE.md line telling the model to quote, was
+   rejected: it is always-loaded text for a problem a hook removes, and `~/.zprofile` was not
+   used because it would change Tanner's interactive shells too.
+6. **The audit is repeatable.** The miner, analyzer, and context printer moved into
+   `skills/retro/scripts/` with a cross-session mode in the retro skill, rather than a top-level
+   `scripts/session-audit/`, because skills are what `~/.claude` links live. Their data goes to
+   `~/.local/state/session-audit/data`, never a repository, since transcripts hold pasted secrets
+   and the miner's redaction is pattern-based. `scratch-helpers.py` finds scratch scripts a
+   session reused, for the retro skill's new candidate category. No monthly launchd job: the
+   useful part of the audit is model judgment over the extracts, and the weekly cost job in
+   manabase already covers spend.
+7. **Screenshots.** The `shots` skill sweeps viewports with a project's own Playwright, falling back
+   to a pinned `bunx playwright`. It does not use npx by default: npm's cache on this Mac points at
+   an unmounted volume, and npx downloads hang there.
+
+**Resolution (2026-10-10):** items 1, 2, 4, 5, 6, and 7 applied in this repository; item 3 and the
+conductor-skill bullets from D20 item 4 are drafted for Tanner, because the classifier refuses
+Claude writing them. Not measured: the next audit should re-count push-guard blocks (baseline 16,
+all false or redundant), NOMATCH and EQUALS errors (1,684 and 220), and bare-approval turns.

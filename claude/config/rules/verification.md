@@ -6,7 +6,7 @@ Rules for deciding whether a claim is actually established. They apply to my own
 
 Before reporting "no occurrences of X", prove the instrument would have shown X: inject a known input with a greppable signature and confirm it lands. For long watches, re-run that control periodically and treat only the bounded windows as observed. "The process is running" and "the file exists" are not evidence of capture. (Five healthy-looking instruments in one session all reported confident nothing; the positive control caught every one.)
 
-Corollary: **if only failures are logged, "healthy" is indistinguishable from "not looking."** Emit a success signal on key lifecycle events, and choose sampling rates deliberately — head sampling can leave new success logging 90% invisible.
+Corollary: **if only failures are logged, "healthy" is indistinguishable from "not looking."** Emit a success signal on key lifecycle events, make long jobs print a progress line at least every few minutes, and choose sampling rates deliberately — head sampling can leave new success logging 90% invisible.
 
 ## Source review is not behavioral verification
 

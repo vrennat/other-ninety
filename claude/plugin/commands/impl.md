@@ -15,7 +15,7 @@ Execute work. Input is one of:
 
 ## Procedure
 
-1. **Parse input.** A `[A-Z]+-\d+` token with Linear MCP tools available (`mcp__plugin_linear_linear__*` or `mcp__claude_ai_Linear__*`) is a ticket: fetch it. A path is a spec: read it. Anything else is freeform.
+1. **Parse input.** A `[A-Z]+-\d+` token with any Linear MCP tool available (`*__get_issue`; the name prefix varies by client) is a ticket: fetch it. A path is a spec: read it. Anything else is freeform.
 
 2. **Classify clarity and stakes, and print them first.**
    `Clarity: clear/ambiguous | Stakes: normal/high`
