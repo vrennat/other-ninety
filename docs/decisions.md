@@ -594,3 +594,43 @@ claude.ai connectors were listed for Tanner to disconnect (a GUI setting).
 
 Not measured: whether the trimmed rules change behavior. A later session audit should compare
 reviewer-subagent spawns and verification-only tool calls against the 2026-10-09 audits.
+
+## D23: Per-model effort, Haiku routing, and the last Opus-5 mitigations (2026-10-24)
+
+A 2026-10-23 audit (`~/Developer/session-audit/REPORT-2026-10-23-claude-5.5.md`) compared the live
+config and the sessions since 2026-10-09 against the Claude Code settings reference and the
+Claude 5.5 / Fable 5.1 migration guides.
+
+1. **`effortLevel: "high"` was inert.** The settings reference says the top-level key in the user
+   file is ignored by Opus 5.5 and later, which start at `medium` until a level is saved under
+   `modelSettings`. Every session since the move to Opus 5.5 ran at medium. The overlay now sets
+   `modelSettings` per model: Opus 5.5 `high`, Sonnet 5.5 and Haiku 5.5 `medium`, each with
+   `autoCompactWindow: "auto"` in place of the global 250k window (538 compactions in 400 sessions
+   on models with a native 1M window). `[1m]` dropped from the model string; it is a no-op on
+   Opus 4.7 and later.
+2. **Routing names Haiku's work.** 0 of 241 subagents since 10-09 ran on haiku and 211 on opus.
+   `rules/agents.md` now gives examples per tier instead of "mechanical work".
+3. **Fresh-context verification allowed.** D22's "do not spawn a subagent to verify your own work"
+   contradicted the Fable guide (fresh-context verifiers beat self-critique). Replaced with a
+   permission scoped to long builds no test covers.
+4. **Duplicates of Claude Code's own system prompt removed.** The sleep gotcha (36 blocks since
+   10-09, down from 365) and most of the task-boundary recap are now in the harness prompt. The
+   gotcha slot went to browser routing: 185 Claude Browser MCP errors, mostly a hidden pane, were
+   the largest error class; Playwright MCP, muted, is the default.
+5. **"Challenge first" scoped to design discussions**, with an explicit "do not list alternatives
+   you are not recommending": the 5.x guides name alternatives-not-chosen as the elaboration
+   higher effort produces.
+6. **Auto-mode allow entries.** The merge entry was reworded to the imperative shape of the
+   `$defaults` entries (13 Merge Without Review blocks despite it). A new entry permits edits to
+   the two o90 repositories when asked (6 Self-Modification blocks); `bootstrap.sh --apply` still
+   needs the user's instruction.
+7. **Verification anecdote cut** to the rule.
+
+Not changed: conductor public copy (D22 item 6 stands), teammate agent, pi routing (a Haiku/Sonnet
+pilot for scout and impl tiers is proposed, not run), command scaffolds in `/plan` and
+`/brainstorm` (to A/B on Fable).
+
+Acceptance, over the 14 days to 2026-11-07, via the retro pipeline: subagent share on haiku or
+sonnet above 25%; compactions per session below the 1.35 of this window; correction rate not above
+19%; browser MCP errors per session halved; Merge Without Review and Self-Modification blocks near
+zero. `/effort status` in a desktop session confirms the saved level.

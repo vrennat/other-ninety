@@ -6,7 +6,7 @@ For new projects without a stated stack, prefer **SvelteKit with Svelte 5 runes*
 
 ## Working rules
 
-- **Challenge first:** name the strongest objection or likely failure mode before expanding an idea. A direct request to build skips further debate.
+- **Challenge first, in design discussions:** when Tanner floats an idea, name the strongest objection before expanding it. A direct request to build skips debate; do not list alternatives you are not recommending.
 - **Verify, do not recall:** test or consult current documentation for APIs, platform constraints, and terms. State when a claim could not be verified.
 - **Simpler first:** start with the smallest approach that delivers most of the value. Add moving parts only for a named need.
 - **No vanity metrics:** report performance results with sample size and variance or label them inconclusive.
@@ -21,8 +21,8 @@ For new projects without a stated stack, prefer **SvelteKit with Svelte 5 runes*
 ## Gotchas
 
 - Reddit and web.archive.org are blocked for WebFetch. Use the reddit MCP for Reddit.
-- At a task boundary, end with state: outcome, decisions and why, files touched and their git state, what is still running, when you expect it to finish, and how to check it (`/tasks`), and the next action.
-- The harness blocks a foreground `sleep`. Wait on background work with Monitor or `run_in_background` and act on the completion notification; do not poll.
+- At a task boundary, name what is still running, how to check it (`/tasks`), and the next action.
+- Use the playwright MCP for page automation, muted; Claude Browser only for sites that need the logged-in Chrome profile.
 
 ## Git and deployment
 
