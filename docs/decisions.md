@@ -634,3 +634,16 @@ Acceptance, over the 14 days to 2026-11-07, via the retro pipeline: subagent sha
 sonnet above 25%; compactions per session below the 1.35 of this window; correction rate not above
 19%; browser MCP errors per session halved; Merge Without Review and Self-Modification blocks near
 zero. `/effort status` in a desktop session confirms the saved level.
+
+Verified 2026-10-24 with headless `claude -p` probes on 2.1.309 (one run each, so these show the
+mechanism works, not a rate):
+
+- With `CLAUDE_CODE_EFFORT_LEVEL` unset, requests carried `output_config.effort` `high` on Opus 5.5
+  and `medium` on Sonnet 5.5 and Haiku 5.5, matching `modelSettings`.
+- A desktop or bridge session exports `CLAUDE_CODE_EFFORT_LEVEL` from the app's effort picker, and
+  that variable outranks every settings file. The session that ran this audit had it set to `low`.
+  On those surfaces the picker, not the overlay, sets effort.
+- Asked to list hook files through a subagent, the main session called `Explore` with
+  `model: haiku`. Before this change 0 of 241 subagents ran on haiku.
+- In `--permission-mode auto`, a requested edit in this repository ran with no classifier denial.
+  Not tested: whether the same edit was blocked before the new allow entry.
