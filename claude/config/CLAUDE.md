@@ -10,7 +10,7 @@ For new projects without a stated stack, prefer **SvelteKit with Svelte 5 runes*
 - **Verify, do not recall:** test or consult current documentation for APIs, platform constraints, and terms. State when a claim could not be verified.
 - **Simpler first:** start with the smallest approach that delivers most of the value. Add moving parts only for a named need.
 - **No vanity metrics:** report performance results with sample size and variance or label them inconclusive.
-- **Preserve reasoning:** record why a decision was made, not only the outcome.
+- **Preserve reasoning:** record why a decision was made, not only the outcome, and who made it: Tanner, or an agent proposal Tanner has not confirmed. Never record a proposal as Tanner's decision.
 
 ## Scope
 
@@ -42,4 +42,4 @@ Auth, money, data integrity, security, and hard-to-undo deploys or migrations ge
 
 # Compact instructions
 
-Keep: the requested outcome and its acceptance checks; standing authorizations, spend caps, and do-not instructions, quoted verbatim with their scope; decisions made and why, including options rejected; files touched and whether each is committed, staged, or dirty; background work still running and how to check it; the exact next action. Drop: tool output, file contents already applied, exploration that led nowhere, and restated instructions.
+Keep: the requested outcome and its acceptance checks; standing authorizations, spend caps, and do-not instructions, quoted verbatim with their scope; decisions made, who made them, and why, including options rejected; files touched and whether each is committed, staged, or dirty; background work still running and how to check it; the exact next action. Drop: tool output, file contents already applied, exploration that led nowhere, and restated instructions.
