@@ -22,6 +22,11 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+      # The shell-env hook test exercises zsh and checks discovery of lsof.
+      - name: Install shell test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes zsh lsof
       - uses: oven-sh/setup-bun@v2
       # Same entry point as local, so the two cannot drift.
       - run: scripts/verify.sh
