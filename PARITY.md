@@ -12,6 +12,8 @@ Parity means the public toolkit preserves reusable behavior from the private sou
 - [ ] The plugin ships no SessionStart hook; the global `CLAUDE.md` carries the routing and stakes rules (D15).
 - [ ] `/impl` prints clarity and stakes before editing, completes authorized work within scope, dispatches `adversarial-reviewer` on high stakes regardless of diff size, and ends with at most one `docs/lessons.md` line or `Lesson: none`. Use `docs/autonomy-scenarios.md` to review the scope boundary.
 
+- [ ] Claude `/impl`, Pi `/impl`, and the Pi validator record baseline/final identity, commands/cwd/exit status/evidence, separate requested and preserved behavior, scrutinize test changes, and use PASS/FAIL/INCONCLUSIVE with missing decisive evidence blocking completion.
+
 ## Global Claude configuration
 
 - [ ] Public `CLAUDE.md`, rules, hooks, and agents install as links without private context. Hooks run only when registered in settings; plugin-only does not install global configuration.

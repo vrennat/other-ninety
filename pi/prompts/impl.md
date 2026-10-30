@@ -34,6 +34,7 @@ Execute this work end-to-end: $ARGUMENTS
 6. **Verify**
    - Run checks appropriate to the change and all checks required by the repository. Exercise the changed behavior and summarize commands, results, and any gaps. State what remains unverified.
    - Stop after three failed repair cycles and report the evidence. Remove temporary debug output before reporting.
+   - Record a compact verification receipt in the report or a linked artifact: baseline and final commit/tree (identify uncommitted diff and untracked inputs), requested-behavior and preserved-behavior checks separately, and each check's command, cwd, exit status, observed result, and relevant output/artifact. Bind pre-commit verification to the resulting commit and rerun affected checks after later content changes. Scrutinize changed/deleted tests; for high stakes, use proportionate baseline regression checks against final code in an isolated copy when feasible, explaining legitimate incompatibilities. Keep secrets out of evidence. Verdict: PASS only with adequate passing evidence for every decisive check; FAIL for demonstrated defects; INCONCLUSIVE for missing, skipped, stale, or untrustworthy decisive evidence. Known failure takes precedence; optional skips need reasons. FAIL or INCONCLUSIVE cannot claim ready or complete. This receipt records evidence, not an isolation boundary.
    - Ask for evidence only when unavailable locally. Do not claim completion if verification fails or was skipped without explanation.
 
 7. **Linear Status Update**
@@ -46,7 +47,7 @@ Execute this work end-to-end: $ARGUMENTS
 9. **Report**
 ```
 Files modified: <list of absolute paths>
-Verification: <commands and results>
+Verification: <receipt and PASS | FAIL | INCONCLUSIVE>
 Lesson: <the line appended | none>
 Next: <remaining blocker or decision | none>
 ```

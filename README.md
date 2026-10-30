@@ -169,6 +169,18 @@ The repository hook runs plugin lint and the leak scanner before pushes. The
 verification script also runs installer and bootstrap tests, shell and JSON
 checks, Pi typechecking, and Pi tests.
 
+## Verification evidence
+
+Implementation reports carry a compact verification receipt tying checks to the
+baseline and final work, with commands, exit status, behavior evidence, and an
+explicit PASS, FAIL, or INCONCLUSIVE verdict. Requested behavior and preserved
+behavior are checked separately; test changes receive scrutiny. See
+[verification guidance](claude/config/rules/verification.md). Claude's plugin
+command and Pi's implementation prompt and validator carry the same agreement
+without relying on global Claude rules. Codex has no public adapter here;
+private overlays require a separate adoption change. These are reporting
+practices, not mechanically enforced merge gates.
+
 ## Release policy
 
 Publishing a release and changing live configuration are separate actions. A
@@ -192,6 +204,11 @@ Michael Lam's [`mical-pi`](https://github.com/Michaelyklam/mical-pi). Later
 clean-writing refinements draw on Michael's clean-writing guidance and Lauren
 Tan's [`unslop`](https://github.com/cursor/plugins/blob/main/pstack/skills/unslop/SKILL.md)
 skill.
+
+The verification receipt, requested/preserved behavior distinction, and explicit
+inconclusive outcome draw on ideas in
+[Assure](https://github.com/mgasparin67-cmd/Agent-verification_Assure). The guidance
+is written for this toolkit; it does not incorporate Assure's runner or code.
 
 ## License
 

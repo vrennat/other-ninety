@@ -34,7 +34,9 @@ Execute work. Input is one of:
 
 8. **Verify.** Run checks appropriate to the change and all checks required by the repository. Exercise the changed behavior and summarize commands, results, and any gaps. State what remains unverified. Stop after three failed repair cycles and report the evidence. Remove temporary debug output before reporting.
 
-9. **Ticket:** move it to "In Review".
+   Record a compact verification receipt in the report or a linked artifact: baseline and final commit/tree (identify uncommitted diff and untracked inputs), requested-behavior and preserved-behavior checks separately, and each check's command, cwd, exit status, observed result, and relevant output/artifact. Bind pre-commit verification to the resulting commit and rerun affected checks after later content changes. Scrutinize changed/deleted tests; for high stakes, use proportionate baseline regression checks against final code in an isolated copy when feasible, explaining legitimate incompatibilities. Keep secrets out of evidence. Verdict: PASS only with adequate passing evidence for every decisive check; FAIL for demonstrated defects; INCONCLUSIVE for missing, skipped, stale, or untrustworthy decisive evidence. Known failure takes precedence; optional skips need reasons. FAIL or INCONCLUSIVE cannot claim ready or complete. This receipt records evidence, not an isolation boundary.
+
+9. **Ticket:** move it to "In Review" only when verification is PASS.
 
 10. **Capture one lesson, or none.** Append at most one line to `docs/lessons.md` (create it if absent) as `- YYYY-MM-DD <area>: <what would have saved time if known up front>`, only if a future agent could not derive it from the code, tests, git history, or repo instructions. Otherwise report `Lesson: none`. `/trim docs/lessons.md` prunes the file.
 
@@ -42,7 +44,7 @@ Execute work. Input is one of:
 
 ```
 Files modified: <list>
-Verification: <commands and results>
+Verification: <receipt and PASS | FAIL | INCONCLUSIVE>
 Lesson: <line | none>
 Next: <remaining blocker or decision | none>
 ```
