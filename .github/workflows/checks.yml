@@ -16,6 +16,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # On a pull request, check the branch itself, not GitHub's test merge
+          # commit: GitHub authors that commit with the account's private email,
+          # so check-leaks would fail every PR on a commit that never lands.
+          # main is fast-forwarded, so the branch head is what lands.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           # lint-plugin reads the latest tag; check-leaks reads history.
           fetch-depth: 0
           fetch-tags: true
