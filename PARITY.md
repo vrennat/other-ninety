@@ -7,7 +7,7 @@ Parity means the public toolkit preserves reusable behavior from the private sou
 - [ ] Manifests parse and agree on name `other-ninety` and version `0.5.2`.
 - [ ] Commands load: `brainstorm`, `impl`, `plan`, `trim`.
 - [ ] Agents load: `adversarial-reviewer`.
-- [ ] Skills load: `clean-writing`.
+- [ ] Skills load: `clean-writing`, `design-taste`.
 - [ ] `scripts/test_parity.py` keeps the lists in this file and the public `CLAUDE.md` equal to the tree.
 - [ ] The plugin ships no SessionStart hook; the global `CLAUDE.md` carries the routing and stakes rules (D15).
 - [ ] `/impl` prints clarity and stakes before editing, completes authorized work within scope, dispatches `adversarial-reviewer` on high stakes regardless of diff size, and ends with at most one `docs/lessons.md` line or `Lesson: none`. Use `docs/autonomy-scenarios.md` to review the scope boundary.
@@ -27,7 +27,7 @@ Parity means the public toolkit preserves reusable behavior from the private sou
 - [ ] Eight routed agents are available.
 - [ ] Prompt templates load: `brainstorm`, `impl`, `plan`, `research`, `status`, `tdd`, `trim`.
 - [ ] `/impl` classifies clarity and stakes, defaults to the main session, delegates for independent work, isolated exploration, or fresh review, and requires `adversarial-reviewer` for high stakes. It verifies appropriate behavior and stops after three failed repair cycles.
-- [ ] Skills load: the Claude plugin's `clean-writing`; `pi/skills/` holds only deliberate per-skill overrides and is currently empty.
+- [ ] Skills load: the Claude plugin's `clean-writing` and `design-taste`; `pi/skills/` holds only deliberate per-skill overrides and is currently empty.
 - [ ] Extensions typecheck and the focused Chrome extension tests pass.
 - [ ] Five themes load, including the high-contrast Tokyo Night variant.
 - [ ] Public settings and agent definitions contain no default provider, model routing, enabled-model cycle, or credentials.

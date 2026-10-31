@@ -14,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "scripts" / "install.py"
 DRIFT_CHECKER = ROOT / "scripts" / "check_drift.py"
-PUBLIC_SKILLS = {"clean-writing"}
+PUBLIC_SKILLS = {"clean-writing", "design-taste"}
 PUBLIC_AGENTS = {"adversarial-reviewer"}
 CANONICAL_OUTPUT_STYLE = (ROOT / "shared" / "output-style.md").read_text().strip()
 

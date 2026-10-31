@@ -21,14 +21,14 @@ them from drifting, and keep private context out of the public copy.
 
 | Surface | Contents | Source |
 |---|---|---|
-| Claude plugin | `/brainstorm`, `/impl`, `/plan`, `/trim`; the `adversarial-reviewer` agent; the `clean-writing` skill | `claude/plugin/` |
+| Claude plugin | `/brainstorm`, `/impl`, `/plan`, `/trim`; the `adversarial-reviewer` agent; the `clean-writing` and `design-taste` skills | `claude/plugin/` |
 | Claude config | Public-safe global `CLAUDE.md`, `rules/`, hooks, the `teammate` agent protocol, and reusable skills (`conductor`, `i-have-adhd`, `wizard`, `summarize`, `svelte5-best-practices`, `retro`, `ponytail`) | `claude/config/` |
 | Pi | Agents, extensions, prompt templates, themes, and pinned packages; the o90 behavior text is opt-in (`--with pi-text`) | `pi/` |
 | Private Codex config | Overlay-only personal instructions and a portable named profile; no public Codex adapter | `--with codex` |
 | Repository tooling | Bootstrap, rollback, drift, leak, and verification checks | `bootstrap.sh`, `install.sh`, `scripts/` |
 
 The Claude plugin and Pi configuration work independently. Plugin-only installs
-provide commands, the reviewer, and `clean-writing`; they do not install global
+provide commands, the reviewer, `clean-writing`, and `design-taste`; they do not install global
 `CLAUDE.md`, rules, hooks, or global skills. Linked hooks run only when your Claude
 settings register them. Fresh settings enable session discovery and the push guard;
 the WebFetch guard is available but not enabled there.

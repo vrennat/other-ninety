@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
-PUBLIC_SKILLS = {"clean-writing"}
+PUBLIC_SKILLS = {"clean-writing", "design-taste"}
 PUBLIC_AGENTS = {"adversarial-reviewer"}
 
 class BootstrapTests(unittest.TestCase):
