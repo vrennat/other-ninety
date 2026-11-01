@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
+import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 
-from scripts.check_leaks import RULES, compile_private_pattern, fingerprint, scan_history, scan_text
+from scripts.check_leaks import RULES, compile_private_pattern, fingerprint, history, scan_history, scan_text
 
 
 class PrivatePatternTest(unittest.TestCase):
@@ -49,6 +52,19 @@ class PrivatePatternTest(unittest.TestCase):
             scan_history([("new-commit", email)], rules, baseline),
             ["git-history:new-commit: email address"],
         )
+
+
+class HistoryTest(unittest.TestCase):
+    def test_commit_identity_is_skipped_but_message_is_scanned(self) -> None:
+        email = "person" + "@" + "private.test"
+        trailer = "other" + "@" + "private.test"
+        with tempfile.TemporaryDirectory() as tmp:
+            git = ["git", "-C", tmp, "-c", "user.name=P", "-c", f"user.email={email}"]
+            subprocess.run(["git", "init", "-q", tmp], check=True)
+            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", f"msg\n\nCo-authored-by: O <{trailer}>"], check=True)
+            text = "".join(body for _, body in history(Path(tmp)))
+        self.assertNotIn(email, text)
+        self.assertIn(trailer, text)
 
 
 if __name__ == "__main__":

@@ -78,7 +78,9 @@ def history(root: Path) -> list[tuple[str, str]]:
             str(root),
             "log",
             "--all",
-            "--format=%x1e%H%x1f%an <%ae>%n%cn <%ce>%n%B",
+            # Author and committer identity are left out: GitHub shows them on every commit, and its own merges
+            # stamp the account's primary email there. Messages (trailers included) and patches are still scanned.
+            "--format=%x1e%H%x1f%B",
             "--patch",
             "--no-color",
         ],
