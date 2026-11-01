@@ -63,10 +63,11 @@ animation a `prefers-reduced-motion` fallback.
 
 ## 6. Blind critic
 
-Before calling visual work done, take screenshots at 390 and 1440 wide (the
-`shots` skill where installed, else Playwright). Give a fresh-context subagent,
-no weaker than the builder, only the screenshots, the manifest's house rules,
-and any reference images: no diff, builder notes, or statement of intent. It
+Before calling visual work done, screenshot the screen in use (not a title or
+empty state) at 390 and 1440 wide with `shots` (its `stats` check catches blank
+frames), else Playwright. Give a fresh-context subagent, no weaker than the
+builder, only the screenshots, house rules, reference images, and, if any, two
+anchors the user called weak and good: no diff, notes, or statement of intent. It
 scores 1–10 on the rubric and names the three worst problems, each tied to a
 place on a screenshot. Fix them, re-shoot, and ask a new critic. Stop at 9 or
 after three rounds, reporting each round's score and changes; if the score
@@ -74,4 +75,6 @@ stalls for two rounds, stop and show the user, because the brief or rubric is wr
 
 Rubric: follows the house rules; one clear focus per screen; weight matches
 importance; nothing looks like a default nobody chose; reads at phone width;
-content is real and complete. The score is evidence, not the user's verdict.
+content is real and complete; no text explaining what the screen shows. Capped
+at 5: clipped or overlapping text, a blank or loading frame, or glow, blur or
+darkness standing in for content. The score is evidence, not the user's verdict.
