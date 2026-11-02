@@ -673,7 +673,9 @@ reached early in the day. Neither source measured quality or time saved.
 - (c) Run one trial first and decide afterwards (the magpie entry's original verdict).
 
 **Resolution (2026-11-01):** Tanner chose to integrate both now, which rules out (c). The
-placement and the details below are agent proposals Tanner has not confirmed:
+placement and the details below were agent proposals, and Tanner confirmed items 1, 2, 3 (the
+main session merges lanes, no merger agent) and 6 on 2026-11-02. Items 4 and 5 were not put to
+him separately:
 
 1. **Fan-out threshold: three or more slices with distinct owned files.** Below that the merge
    overhead outweighs the parallelism, and slices that share files conflict.
