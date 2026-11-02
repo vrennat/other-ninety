@@ -28,7 +28,7 @@ Execute work. Input is one of:
 
 5. **Ticket:** move it to "In Progress".
 
-6. **Implement in this session.** Delegate for parallel work on disjoint write surfaces, isolating noisy exploration, or independent review. Size alone is not a reason. With `--tdd`, write the test, run it, show the failure, then implement.
+6. **Implement in this session.** Delegate for parallel work on disjoint write surfaces, isolating noisy exploration, or independent review. Size alone is not a reason. A spec that splits into three or more independent slices goes through the ticket graph below. With `--tdd`, write the test, run it, show the failure, then implement.
 
 7. **Review.** High stakes: dispatch `adversarial-reviewer` after implementation, whatever the diff size or a request for speed, and resolve blocking findings before claiming done. Changes spanning multiple systems also benefit from a fresh review. When the input was a spec or ticket, review fidelity too: requirements missing or partial, behavior nobody asked for, and requirements that look done but wrong, each with the source line quoted.
 
@@ -48,6 +48,18 @@ Verification: <receipt and PASS | FAIL | INCONCLUSIVE>
 Lesson: <line | none>
 Next: <remaining blocker or decision | none>
 ```
+
+A ticket-graph run adds `Fan-out: <slices>, peak <n> parallel, conflicts <lane>/<integration>`.
+
+## Ticket graph
+
+Use it when the work splits into three or more slices that each own distinct files and can be verified alone. Fewer slices, or slices that share files, are built in this session.
+
+1. **Draw the graph.** List each slice: what it delivers end to end, its owned paths, its verification command, and the slices that block it. A slice is vertical, a narrow complete path that can be demoed or tested alone; shared prefactoring is its own first slice. Print the graph before dispatching.
+2. **Branch.** Create `integration/<slug>` from the base branch and check it out here, so agent worktrees start from it.
+3. **Dispatch the frontier.** For each slice whose blockers have all merged, start a background implementer on Sonnet with `isolation: "worktree"`, at most three at once. Its brief points at the spec and names its slice, owned paths, and verification command. It confirms its branch starts from the `integration/<slug>` tip and resets onto it if not. Before reporting done, it merges the current tip into its own branch, resolves any conflict there, and reruns its checks.
+4. **Merge each lane.** When an implementer reports, merge its branch into `integration/<slug>` with `--no-ff` and run the repository checks. If the tip moved since the lane's merge and this merge conflicts, resume that implementer with `SendMessage` to merge again rather than resolving it here. Then dispatch whatever the merge unblocked.
+5. **Close.** After the last merge, step 7 reviews the whole integration branch once against the spec; fix the findings in one fresh implementer. Step 8 verifies the integration branch. Remove the lane worktrees. Landing `integration/<slug>` on the base branch follows the existing authorization rules.
 
 ## Rules
 
