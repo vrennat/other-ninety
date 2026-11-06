@@ -29,8 +29,8 @@ in (feed, dashboard, list, editor, settings). Most projects are mostly app scree
 - **Pages:** also watch for the stock sequence (hero, logo strip, three icon
   cards, testimonial, pricing, call to action), label chips above headlines,
   cards inside cards, gradient text, equal weight everywhere, vague headlines.
-- A choice the manifest records, such as retro chrome, is not a tell. Judge
-  against the manifest before any generic list or third-party checker.
+- A choice the manifest records, such as retro chrome, is not a tell. Judge against the manifest before any generic list or third-party checker.
+- **Restyling a screen that already works:** follow `references/restyle.md`.
 
 ## 3. A new page or look
 
