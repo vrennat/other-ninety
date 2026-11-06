@@ -647,3 +647,29 @@ mechanism works, not a rate):
   `model: haiku`. Before this change 0 of 241 subagents ran on haiku.
 - In `--permission-mode auto`, a requested edit in this repository ran with no classifier denial.
   Not tested: whether the same edit was blocked before the new allow entry.
+
+## D25. `Explore` finds code; audits go elsewhere — Resolved
+
+Tanner approved this on 2026-11-05, on an agent proposal made after reviewing a thread that
+recommended overriding `Explore` with `model: haiku`.
+
+`rules/agents.md` now sends audits, bug hunts, and diagnoses to `general-purpose`, or to
+`adversarial-reviewer` at its stakes.
+
+Why: in 30 days of transcripts on one machine, 6 of the 27 `Explore` runs with matching subagent
+logs were audits or diagnoses (42 calls in all, 15 unmatched). The `Explore` tool description says
+it "locates code; it doesn't review or audit it", and the
+[subagent docs](https://code.claude.com/docs/en/sub-agents) say it starts without CLAUDE.md files,
+so those runs had no project rules. There is no evidence that they missed anything, so this is a
+fit-for-purpose rule, not a measured fix.
+
+Rejected, agent recommendation Tanner did not contest:
+
+- **`~/.claude/agents/Explore.md` with `model: haiku`.** A per-call `model` outranks frontmatter
+  and 37 of the 42 calls passed one, so only 5 would change. `Explore` was under 1% of tokens
+  (0.12% of cache reads, 0.56% of fresh input). The docs also say a custom agent loads CLAUDE.md
+  files unless `omitClaudeMd` is set, which could raise the cost per run (not tested).
+- **`CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1`.** It ignores frontmatter and per-call models, which breaks
+  "a reviewer is never weaker than the author".
+
+Check: re-count audit-style `Explore` calls after 30 days with the same transcript scan.
