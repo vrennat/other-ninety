@@ -28,6 +28,8 @@ history can explain does not.
 | D16 | Cut workflow layers and share configuration ownership | Resolved |
 | D17 | Unattended merges require behavior-aware classification | Resolved |
 | D18 | Capture portable private Codex configuration with native profiles | Resolved |
+| D27 | Activity map: where the mod ships | Resolved |
+| D28 | Activity map: the o90-specific part of v1 | Resolved |
 | D19 | Claude 5-era always-loaded text: second strip | Resolved |
 | D20 | Session audit 2026-10-09: start directory, permissions, push guard, model routing, settings | Resolved |
 | D21 | Second session audit 2026-10-09: text-only push guard, authorization scope, shell environment, repeatable audit | Resolved |
@@ -673,3 +675,42 @@ Rejected, agent recommendation Tanner did not contest:
   "a reviewer is never weaker than the author".
 
 Check: re-count audit-style `Explore` calls after 30 days with the same transcript scan.
+
+## D27. Activity map: where the mod ships — Resolved
+
+Raised 2026-11-11 by an agent while speccing the o90-native activity map
+(`docs/specs/2026-11-11-activity-map-design.md`). Tanner chose an o90-native mod over vendoring
+lot-map the same day.
+
+The mod hooks every tool call and model step and sees each call's full input. The public
+`other-ninety` plugin ships no SessionStart hook (D15), and people who install it for the commands
+did not sign up for that.
+
+- **a.** Inside the `other-ninety` plugin, on for everyone who installs it.
+- **b.** A second plugin, `o90-map`, in the same `other-ninety` marketplace and repository, versioned
+  and released with o90; the private overlay's `settings.json` enables it for Tanner.
+  **(recommended)** It is still o90's own code, released through o90, but public installs opt in.
+- **c.** Private overlay only.
+
+**Resolution (Tanner, 2026-11-11): a.** The map ships inside `other-ninety`, on for every install,
+against the agent's recommendation of b. Consequence for D15: the plugin now carries a hooks
+module. D15's concern was text injected into the model's context, so the constraint becomes "the
+plugin adds nothing to the conversation or the system prompt"; the map only draws a pane.
+
+## D28. Activity map: the o90-specific part of v1 — Resolved
+
+Raised 2026-11-11 with D27. The core (stations by kind of work, pulses, clock hands on long calls,
+context ring, recent-call feed) is what lot-map showed people want. What makes it o90's own is
+open.
+
+- **a.** Core only; o90-specific stations wait for a need.
+- **b.** Core plus a **gate** marker: calls that match o90's gated actions (push, deploy, remote
+  data writes, migrations, global installs) get a distinct mark and their own feed rows, so a
+  gated step shows on the map before or as it happens. **(recommended)** It is the one thing
+  o90 knows that a generic map does not, and the matcher already has a source of truth in
+  `CLAUDE.md`'s gated list.
+- **c.** b plus linked side sessions as satellites. Not recommended for v1: the mod API exposes
+  this session only (no cross-session event found in the 2.1.321 types), so it would need a new
+  data path.
+
+**Resolution (Tanner, 2026-11-11): b**, as recommended.
