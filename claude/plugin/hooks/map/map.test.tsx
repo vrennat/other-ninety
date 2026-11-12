@@ -28,6 +28,7 @@ function engine(on: On, answer: Record<string, unknown> = { result: {} }) {
   on('clock.now', () => ({ value: 1_000_000 }))
   on('command.register', () => ({ value: { command: 'map' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('turn.complete', (_, e) => e as never)
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('tool.call', () => answer as never)
 }
@@ -252,4 +253,13 @@ test('programs: shell keywords and cd are skipped, the real programs named in or
   expect(classify({ tool: 'Bash', command: 'for f in *.ts; do cat $f; done' } as never).programs).toEqual(['cat'])
   expect(classify({ tool: 'Bash', command: 'cd /r' } as never).label).toBe('cd')
   expect(classify({ tool: 'Bash', command: 'cd /r && ls', description: 'List' } as never)).toEqual({ station: 'files', label: 'List', programs: ['ls'] })
+})
+
+test('a pane the engine could not place leaves the button up', async ($, on) => {
+  on('clock.now', () => ({ value: 1_000_000 }))
+  on('ui.open', () => ({ value: { isPlaced: false, reason: 'not placed in this test' } }))
+  const spin = await $.ui.mount({ ...SPINNER, surface: 'desktop' })
+  await spin.press({ key: 'o90-map-open' })
+  expect((await spin.find({ type: 'Button' }))?.text).toBe('Show map')
+  await spin.unmount()
 })

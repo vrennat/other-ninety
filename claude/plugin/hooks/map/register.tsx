@@ -80,8 +80,10 @@ async function finish($: EngineInterface, id: string | undefined, status: Exclud
 
 async function openPane($: EngineInterface): Promise<void> {
   await quietly(async () => {
-    await $.ui.open({ id: PANE, title: TITLE })
-    await update($, isMapOpen, () => true)
+    // A pane the engine could not place yet waits undrawn: only a placed one counts as open,
+    // so the button beside the spinner stays until the map is really on screen.
+    const { isPlaced } = await $.ui.open({ id: PANE, title: TITLE })
+    await update($, isMapOpen, () => isPlaced)
   })
 }
 
@@ -92,6 +94,30 @@ export const register: Register = on => {
     // A reload may name no surface; opening there is harmless (nothing places it) and keeps
     // the pane up in the desktop app when the plugin reloads mid-session.
     if (e.surface !== 'terminal') void openPane($)
+    return next(e)
+  })
+
+  // The desktop app and VS Code attach after the session starts: open the map when one does.
+  on('session.attach', async ($, e, next) => {
+    if (e.surface !== 'terminal') void openPane($)
+    return next(e)
+  })
+
+  // A turn that ends (stopped, failed or answered) leaves nothing running on the map.
+  on('turn.complete', async ($, e, next) => {
+    if (!('agentId' in e && e.agentId)) {
+      const status: Status = e.reason === 'answer' ? 'ok' : 'err'
+      const now = await quietly(() => $.clock.now())
+      if (now !== undefined) {
+        await quietly(() =>
+          update($, board, b =>
+            b.entries.some(x => x.status === 'run')
+              ? { ...b, entries: b.entries.map(x => (x.status === 'run' ? { ...x, status, endedAt: now } : x)) }
+              : b,
+          ),
+        )
+      }
+    }
     return next(e)
   })
 
