@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { Board, Entry, StationId, Status } from '../../types'
 import { classify, clean } from './classify'
-import { describeNow, drawMap, feedRows, trimHistory } from './draw'
+import { STATIONS, describeNow, drawMap, feedRows, trimHistory } from './draw'
 
 /**
  * The o90 activity map: a pane beside the chat that draws where the work
@@ -23,6 +23,9 @@ const board = atom({ plugin: 'other-ninety', key: 'board' } as const, { entries:
 
 /** Whether the map pane is up: while it is not, a button above the prompt offers to open it. */
 const isMapOpen = atom({ plugin: 'other-ninety', key: 'isMapOpen' } as const, false)
+
+/** The station the feed is narrowed to, or null for every station. */
+const filter = atom({ plugin: 'other-ninety', key: 'filter' } as const, null as StationId | null)
 
 /** Whatever goes wrong on the map must never reach a tool call or a turn. */
 async function quietly<T>(work: () => Promise<T>): Promise<T | undefined> {
@@ -201,12 +204,23 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const ui = $.ui.resolve(e)
-    const { Box, Text } = ui
+    const { Box, Text, Button } = ui
     // The terminal's table has no Svg: it gets the text version.
     const DrawSvg = 'Svg' in ui ? ui.Svg : undefined
     const b = await read($, board)
+    const only = await read($, filter)
     const now = await $.clock.now()
-    const rows = feedRows(b, 16)
+    const rows = feedRows(b, 16, only)
+    // One chip per station that has done work; pressing one narrows the feed, pressing it again clears.
+    const used = STATIONS.filter(st => (b.counts[st.id] ?? 0) > 0)
+    const chips = used.map(st => (
+      <Button
+        key={`o90-map-chip-${st.id}`}
+        label={`${st.name} ${b.counts[st.id] ?? 0}`}
+        dimColor={only !== null && only !== st.id}
+        onPress={() => update($, filter, cur => (cur === st.id ? null : st.id))}
+      />
+    ))
     // The desktop draws an Svg at the size it is given, not at the slot: size it to the pane.
     // About 9.2 px per column, measured in the desktop Code tab on 2026-11-12 (46 columns); 9 stays inside.
     const side = Math.max(240, Math.min(900, Math.round((e.props.bodyColumns ?? 48) * 9)))
@@ -229,12 +243,16 @@ export const register: Register = on => {
             alt={`Activity map: ${describeNow(b)}`}
             width={side}
             height={side}
-            isInteractive
           />
         ) : (
           <Text dimColor>{counts || 'No activity yet.'}</Text>
         )}
-        <Text>{describeNow(b)}</Text>
+        {chips.length > 0 && (
+          <Box flexDirection="row" flexWrap="wrap" gap={1}>
+            {chips}
+          </Box>
+        )}
+        <Text>{only === null ? describeNow(b) : `${describeNow(b)} · showing ${only} only`}</Text>
         {rows.length === 0 ? <Text dimColor>No calls yet.</Text> : feed}
       </Box>
     )
