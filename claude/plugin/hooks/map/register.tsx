@@ -154,7 +154,8 @@ export const register: Register = on => {
     const now = await $.clock.now()
     const rows = feedRows(b, 16)
     // The desktop draws an Svg at the size it is given, not at the slot: size it to the pane.
-    const side = Math.max(240, Math.min(900, Math.round((e.props.bodyColumns ?? 48) * 8)))
+    // About 9.2 px per column, measured in the desktop Code tab on 2026-11-12 (46 columns); 9 stays inside.
+    const side = Math.max(240, Math.min(900, Math.round((e.props.bodyColumns ?? 48) * 9)))
     const feed = rows.map(r => (
       <Text dimColor={r.mark === '·'}>
         {r.mark} {r.station.padEnd(8)} {r.label}
