@@ -21,7 +21,49 @@ const board = atom({ plugin: 'other-ninety', key: 'board' } as const, { entries:
   shape: 'map-board-1',
 })
 
-/** Whether the map pane is up: while it is not, a button above the prompt offers to open it. */
+/**
+ * What the pane draws: `board` as it stood at the last publish. Every event writes `board`, and a
+ * single tool call writes it two or three times, so drawing straight from it redrew the pane in
+ * bursts. Writes schedule one publish PUBLISH_MS later; the writes in between fold into it.
+ */
+const view = atom({ plugin: 'other-ninety', key: 'view' } as const, { entries: [], counts: {}, faults: {} } as Board, {
+  shape: 'map-board-1',
+})
+const PUBLISH_MS = 750
+// Module variables on purpose: a reload drops them with the timer they guard, and the next write schedules again.
+let publishPending = false
+let writes = 0
+
+function publishSoon($: EngineInterface): void {
+  if (publishPending) return
+  publishPending = true
+  void quietly(async () => {
+    try {
+      await $.clock.after(PUBLISH_MS, async () => {
+        const seen = writes
+        await quietly(async () => {
+          const latest = await read($, board)
+          await update($, view, () => latest)
+        })
+        publishPending = false
+        // A write that landed while this publish read the board gets a publish of its own.
+        if (writes !== seen) publishSoon($)
+      })
+    } catch (err) {
+      publishPending = false
+      throw err
+    }
+  })
+}
+
+/** Writes the board and schedules the pane's next publish. */
+async function updateBoard($: EngineInterface, change: (b: Board) => Board): Promise<void> {
+  await update($, board, change)
+  writes++
+  publishSoon($)
+}
+
+/** Whether the map pane is up: while it is not, a button beside the spinner offers to open it. */
 const isMapOpen = atom({ plugin: 'other-ninety', key: 'isMapOpen' } as const, false)
 
 /** The station the feed is narrowed to, or null for every station. */
@@ -55,7 +97,7 @@ async function begin($: EngineInterface, start: Begin): Promise<string | undefin
       ...(status !== 'run' ? { endedAt: now } : {}),
       ...(start.gate ? { gate: start.gate } : {}),
     }
-    await update($, board, b => ({
+    await updateBoard($, b => ({
       ...b,
       entries: trimHistory([...b.entries, entry], KEEP),
       counts: { ...b.counts, [entry.station]: (b.counts[entry.station] ?? 0) + 1 },
@@ -69,7 +111,7 @@ async function finish($: EngineInterface, id: string | undefined, status: Exclud
   if (id === undefined) return
   await quietly(async () => {
     const now = await $.clock.now()
-    await update($, board, b => {
+    await updateBoard($, b => {
       const open = b.entries.find(e => e.id === id)
       if (!open || open.status !== 'run') return b
       return {
@@ -113,7 +155,7 @@ export const register: Register = on => {
       const now = await quietly(() => $.clock.now())
       if (now !== undefined) {
         await quietly(() =>
-          update($, board, b =>
+          updateBoard($, b =>
             b.entries.some(x => x.status === 'run')
               ? { ...b, entries: b.entries.map(x => (x.status === 'run' ? { ...x, status, endedAt: now } : x)) }
               : b,
@@ -151,7 +193,7 @@ export const register: Register = on => {
 
   // The person's own message: a pulse on You, and the fault counts start over.
   on('turn.start', async ($, e, next) => {
-    await quietly(() => update($, board, b => ({ ...b, faults: {} })))
+    await quietly(() => updateBoard($, b => ({ ...b, faults: {} })))
     await begin($, { station: 'you', label: 'message', status: 'ok' })
     return next(e)
   })
@@ -188,7 +230,7 @@ export const register: Register = on => {
 
   on('session.measure', async ($, e, next) => {
     const pct = e.context.percent
-    if (pct !== undefined) await quietly(() => update($, board, b => (b.context === pct ? b : { ...b, context: pct })))
+    if (pct !== undefined) await quietly(() => updateBoard($, b => (b.context === pct ? b : { ...b, context: pct })))
     return next(e)
   })
 
@@ -207,7 +249,7 @@ export const register: Register = on => {
     const { Box, Text, Button } = ui
     // The terminal's table has no Svg: it gets the text version.
     const DrawSvg = 'Svg' in ui ? ui.Svg : undefined
-    const b = await read($, board)
+    const b = await read($, view)
     const only = await read($, filter)
     const now = await $.clock.now()
     const rows = feedRows(b, 16, only)

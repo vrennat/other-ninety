@@ -41,6 +41,6 @@ export type Board = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'other-ninety': { board: Shaped<Board>; isMapOpen: boolean; filter: StationId | null }
+    'other-ninety': { board: Shaped<Board>; view: Shaped<Board>; isMapOpen: boolean; filter: StationId | null }
   }
 }

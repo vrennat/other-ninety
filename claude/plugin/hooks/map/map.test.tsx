@@ -20,12 +20,19 @@ const PANE = {
 } as const
 
 // Assembled at runtime so the repository's leak scanner does not read a fixture as a secret.
+// The pane draws from a snapshot published after the calls; let that publish land before reading the pane.
+// The test runner provides setTimeout; the mod's own environment has no timers of that kind, so it is declared here only.
+declare const setTimeout: (run: () => void, ms: number) => unknown
+const settle = () => new Promise<void>(resolve => setTimeout(() => resolve(), 20))
+
 const FAKE_TOKEN = ['ghp', 'FAKEtoken0123456789abcdefABCDEF'].join('_')
 const USERINFO_URL = `https://user:pw${'@'}docs.example.com/a?q=1`
 
 // The engine beneath the plugin, answering the calls the map makes.
 function engine(on: On, answer: Record<string, unknown> = { result: {} }) {
   on('clock.now', () => ({ value: 1_000_000 }))
+  // The publish timer fires at once here, so the pane shows each call as soon as it is made.
+  on('clock.after', () => ({ value: undefined }))
   on('command.register', () => ({ value: { command: 'map' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('turn.complete', (_, e) => e as never)
@@ -84,6 +91,7 @@ test('a gated call carries the mark in the feed', async ($, on) => {
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   await $.tool.call({ tool: 'Bash', command: 'git push origin feat/x', description: 'Push the branch' })
   await $.tool.call({ tool: 'Bash', command: 'git status', description: 'Show status' })
+  await settle()
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   expect((await ui.find({ type: 'Text', text: /Push the branch/ }))?.text).toMatch(/^◆ .*\(git push\)$/)
   expect((await ui.find({ type: 'Text', text: /Show status/ }))?.text).not.toMatch(/◆|git push/)
@@ -101,6 +109,7 @@ test('names, never content: a token in a command line reaches no label, row or d
   await $.tool.call({ tool: 'Bash', command: `curl -H "Authorization: Bearer ${FAKE_TOKEN}" https://api.example.com` })
   await $.tool.call({ tool: 'WebFetch', url: `https://api.example.com/x?token=${FAKE_TOKEN}`, prompt: FAKE_TOKEN })
   await $.tool.call({ tool: 'Write', file_path: '/tmp/out.txt', content: FAKE_TOKEN })
+  await settle()
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   const svg = await ui.find({ type: 'Svg' })
   expect(JSON.stringify(svg ?? {})).not.toContain(FAKE_TOKEN)
@@ -116,6 +125,7 @@ test('a failing call turns red and counts a fault on its station', async ($, on)
   engine(on, { result: {}, isError: true })
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   await $.tool.call({ tool: 'Bash', command: 'false', description: 'Run a failing check' })
+  await settle()
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   expect((await ui.find({ type: 'Text', text: /failing check/ }))?.text).toMatch(/^✕ shell/)
   const svg = (await ui.find({ type: 'Svg' })) as { props?: { source?: string } } | undefined
@@ -128,6 +138,7 @@ test('a refusal lands on Hooks and the result passes through unchanged', async (
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   const out = await $.tool.call({ tool: 'Bash', command: 'rm -rf /tmp/x', description: 'Remove a folder' })
   expect(out).toEqual({ deny: 'blocked by a hook' })
+  await settle()
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   expect((await ui.find({ type: 'Text', text: /refused · Bash/ }))?.text).toMatch(/^✕ hooks/)
   await ui.unmount()
@@ -147,6 +158,7 @@ test('the terminal gets text, no Svg', async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   await $.tool.call({ tool: 'Read', file_path: '/r/a.ts' })
+  await settle()
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect(await ui.find({ type: 'Svg' })).toBe(undefined)
   expect((await ui.find({ type: 'Text', text: /r\/a\.ts/ }))?.text).toMatch(/^· files/)
@@ -156,6 +168,7 @@ test('the terminal gets text, no Svg', async ($, on) => {
 test('a value an earlier version stored is declined', async ($, on) => {
   on('clock.now', () => ({ value: 1_000_000 }))
   on('state.get', () => ({ value: { value: [{ tool: 'Bash' }], version: 1 } }))
+  await settle()
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   expect((await ui.find({ type: 'Text', text: /No calls yet/ }))?.text).toBe('No calls yet.')
   await ui.unmount()
@@ -269,6 +282,7 @@ test('station chips narrow the feed, and pressing the same chip again clears it'
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   await $.tool.call({ tool: 'Read', file_path: '/r/a.ts' })
   await $.tool.call({ tool: 'Bash', command: 'bun test', description: 'Run tests' })
+  await settle()
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   expect((await ui.find({ type: 'Button', text: /^Shell 1$/ }))?.text).toBe('Shell 1')
   expect(await ui.find({ type: 'Button', text: /^Browser/ })).toBe(undefined)
