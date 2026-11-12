@@ -216,22 +216,22 @@ test('feed: model steps stay off the feed unless they fail', async () => {
   expect(rows.map(r => r.label)).toEqual(['m3', 'read'])
 })
 
-const BAND = {
+const SPINNER = {
   plugin: 'other-ninety',
-  component: 'AbovePrompt',
-  props: { hasSurvey: false, isCollapsed: false, isWorking: false, maxRows: 4, bodyColumns: 80, scroll: { offset: 0, bodyRows: 4 }, view: {} },
+  component: 'Spinner',
+  props: { word: 'Thinking', message: null, suffix: '…', mode: 'thinking' },
 } as const
 
-test('a button above the prompt opens the map and then gets out of the way', async ($, on) => {
+test('beside the spinner, a button opens the map and then gets out of the way', async ($, on) => {
   engine(on)
-  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
-  expect((await band.find({ type: 'Button' }))?.text).toBe('Show activity map')
-  await band.press({ key: 'o90-map-open' })
-  expect(await band.find({ type: 'Button' })).toBe(undefined)
+  const spin = await $.ui.mount({ ...SPINNER, surface: 'desktop' })
+  expect((await spin.find({ type: 'Button' }))?.text).toBe('Show map')
+  await spin.press({ key: 'o90-map-open' })
+  expect(await spin.find({ type: 'Button' })).toBe(undefined)
   // Its return after a close rides on the ui.close hook, which this harness cannot raise: checked live.
-  await band.unmount()
+  await spin.unmount()
 
-  const term = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  const term = await $.ui.mount({ ...SPINNER, surface: 'terminal' })
   expect(await term.find({ type: 'Button' })).toBe(undefined)
   await term.unmount()
 })

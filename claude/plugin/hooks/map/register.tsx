@@ -106,13 +106,16 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // A one-line button above the prompt while the map is closed, on surfaces that dock a pane.
-  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    if (e.surface === 'terminal' || e.props.hasSurvey || (await read($, isMapOpen))) return next(e)
+  // While Claude works and the map is closed, a button sits beside Claude Code's own spinner.
+  // The mod API offers no sidebar or toolbar entry; /map opens the map when Claude is idle.
+  on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
+    if (e.surface === 'terminal' || (await read($, isMapOpen))) return next(e)
     const { Box, Button } = $.ui.resolve(e)
+    const spinner = await next(e)
     return (
-      <Box>
-        <Button key="o90-map-open" label="Show activity map" onPress={() => openPane($)} />
+      <Box flexDirection="row" gap={1}>
+        {spinner}
+        <Button key="o90-map-open" label="Show map" onPress={() => openPane($)} />
       </Box>
     )
   })
