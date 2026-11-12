@@ -115,13 +115,11 @@ export const register: Register = on => {
   on('tool.call', async ($, e, next) => {
     const seen = await quietly(async () => classify(e as unknown as { tool: string }))
     const id = seen ? await begin($, { ...seen, from: e.agentId ? 'agents' : 'core' }) : undefined
-    let out: Awaited<ReturnType<typeof next>>
-    try {
-      out = await next(e)
-    } catch (err) {
+    // The engine's own error passes through untouched; the map only records it.
+    const out = await next(e).catch(async (err: unknown) => {
       await finish($, id, 'err')
       throw err
-    }
+    })
     if ('deny' in out && out.deny !== undefined) {
       await finish($, id, 'block')
       await begin($, { station: 'hooks', label: `refused · ${e.tool.startsWith('mcp__') ? 'MCP tool' : e.tool}`, status: 'block' })
@@ -139,14 +137,12 @@ export const register: Register = on => {
 
   on('session.compact', async ($, e, next) => {
     const id = await begin($, { station: 'model', label: 'compaction' })
-    try {
-      const out = await next(e)
-      await finish($, id, 'ok')
-      return out
-    } catch (err) {
+    const out = await next(e).catch(async (err: unknown) => {
       await finish($, id, 'err')
       throw err
-    }
+    })
+    await finish($, id, 'ok')
+    return out
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {

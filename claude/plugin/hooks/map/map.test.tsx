@@ -1,3 +1,4 @@
+import type { On } from 'claude-code'
 import { expect, test } from 'claude-code/testing'
 
 import { classify } from './classify'
@@ -23,7 +24,7 @@ const FAKE_TOKEN = ['ghp', 'FAKEtoken0123456789abcdefABCDEF'].join('_')
 const USERINFO_URL = `https://user:pw${'@'}docs.example.com/a?q=1`
 
 // The engine beneath the plugin, answering the calls the map makes.
-function engine(on: Parameters<Parameters<typeof test>[1]>[1], answer: Record<string, unknown> = { result: {} }) {
+function engine(on: On, answer: Record<string, unknown> = { result: {} }) {
   on('clock.now', () => ({ value: 1_000_000 }))
   on('command.register', () => ({ value: { command: 'map' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
