@@ -53,6 +53,7 @@ const STYLE = `
 @media (prefers-color-scheme: dark){
 .bg{fill:#1f1f1d}.node{fill:#2c2c2a;stroke:#5f5e5a}.spoke{stroke:#5f5e5a}.text{fill:#f1efe8}.label{fill:#b4b2a9}.faint{fill:#888780}
 .track{stroke:#3a3a37}}
+.node.accent{stroke:#378add}.node.mem{stroke:#7f77dd}
 text{font-family:-apple-system,system-ui,sans-serif}`
 
 export function drawMap(board: Board, now: number): string {
