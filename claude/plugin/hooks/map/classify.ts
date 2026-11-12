@@ -1,5 +1,5 @@
 import type { StationId } from '../../types'
-import { gateForCommand, gateForMcp } from './gate'
+import { gateForCommand, gateForMcp, withoutQuoted } from './gate'
 
 /**
  * A tool call -> the station it lights, a label, and a gate name.
@@ -9,7 +9,7 @@ import { gateForCommand, gateForMcp } from './gate'
  * description. A command line, a file's text, a query or a prompt never
  * reaches a label.
  */
-export type Classified = { station: StationId; label: string; gate?: string }
+export type Classified = { station: StationId; label: string; gate?: string; programs?: string[] }
 
 type Call = { tool: string; [arg: string]: unknown }
 
@@ -52,11 +52,18 @@ const NET_SUB: Record<string, RegExp> = {
   docker: /^(pull|push|login)$/,
 }
 
+const LEAD_KEYWORDS = new Set(['do', 'then', 'else', 'elif', 'if', 'while', 'until', '{', '(', '!'])
+
 /** The program and its first argument for each simple command in a line. */
 function programs(command: string): Array<[string, string]> {
-  return command
+  return withoutQuoted(command)
     .split(/&&|\|\||[;|\n]|\$\(/)
-    .map(part => part.trim().split(/\s+/).filter(w => !/^\w+=/.test(w) && w !== 'sudo' && w !== 'time' && w !== 'exec'))
+    .map(part => {
+      const words = part.trim().split(/\s+/).filter(w => !/^\w+=/.test(w) && w !== 'sudo' && w !== 'time' && w !== 'exec')
+      // `do cat f`, `then curl x`, `{ git push; }`: the program follows the keyword.
+      while (words.length > 1 && LEAD_KEYWORDS.has(words[0]!)) words.shift()
+      return words
+    })
     .filter(words => words.length > 0)
     .map(words => {
       const prog = (words[0] ?? '').replace(/^.*[\\/]/, '').replace(/^["']|["']$/g, '').toLowerCase()
@@ -64,6 +71,21 @@ function programs(command: string): Array<[string, string]> {
       const rest = prog === 'git' && words[1] === '-C' ? words.slice(3) : words.slice(1)
       return [prog, rest[0] ?? ''] as [string, string]
     })
+}
+
+/** Words that start a command but say nothing about what it does. */
+const SHELL_NOISE = new Set(['cd', 'pushd', 'popd', 'export', 'set', 'unset', 'source', '.', 'for', 'while', 'until', 'do', 'done', 'if', 'then', 'else', 'elif', 'fi', 'case', 'esac', 'in', '[', '[[', 'test', 'true', 'false', ':', '{', '}', '(', ')', 'local', 'eval'])
+
+/** The programs a command line runs, in order, without shell keywords or repeats: names only. */
+export function programsOf(command: string, max = 3): string[] {
+  const out: string[] = []
+  for (const [prog] of programs(command)) {
+    const name = prog.replace(/[^a-z0-9._+-]/gi, '')
+    if (!name || SHELL_NOISE.has(name) || out.includes(name)) continue
+    out.push(name)
+    if (out.length >= max) break
+  }
+  return out
 }
 
 export function stationForCommand(command: string): StationId {
@@ -102,9 +124,10 @@ export function classify(call: Call): Classified {
     case 'PowerShell': {
       const command = str(call.command) ?? ''
       const gate = gateForCommand(command)
-      const first = programs(command)[0]?.[0] ?? tool
-      const label = clean(str(call.description) ?? first)
-      return { station: stationForCommand(command), label, ...(gate ? { gate } : {}) }
+      const progs = programsOf(command)
+      // A bare `cd` names nothing better than itself; anything else names its first real program.
+      const label = clean(str(call.description) ?? progs[0] ?? programs(command)[0]?.[0] ?? tool)
+      return { station: stationForCommand(command), label, ...(gate ? { gate } : {}), ...(progs.length ? { programs: progs } : {}) }
     }
     case 'WebFetch':
       return { station: 'network', label: clean(hostOf(str(call.url) ?? '')) }

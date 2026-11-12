@@ -26,6 +26,8 @@ export type Entry = {
   status: Status
   /** Set when the call matches one of o90's gated actions: the gate's short name. */
   gate?: string
+  /** For a shell call, the programs it runs in order (shell keywords and `cd` left out), at most three. */
+  programs?: string[]
 }
 
 export type Board = {
@@ -39,6 +41,6 @@ export type Board = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'other-ninety': { board: Shaped<Board>; isMapOpen: boolean }
+    'other-ninety': { board: Shaped<Board>; isMapOpen: boolean; filter: StationId | null }
   }
 }

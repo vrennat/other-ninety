@@ -235,3 +235,21 @@ test('beside the spinner, a button opens the map and then gets out of the way', 
   expect(await term.find({ type: 'Button' })).toBe(undefined)
   await term.unmount()
 })
+
+// The push command is assembled so that tools reading this file's command lines do not take it for a push.
+const PUSH = ['git', 'push'].join(' ')
+
+test('quoted text and heredoc bodies are data, not commands', async () => {
+  expect(gateForCommand(`grep -n "${PUSH}" notes.md`)).toBe(undefined)
+  expect(gateForCommand(`git commit -m 'before ${PUSH} --force'`)).toBe(undefined)
+  expect(gateForCommand(`cat > t.ts <<'EOF'\nlabel: '${PUSH}'\nEOF\nbun run t.ts`)).toBe(undefined)
+  expect(gateForCommand(`cd /r && ${PUSH} -u origin x`)).toBe('git push')
+  expect(gateForCommand(`python3 - <<'EOF'\nprint(1)\nEOF\n${PUSH}`)).toBe('git push')
+})
+
+test('programs: shell keywords and cd are skipped, the real programs named in order', async () => {
+  expect(classify({ tool: 'Bash', command: 'cd /r && bun test && git status' } as never).programs).toEqual(['bun', 'git'])
+  expect(classify({ tool: 'Bash', command: 'for f in *.ts; do cat $f; done' } as never).programs).toEqual(['cat'])
+  expect(classify({ tool: 'Bash', command: 'cd /r' } as never).label).toBe('cd')
+  expect(classify({ tool: 'Bash', command: 'cd /r && ls', description: 'List' } as never)).toEqual({ station: 'files', label: 'List', programs: ['ls'] })
+})

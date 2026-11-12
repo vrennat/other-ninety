@@ -30,8 +30,22 @@ export const GATES: readonly Gate[] = [
 /** MCP tools on a remote service whose name says they change it. */
 const MCP_CHANGE = /(?:^|_)(delete|deploy|apply|create)(?:_|$)/i
 
+/**
+ * The command with heredoc bodies and quoted strings blanked: text a command
+ * carries as data (a commit message, a grep pattern, a script fed on stdin)
+ * is not a command it runs. `bash -c "..."` is missed as a result; the map
+ * only marks, so a miss costs less than a false mark.
+ */
+export function withoutQuoted(command: string): string {
+  return command
+    .replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\s*\2(?=\s|$)/g, ' ')
+    .replace(/'[^']*'/g, "''")
+    .replace(/"(?:[^"\\]|\\.)*"/g, '""')
+}
+
 export function gateForCommand(command: string): string | undefined {
-  return GATES.find(g => g.pattern.test(command))?.name
+  const bare = withoutQuoted(command)
+  return GATES.find(g => g.pattern.test(bare))?.name
 }
 
 export function gateForMcp(toolName: string): string | undefined {

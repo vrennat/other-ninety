@@ -149,12 +149,13 @@ export function drawMap(board: Board, now: number): string {
   return out.join('')
 }
 
-export type FeedRow = { mark: '●' | '·' | '✕' | '◆'; station: StationId; label: string; more: number; note?: string }
+export type FeedRow = { mark: '●' | '·' | '✕' | '◆'; station: StationId; label: string; more: number; note?: string; programs?: string[] }
 
 /** The newest rows first. Finished calls in a row at one station fold into one. */
-export function feedRows(board: Board, limit = 16): FeedRow[] {
+export function feedRows(board: Board, limit = 16, only: StationId | null = null): FeedRow[] {
   const rows: FeedRow[] = []
   for (const e of [...board.entries].reverse()) {
+    if (only !== null && e.station !== only) continue
     // Model steps sit between every tool call; on the map they pulse, in the feed they are noise.
     if (e.station === 'model' && e.status !== 'err') continue
     const mark: FeedRow['mark'] = e.status === 'run' ? '●' : isFault(e) ? '✕' : e.gate ? '◆' : '·'
@@ -164,7 +165,7 @@ export function feedRows(board: Board, limit = 16): FeedRow[] {
       prev.more++
       continue
     }
-    rows.push({ mark, station: e.station, label: e.label, more: 0, ...(note ? { note } : {}) })
+    rows.push({ mark, station: e.station, label: e.label, more: 0, ...(note ? { note } : {}), ...(e.programs?.length ? { programs: e.programs } : {}) })
     if (rows.length >= limit) break
   }
   return rows
