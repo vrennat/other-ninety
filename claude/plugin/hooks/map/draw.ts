@@ -169,8 +169,27 @@ export function feedRows(board: Board, limit = 16): FeedRow[] {
 }
 
 export function describeNow(board: Board): string {
-  const running = board.entries.filter(e => e.status === 'run' && e.station !== 'model')
-  const last = running[running.length - 1]
+  const running = board.entries.filter(e => e.status === 'run')
+  const tool = running.filter(e => e.station !== 'model').at(-1)
   const ctx = board.context === undefined ? '' : ` · ${board.context}% context`
-  return last ? `${last.station}: ${last.label}${ctx}` : `idle${ctx}`
+  // A tool at work says what it is; an open model request alone is the model thinking.
+  if (tool) return `${tool.station}: ${tool.label}${ctx}`
+  return running.length > 0 ? `thinking${ctx}` : `idle${ctx}`
+}
+
+/**
+ * Keeps at most `keep` entries, dropping the oldest finished ones first. A call
+ * still running is never dropped, however many entries came after it: a long
+ * subagent would otherwise lose its clock hands and its final status.
+ */
+export function trimHistory(entries: Entry[], keep: number): Entry[] {
+  let excess = entries.length - keep
+  if (excess <= 0) return entries
+  return entries.filter(e => {
+    if (excess > 0 && e.status !== 'run') {
+      excess--
+      return false
+    }
+    return true
+  })
 }

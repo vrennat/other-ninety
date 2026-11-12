@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { Board, Entry, StationId, Status } from '../../types'
 import { classify, clean } from './classify'
-import { describeNow, drawMap, feedRows } from './draw'
+import { describeNow, drawMap, feedRows, trimHistory } from './draw'
 
 /**
  * The o90 activity map: a pane beside the chat that draws where the work
@@ -51,7 +51,7 @@ async function begin($: EngineInterface, start: Begin): Promise<string | undefin
     }
     await update($, board, b => ({
       ...b,
-      entries: [...b.entries, entry].slice(-KEEP),
+      entries: trimHistory([...b.entries, entry], KEEP),
       counts: { ...b.counts, [entry.station]: (b.counts[entry.station] ?? 0) + 1 },
       faults: isFault(status) ? { ...b.faults, [entry.station]: (b.faults[entry.station] ?? 0) + 1 } : b.faults,
     }))

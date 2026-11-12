@@ -2,7 +2,7 @@ import type { On } from 'claude-code'
 import { expect, test } from 'claude-code/testing'
 
 import { classify } from './classify'
-import { contextTone, drawMap, feedRows } from './draw'
+import { contextTone, describeNow, drawMap, feedRows, trimHistory } from './draw'
 import { GATES, gateForCommand, gateForMcp } from './gate'
 
 const PANE = {
@@ -190,4 +190,21 @@ test('feed: finished calls in a row at one station fold into one', async () => {
     ['shell', 'd', 0],
     ['files', 'c', 2],
   ])
+})
+
+test('history trim never drops a call that is still running', async () => {
+  const mk = (i: number, status: 'ok' | 'run') => ({ id: String(i), station: 'shell' as const, label: String(i), from: 'core' as const, startedAt: i, status })
+  const entries = [mk(0, 'run'), ...Array.from({ length: 100 }, (_, i) => mk(i + 1, 'ok'))]
+  const kept = trimHistory(entries, 80)
+  expect(kept.length).toBe(80)
+  expect(kept[0]!.id).toBe('0')
+  expect(kept[kept.length - 1]!.id).toBe('100')
+  expect(trimHistory(entries.slice(0, 10), 80).length).toBe(10)
+})
+
+test('status line: thinking while a model step is open, the tool while one runs, idle otherwise', async () => {
+  const mk = (station: 'model' | 'shell', status: 'run' | 'ok', label = 'x') => ({ id: station + status, station, label, from: 'core' as const, startedAt: 0, status })
+  expect(describeNow({ entries: [mk('model', 'run')], counts: {}, faults: {}, context: 36 })).toBe('thinking · 36% context')
+  expect(describeNow({ entries: [mk('model', 'run'), mk('shell', 'run', 'Run tests')], counts: {}, faults: {} })).toBe('shell: Run tests')
+  expect(describeNow({ entries: [mk('model', 'ok')], counts: {}, faults: {} })).toBe('idle')
 })
