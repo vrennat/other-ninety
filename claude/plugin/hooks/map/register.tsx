@@ -153,6 +153,8 @@ export const register: Register = on => {
     const b = await read($, board)
     const now = await $.clock.now()
     const rows = feedRows(b, 16)
+    // The desktop draws an Svg at the size it is given, not at the slot: size it to the pane.
+    const side = Math.max(240, Math.min(900, Math.round((e.props.bodyColumns ?? 48) * 8)))
     const feed = rows.map(r => (
       <Text dimColor={r.mark === '·'}>
         {r.mark} {r.station.padEnd(8)} {r.label}
@@ -170,6 +172,8 @@ export const register: Register = on => {
           <DrawSvg
             source={drawMap(b, now)}
             alt={`Activity map: ${describeNow(b)}`}
+            width={side}
+            height={side}
             isInteractive
           />
         ) : (

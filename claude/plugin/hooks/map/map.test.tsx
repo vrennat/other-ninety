@@ -40,6 +40,7 @@ test('stations: each kind of call lights its station', async () => {
     [{ tool: 'Bash', command: 'git -C /r push origin main' }, 'network'],
     [{ tool: 'Bash', command: 'cat a.txt | grep b' }, 'files'],
     [{ tool: 'Bash', command: 'bun test' }, 'shell'],
+    [{ tool: 'Bash', command: 'bunx -p typescript tsc -p .' }, 'shell'],
     [{ tool: 'Bash', command: 'cd /r && echo $(curl -s x.io)' }, 'network'],
     [{ tool: 'WebFetch', url: USERINFO_URL }, 'network'],
     [{ tool: 'Agent', description: 'Survey specs' }, 'agents'],
@@ -207,4 +208,10 @@ test('status line: thinking while a model step is open, the tool while one runs,
   expect(describeNow({ entries: [mk('model', 'run')], counts: {}, faults: {}, context: 36 })).toBe('thinking · 36% context')
   expect(describeNow({ entries: [mk('model', 'run'), mk('shell', 'run', 'Run tests')], counts: {}, faults: {} })).toBe('shell: Run tests')
   expect(describeNow({ entries: [mk('model', 'ok')], counts: {}, faults: {} })).toBe('idle')
+})
+
+test('feed: model steps stay off the feed unless they fail', async () => {
+  const mk = (id: string, station: 'model' | 'files', status: 'ok' | 'err') => ({ id, station, label: id, from: 'core' as const, startedAt: 0, status })
+  const rows = feedRows({ entries: [mk('m1', 'model', 'ok'), mk('read', 'files', 'ok'), mk('m2', 'model', 'ok'), mk('m3', 'model', 'err')], counts: {}, faults: {} })
+  expect(rows.map(r => r.label)).toEqual(['m3', 'read'])
 })

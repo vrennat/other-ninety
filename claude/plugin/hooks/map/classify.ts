@@ -44,8 +44,6 @@ const NET_SUB: Record<string, RegExp> = {
   git: /^(push|pull|fetch|clone|ls-remote)$/,
   npm: /^(i|install|ci|publish|view)$/,
   bun: /^(add|install|i|x)$/,
-  bunx: /.*/,
-  npx: /.*/,
   pnpm: /^(add|install|i)$/,
   yarn: /^(add|install)$/,
   pip: /^install$/,

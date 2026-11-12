@@ -155,6 +155,8 @@ export type FeedRow = { mark: '●' | '·' | '✕' | '◆'; station: StationId; 
 export function feedRows(board: Board, limit = 16): FeedRow[] {
   const rows: FeedRow[] = []
   for (const e of [...board.entries].reverse()) {
+    // Model steps sit between every tool call; on the map they pulse, in the feed they are noise.
+    if (e.station === 'model' && e.status !== 'err') continue
     const mark: FeedRow['mark'] = e.status === 'run' ? '●' : isFault(e) ? '✕' : e.gate ? '◆' : '·'
     const note = e.status === 'block' ? 'refused' : e.gate ? e.gate : undefined
     const prev = rows[rows.length - 1]
