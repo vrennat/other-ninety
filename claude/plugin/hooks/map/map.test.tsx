@@ -215,3 +215,23 @@ test('feed: model steps stay off the feed unless they fail', async () => {
   const rows = feedRows({ entries: [mk('m1', 'model', 'ok'), mk('read', 'files', 'ok'), mk('m2', 'model', 'ok'), mk('m3', 'model', 'err')], counts: {}, faults: {} })
   expect(rows.map(r => r.label)).toEqual(['m3', 'read'])
 })
+
+const BAND = {
+  plugin: 'other-ninety',
+  component: 'AbovePrompt',
+  props: { hasSurvey: false, isCollapsed: false, isWorking: false, maxRows: 4, bodyColumns: 80, scroll: { offset: 0, bodyRows: 4 }, view: {} },
+} as const
+
+test('a button above the prompt opens the map and then gets out of the way', async ($, on) => {
+  engine(on)
+  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect((await band.find({ type: 'Button' }))?.text).toBe('Show activity map')
+  await band.press({ key: 'o90-map-open' })
+  expect(await band.find({ type: 'Button' })).toBe(undefined)
+  // Its return after a close rides on the ui.close hook, which this harness cannot raise: checked live.
+  await band.unmount()
+
+  const term = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await term.find({ type: 'Button' })).toBe(undefined)
+  await term.unmount()
+})

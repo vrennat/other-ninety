@@ -21,6 +21,9 @@ const board = atom({ plugin: 'other-ninety', key: 'board' } as const, { entries:
   shape: 'map-board-1',
 })
 
+/** Whether the map pane is up: while it is not, a button above the prompt offers to open it. */
+const isMapOpen = atom({ plugin: 'other-ninety', key: 'isMapOpen' } as const, false)
+
 /** Whatever goes wrong on the map must never reach a tool call or a turn. */
 async function quietly<T>(work: () => Promise<T>): Promise<T | undefined> {
   try {
@@ -76,20 +79,42 @@ async function finish($: EngineInterface, id: string | undefined, status: Exclud
 }
 
 async function openPane($: EngineInterface): Promise<void> {
-  await quietly(() => $.ui.open({ id: PANE, title: TITLE }))
+  await quietly(async () => {
+    await $.ui.open({ id: PANE, title: TITLE })
+    await update($, isMapOpen, () => true)
+  })
 }
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await quietly(() => $.command.register({ name: 'map', description: 'Show the o90 activity map beside the chat' }))
     // A pane in the terminal takes columns from the transcript: there it opens on /map only.
-    if (e.surface !== null && e.surface !== 'terminal') void openPane($)
+    // A reload may name no surface; opening there is harmless (nothing places it) and keeps
+    // the pane up in the desktop app when the plugin reloads mid-session.
+    if (e.surface !== 'terminal') void openPane($)
     return next(e)
   })
 
   on('command.run', { command: 'map' }, async $ => {
     await openPane($)
     return { text: 'Activity map opened.' }
+  })
+
+  // Closed by the person, by the plugin or by a reload: the button above the prompt comes back.
+  on('ui.close', async ($, e, next) => {
+    if (e.id === PANE) await quietly(() => update($, isMapOpen, () => false))
+    return next(e)
+  })
+
+  // A one-line button above the prompt while the map is closed, on surfaces that dock a pane.
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    if (e.surface === 'terminal' || e.props.hasSurvey || (await read($, isMapOpen))) return next(e)
+    const { Box, Button } = $.ui.resolve(e)
+    return (
+      <Box>
+        <Button key="o90-map-open" label="Show activity map" onPress={() => openPane($)} />
+      </Box>
+    )
   })
 
   // The person's own message: a pulse on You, and the fault counts start over.
