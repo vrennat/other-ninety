@@ -170,7 +170,6 @@ export const register: Register = on => {
           <DrawSvg
             source={drawMap(b, now)}
             alt={`Activity map: ${describeNow(b)}`}
-            width={Math.min(400, Math.max(240, (e.props.bodyColumns ?? 40) * 8))}
             isInteractive
           />
         ) : (

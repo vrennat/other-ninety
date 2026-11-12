@@ -15,6 +15,7 @@ export const STATIONS: ReadonlyArray<{ id: StationId; name: string }> = [
 ]
 
 const SIZE = 400
+const INTRINSIC = 1200
 const C = SIZE / 2
 const ORBIT = 148
 const NODE_R = 17
@@ -59,7 +60,8 @@ text{font-family:-apple-system,system-ui,sans-serif}`
 export function drawMap(board: Board, now: number): string {
   const out: string[] = []
   const push = (s: string) => out.push(s)
-  push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}" width="${SIZE}" height="${SIZE}">`)
+  // A large intrinsic size: the pane caps the drawing at its own width, so the map fills it.
+  push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}" width="${INTRINSIC}" height="${INTRINSIC}">`)
   push(`<style>${STYLE}</style><rect class="bg" width="${SIZE}" height="${SIZE}" rx="12"/>`)
 
   // Spokes, worn by use.
