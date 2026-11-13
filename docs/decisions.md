@@ -39,8 +39,8 @@ the goal changes.
 | D22 | Trim always-loaded guidance for the Claude 5 family | Resolved |
 | D24 | Ticket-graph fan-out in `/impl`; multi-session sections in `/brainstorm` | Resolved |
 | D26 | Dev servers get a port per checkout and a way to ask who holds one | Resolved |
-| D27 | Activity map: where the mod ships | Resolved |
-| D28 | Activity map: the o90-specific part of v1 | Resolved |
+| D27 | Activity map: where the mod ships | Superseded by D37 |
+| D28 | Activity map: the o90-specific part of v1 | Superseded by D37 |
 | D29 | Conductor: fan-out path, session mode, dormant modes | Resolved |
 | D30 | Push guard: text in heredocs and messages | Resolved |
 | D31 | Drift check reports dangling symlinks | Resolved |
@@ -49,6 +49,7 @@ the goal changes.
 | D34 | Session rules: start directory, compaction handoff, no sleep-polling | Resolved |
 | D35 | Opus effort and the auto-compact window | Resolved |
 | D36 | Claude in Chrome as the default browser | Resolved |
+| D37 | Remove the activity map | Resolved |
 
 ---
 
@@ -770,10 +771,10 @@ Rejected, agent recommendation Tanner did not contest:
 Check: repeat the transcript scan after 30 days and compare wrong-server reports, with the same
 limit that only noticed cases show up. No baseline rate of unnoticed cases exists.
 
-## D27. Activity map: where the mod ships — Resolved
+## D27. Activity map: where the mod ships — Superseded by D37
 
 Raised 2026-11-11 by an agent while speccing the o90-native activity map
-(`docs/specs/2026-11-11-activity-map-design.md`). Tanner chose an o90-native mod over vendoring
+(`docs/archive/2026-11-11-activity-map-design.md`). Tanner chose an o90-native mod over vendoring
 lot-map the same day.
 
 The mod hooks every tool call and model step and sees each call's full input. The public
@@ -791,7 +792,7 @@ against the agent's recommendation of b. Consequence for D15: the plugin now car
 module. D15's concern was text injected into the model's context, so the constraint becomes "the
 plugin adds nothing to the conversation or the system prompt"; the map only draws a pane.
 
-## D28. Activity map: the o90-specific part of v1 — Resolved
+## D28. Activity map: the o90-specific part of v1 — Superseded by D37
 
 Raised 2026-11-11 with D27. The core (stations by kind of work, pulses, clock hands on long calls,
 context ring, recent-call feed) is what lot-map showed people want. What makes it o90's own is
@@ -931,3 +932,21 @@ default.
 - Claude Browser, the desktop pane, keeps previews of local dev servers and local files; the
   playwright MCP, muted, keeps scripted or repeated runs and screenshot sweeps. This split is the
   conductor session's reading of his words, not his own wording.
+
+## D37. Remove the activity map — Resolved
+
+Tanner decided on 2026-11-13 to remove the activity map from the plugin. This supersedes D27 (the
+map ships inside `other-ninety`) and D28 (core map plus a gate marker).
+
+He had used the 0.6.0 diagram and said "I don't feel like the activity map is useful or readable
+yet". An agent proposed two redesigns. Tanner chose the status list ("activity map b"), which was
+built and approved by an adversarial review in pull request 22. He then looked at the installed
+pane and pictures of the status list and said: "the legend is way too wordy, and it just doesn't
+look great", "the new one feels just like a worse version of the transcript imo", and "yeah let's
+just remove it - it doesn't work". Pull request 22 was closed without merging.
+
+What goes: the pane, `/map`, the "Show map" button, the auto-open, the hooks module
+(`claude/plugin/hooks/`), its state types (`claude/plugin/types/`), its tests, and the plugin
+manifest's `types` entry. The plugin moves to 0.7.0 so an update removes the pane. Nothing else
+used the map's gate patterns, hooks or state. The spec moves to `docs/archive/`. The plugin again
+ships no hooks; D15's rule that it adds nothing to the conversation or system prompt stands.
