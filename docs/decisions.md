@@ -8,6 +8,11 @@ and letter (`D4b`). Resolved decisions stay here with the resolution recorded in
 Only choices with more than one defensible answer belong here. Anything the code, tests, or git
 history can explain does not.
 
+An effort that spans sessions ends the file with two more sections. **Not yet specified** lists
+in-scope questions that cannot yet be stated precisely; one that sharpens gets a number and leaves
+the list. **Out of scope** lists work ruled beyond the goal, with the reason; it returns only if
+the goal changes.
+
 | # | Decision | Status |
 |---|---|---|
 | D1 | Where `/impl` records lessons, and how much | Resolved |
@@ -32,6 +37,8 @@ history can explain does not.
 | D20 | Session audit 2026-10-09: start directory, permissions, push guard, model routing, settings | Resolved |
 | D21 | Second session audit 2026-10-09: text-only push guard, authorization scope, shell environment, repeatable audit | Resolved |
 | D22 | Trim always-loaded guidance for the Claude 5 family | Resolved |
+| D24 | Ticket-graph fan-out in `/impl`; multi-session sections in `/brainstorm` | Resolved |
+| D26 | Dev servers get a port per checkout and a way to ask who holds one | Resolved |
 | D27 | Activity map: where the mod ships | Resolved |
 | D28 | Activity map: the o90-specific part of v1 | Resolved |
 | D29 | Conductor: fan-out path, session mode, dormant modes | Resolved |
@@ -657,6 +664,51 @@ mechanism works, not a rate):
 - In `--permission-mode auto`, a requested edit in this repository ran with no classifier denial.
   Not tested: whether the same edit was blocked before the new allow entry.
 
+## D24. Ticket-graph fan-out in `/impl`; multi-session sections in `/brainstorm` — Resolved
+
+Source: the 2026-11-01 magpie entry on `mattpocock/skills` at `4ae2317`, the 94 commits since D13
+read it at `3cca18b`. Two pieces were new to o90. `implement-spec` builds a spec as a graph of
+tickets: one implementer per ticket in its own worktree, all landing on one integration branch.
+`wayfinder` plans an effort too large for one session and keeps a list of unspecified questions
+and a list of work ruled out of scope. Matthias Bohlen's LinkedIn post (screenshot, 2026-11-01)
+showed about nine ticket branches merged into one spec branch and Claude Code's five-hour limit
+reached early in the day. Neither source measured quality or time saved.
+
+- **(a) Fold both into existing commands: a conditional "Ticket graph" section in `/impl`, and two
+  sections at the end of `docs/decisions.md` written by `/brainstorm` when an effort spans
+  sessions.** ← chosen
+- (b) Vendor `implement-spec` and `wayfinder` as user-invoked skills. Both depend on his setup
+  skill writing an issue tracker and label vocabulary into each repository, the reason D13 gave
+  for adopting none of the catalogue.
+- (c) Run one trial first and decide afterwards (the magpie entry's original verdict).
+
+**Resolution (2026-11-01):** Tanner chose to integrate both now, which rules out (c). The
+placement and the details below were agent proposals, and Tanner confirmed items 1, 2, 3 (the
+main session merges lanes, no merger agent) and 6 on 2026-11-02. Items 4 and 5 were not put to
+him separately:
+
+1. **Fan-out threshold: three or more slices with distinct owned files.** Below that the merge
+   overhead outweighs the parallelism, and slices that share files conflict.
+2. **At most three implementers at once, on Sonnet.** `rules/agents.md` routes first-pass
+   implementation in a well-specified area to Sonnet. The cap is lower than Bohlen's nine because
+   his run hit the usage limit, and it stays within the default workflow size.
+3. **The lane merges the integration tip before reporting done.** Conflicts are resolved in the
+   worktree that owns the files. The isolation guard allows plain `git <subcommand>` from the
+   worktree root (conductor brief template), so the lane can do this. The main session merges
+   lanes itself, with no separate merger agent; it resumes a lane only when the tip has moved
+   since that lane merged.
+4. **One review and one verification on the whole integration branch,** not one per lane. This is
+   the existing step 7 fidelity review, applied once.
+5. **The tracker machinery is left out:** no map issue, labels, or claiming tickets by assignee.
+   The unspecified and out-of-scope lists live in the repository's `docs/decisions.md`, which
+   `/brainstorm` already writes.
+6. **Pi prompts are unchanged.** Pi `/brainstorm` already lacks the D13 frontier rounds and Pi has
+   no worktree-isolated agents, so parity is not claimed for either piece.
+
+Not measured: whether fan-out beats serial work. The report's `Fan-out:` line records slices,
+peak parallelism, and conflicts, so the first few runs can be compared against single-session
+work before the threshold or cap changes.
+
 ## D25. `Explore` finds code; audits go elsewhere — Resolved
 
 Tanner approved this on 2026-11-05, on an agent proposal made after reviewing a thread that
@@ -682,6 +734,40 @@ Rejected, agent recommendation Tanner did not contest:
   "a reviewer is never weaker than the author".
 
 Check: re-count audit-style `Explore` calls after 30 days with the same transcript scan.
+
+## D26. Dev servers get a port per checkout and a way to ask who holds one — Resolved
+
+Tanner approved this on 2026-11-06, on an agent proposal made after reviewing simctlhouse, a pool
+that leases iOS simulators to parallel agents, and asking how the idea applies to dev servers.
+Tanner reported agents getting their wires crossed over dev server ports.
+
+`rules/dev-servers.md` tells agents to check who holds a port before trusting it, and the `devport`
+skill does that check, derives a port from the checkout's path, runs a server for the life of a
+command, and lists leftovers.
+
+Why: a wrong server gives real-looking results, so nothing fails. In about three weeks of one
+machine's transcripts, a hand read of about half of 71 keyword matches found at least 6 runs that
+reached another checkout's server, including a trace that measured the wrong code. That count only
+includes cases an agent noticed. The same 30-day scan found 73 loud port errors in 59 of 1,322
+transcript files, subagents included. At the time of review, 4 servers were still running from
+deleted worktrees, and `::1` and `127.0.0.1` were shown to hold one port without an error at the
+socket level.
+
+Rejected, agent recommendation Tanner did not contest:
+
+- **A lease pool like simctlhouse's.** Simulators are interchangeable, so handing a warm one to the
+  next agent is a feature. A server is tied to one checkout's code, so reuse is this bug.
+- **A state file and daemon.** The path gives the port and `lsof` shows who holds it, so there is no
+  record to go stale.
+- **Stopping servers automatically.** Age doesn't show that nobody is using a server, so `gc` only
+  reports, and only for checkouts that are gone.
+- **Installing simctlhouse itself.** Tanner leaned against it, expecting Claude Desktop's simulator
+  support to cover this. That tool doesn't isolate sessions: its docs say it uses a running simulator
+  even if another session opened it. The agent reached the same answer for other reasons: this
+  machine had only 10 simulator sessions in 30 days, and the project was three days old.
+
+Check: repeat the transcript scan after 30 days and compare wrong-server reports, with the same
+limit that only noticed cases show up. No baseline rate of unnoticed cases exists.
 
 ## D27. Activity map: where the mod ships — Resolved
 
