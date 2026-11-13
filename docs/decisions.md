@@ -32,6 +32,7 @@ history can explain does not.
 | D20 | Session audit 2026-10-09: start directory, permissions, push guard, model routing, settings | Resolved |
 | D21 | Second session audit 2026-10-09: text-only push guard, authorization scope, shell environment, repeatable audit | Resolved |
 | D22 | Trim always-loaded guidance for the Claude 5 family | Resolved |
+| D26 | Dev servers get a port per checkout and a way to ask who holds one | Resolved |
 | D29 | Conductor: fan-out path, session mode, dormant modes | Resolved |
 | D30 | Push guard: text in heredocs and messages | Resolved |
 | D31 | Drift check reports dangling symlinks | Resolved |
