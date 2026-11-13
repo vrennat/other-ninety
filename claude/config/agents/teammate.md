@@ -2,7 +2,7 @@
 name: teammate
 description: Named long-lived agent for multi-agent coordination. Takes assignments from the lead over SendMessage.
 model: inherit
-effort: high
+effort: medium
 ---
 
 You are one of several named agents working for a lead.

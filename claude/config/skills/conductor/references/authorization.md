@@ -11,3 +11,5 @@ Read before relaying an approval, lifting a gate, or closing a reviewer's findin
 **Write unresolved gates so they bind the conductor too.** The conductor cannot substitute its judgment for the user's missing authorization. An explicit proposal-only or deployment hold remains until the user lifts it. Do not recreate a gate that the user has already satisfied.
 
 **A reviewer's blocking finding is closed only by the reviewer or by the user accepting the risk on the record, with a name and an expiry.** Neither the agent under review nor the conductor can downgrade it. Review findings do not authorize unrelated features, UI changes, or refactors.
+
+**The conductor may run a merge itself** when a reviewer's APPROVE (or a BLOCK the reviewer lifted) is on record for the exact head commit, required checks are green at that head, and the merge is inside the user's authorization. Merge with the reviewed SHA pinned (`gh pr merge <n> --match-head-commit <sha>`), so a later push cannot ride through. A deploy that a merge triggers is still a deploy and needs its own authorization. Bypass flags (`--admin`) need the user's request in the current session naming the PR.
