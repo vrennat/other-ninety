@@ -70,19 +70,27 @@ def scan_text(text: str, rules: dict[str, re.Pattern[str]], location: str) -> li
     return findings
 
 
-def history(root: Path) -> list[tuple[str, str]]:
+def history(root: Path, revs: list[str] | None = None) -> list[tuple[str, str]]:
     result = subprocess.run(
         [
             "git",
             "-C",
             str(root),
             "log",
-            "--all",
+            # History reachable from the given revisions, the checked-out commit by default. CI fetches every
+            # branch, and with --all one branch's leak failed every other branch's run; CI now runs on every
+            # pushed branch and tag, and the pre-push hook names the commits being pushed.
             # Author and committer identity are left out: GitHub shows them on every commit, and its own merges
             # stamp the account's primary email there. Messages (trailers included) and patches are still scanned.
             "--format=%x1e%H%x1f%B",
             "--patch",
+            # A merge commit prints no diff by default; --cc prints what the merge itself introduced, such as a
+            # conflict resolution, which no parent commit carries.
+            "--cc",
             "--no-color",
+            # A revision that looks like an option is never read as one.
+            "--end-of-options",
+            *(revs or ["HEAD"]),
         ],
         capture_output=True,
         check=True,
@@ -95,6 +103,44 @@ def history(root: Path) -> list[tuple[str, str]]:
         commit, text = section.split("\x1f", 1)
         commits.append((commit.strip(), text))
     return commits
+
+
+def tag_texts(root: Path) -> list[tuple[str, str]]:
+    """Every tag's own text that git log never prints: an annotated tag's message, and the contents of a blob
+    a tag points at. Tags are repository-wide and public, so all of them are read whatever is checked out.
+    The tagger line is left out for the same reason author and committer identity are."""
+    refs = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "for-each-ref",
+            "refs/tags",
+            "--format=%(refname:short)%09%(objectname)%09%(objecttype)%09%(*objecttype)",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    texts: list[tuple[str, str]] = []
+    for line in refs.stdout.splitlines():
+        name, obj, kind, peeled = (line.split("\t") + ["", "", "", ""])[:4]
+        parts: list[str] = []
+        if kind == "tag":
+            # The header (object, type, tag, tagger) ends at the first blank line; only its tagger line is dropped,
+            # so a message line that happens to start with "tagger " is still read.
+            header, _, message = cat_file(root, obj).partition("\n\n")
+            parts.append("\n".join(row for row in header.splitlines() if not row.startswith("tagger ")) + "\n" + message)
+        if kind == "blob" or peeled == "blob":
+            parts.append(cat_file(root, f"{obj}^{{}}"))
+        if parts:
+            texts.append((name, "\n".join(parts)))
+    return texts
+
+
+def cat_file(root: Path, obj: str) -> str:
+    result = subprocess.run(["git", "-C", str(root), "cat-file", "-p", obj], capture_output=True, check=True)
+    return result.stdout.decode("utf-8", errors="replace")
 
 
 def fingerprint(value: str) -> str:
@@ -131,6 +177,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Check worktree and Git history for likely private data.")
     parser.add_argument("--patterns-file", type=Path, help="private file with one additional literal per line")
     parser.add_argument("--no-history", action="store_true", help="skip committed history")
+    parser.add_argument(
+        "--rev",
+        action="append",
+        dest="revs",
+        help="scan the history these revisions reach (repeatable; default HEAD)",
+    )
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parents[1]
@@ -172,7 +224,9 @@ def main() -> int:
         findings.extend(scan_text(text, rules, str(path.relative_to(root))))
 
     if not args.no_history:
-        findings.extend(scan_history(history(root), rules, load_history_baseline(root)))
+        findings.extend(scan_history(history(root, args.revs), rules, load_history_baseline(root)))
+        for name, text in tag_texts(root):
+            findings.extend(scan_text(text, rules, f"git-tag:{name}"))
 
     if findings:
         print("FAIL: possible private data found", file=sys.stderr)

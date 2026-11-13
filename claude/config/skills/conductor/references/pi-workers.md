@@ -1,5 +1,7 @@
 # Pi worker plane -- invocation contract
 
+**Dormant since 2026-10** (D29): seat runs fell from dozens a month to none. Kept so manager mode can be revived; check the routing against current models and prices first.
+
 Manager-mode workers are pi sessions on inexpensive models. Workers are named, long-lived, resumed rather than respawned, and briefed with a reporting contract and permission to fail.
 
 ## Invocation
