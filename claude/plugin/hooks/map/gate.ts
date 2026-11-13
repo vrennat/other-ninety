@@ -3,6 +3,10 @@
  * patterns. The map marks a matching call; it never blocks one. Blocking
  * belongs to hooks and the push guard (D12: warn, do not block).
  *
+ * A tag means a match against these known patterns, nothing more: a call with
+ * no tag may still be gated (an alias, a script, a tool these rows do not
+ * name). The map is display only and is no check that a step was allowed.
+ *
  * The command line is read here and nowhere else, and only the gate's name
  * leaves this module.
  */
@@ -14,20 +18,68 @@ type Gate = { name: string; pattern: RegExp }
  */
 const shell = (name: string, body: string): Gate => ({ name, pattern: new RegExp(String.raw`^(?:\S*/)?` + body) })
 
+/**
+ * `git`, then any global options (`-C dir`, `-c k=v`, `--no-pager`, ...), then the subcommand:
+ * `git -c core.hooksPath=/dev/null push` is still a push.
+ */
+const GIT = String.raw`git(?:\s+(?:-[Cc]\s+\S+|--(?:git-dir|work-tree|namespace)(?:=|\s+)\S+|--no-pager|--paginate|--bare|--no-replace-objects|--no-optional-locks|--literal-pathspecs|-[pP]))*\s+`
+const WRANGLER = String.raw`(?:bunx\s+|npx\s+|pnpm\s+(?:dlx|exec)\s+)?wrangler(?:@\S+)?\s+`
+/** The rest of one simple command: `commandsOf` has already cut the line at `;`, `&`, `|` and newlines. */
+const REST = String.raw`[^;&|\n]*`
+/** An option or argument ends at whitespace or the end of the command. */
+const END = String.raw`(?=\s|$)`
+
 /** Order matters: the first match names the gate. */
 export const GATES: readonly Gate[] = [
-  shell('force push', String.raw`git\s+(?:-C\s+\S+\s+)?push\b[^;&|]*\s(?:--force(?:-with-lease)?|-f)\b`),
-  shell('git push', String.raw`git\s+(?:-C\s+\S+\s+)?push\b`),
-  shell('hard reset', String.raw`git\s+(?:-C\s+\S+\s+)?reset\s+[^;&|]*--hard\b`),
-  shell('branch delete', String.raw`git\s+(?:-C\s+\S+\s+)?branch\s+[^;&|]*(?:-D|--delete\s+--force)\b`),
+  // Force: --force, --force-with-lease[=...], a short-flag cluster holding f (-f, -uf), or a +refspec.
+  shell('force push', String.raw`${GIT}push\b${REST}\s(?:--force(?:-with-lease)?(?:=\S*)?|-[A-Za-z]*f[A-Za-z]*|\+\S+)${END}`),
+  shell('git push', String.raw`${GIT}push\b`),
+  shell('hard reset', String.raw`${GIT}reset\s+${REST}--hard\b`),
+  shell('branch delete', String.raw`${GIT}branch\s+${REST}(?:-D|--delete\s+--force)\b`),
+  // Work in the tree or the stash thrown away: checkout of paths, clean -f, restore of the
+  // worktree (not --staged alone), stash drop and clear.
+  shell(
+    'discard',
+    String.raw`${GIT}(?:checkout\b${REST}\s(?:--|\.)${END}|clean\b${REST}\s(?:-[A-Za-z]*f[A-Za-z]*|--force)${END}|restore\b(?:(?=${REST}(?:--worktree|\s-W\b))|(?!${REST}(?:--staged|\s-S\b)))|stash\s+(?:drop|clear)\b)`,
+  ),
   shell('PR merge', String.raw`gh\s+pr\s+merge\b`),
-  shell('deploy', String.raw`(?:bunx\s+|npx\s+)?wrangler(?:@\S+)?\s+(?:deploy|publish|pages\s+deploy)\b`),
-  shell('remote migration', String.raw`wrangler(?:@\S+)?\s+d1\s+migrations\s+apply\b[^;&|]*--remote\b`),
-  shell('remote D1 write', String.raw`wrangler(?:@\S+)?\s+d1\s+execute\b[^;&|]*--remote\b`),
-  shell('remote R2 write', String.raw`wrangler(?:@\S+)?\s+r2\s+object\s+(?:put|delete)\b[^;&|]*--remote\b`),
-  shell('secret', String.raw`wrangler(?:@\S+)?\s+secret\s+(?:put|delete|bulk)\b`),
-  shell('global install', String.raw`(?:npm\s+(?:i|install)\s+[^;&|]*(?:-g|--global)\b|bun\s+(?:add|install|i)\s+[^;&|]*(?:-g|--global)\b|brew\s+install\b)`),
+  shell('repo delete', String.raw`gh\s+repo\s+delete\b`),
+  shell('API delete', String.raw`gh\s+api\b${REST}(?:-X\s*|--method(?:=|\s+))DELETE\b`),
+  shell(
+    'deploy',
+    String.raw`(?:${WRANGLER}(?:deploy|publish|pages\s+deploy|versions\s+deploy)\b|(?:bun|npm|pnpm|yarn)\s+(?:run\s+)?deploy\b|make\s+(?:\S+\s+)*?deploy\b)`,
+  ),
+  shell('remote migration', String.raw`${WRANGLER}d1\s+migrations\s+apply\b${REST}--remote\b`),
+  shell('remote D1 write', String.raw`${WRANGLER}d1\s+execute\b${REST}--remote\b`),
+  shell('remote R2 write', String.raw`${WRANGLER}r2\s+object\s+(?:put|delete)\b${REST}--remote\b`),
+  // Creating or deleting a database, bucket or namespace (`d1 create`, `r2 bucket delete`, `kv namespace create`).
+  shell('remote resource', String.raw`${WRANGLER}(?:d1|r2|kv)\b${REST}\s(?:create|delete)\b`),
+  shell('secret', String.raw`${WRANGLER}secret\s+(?:put|delete|bulk)\b`),
+  shell(
+    'global install',
+    String.raw`(?:(?:npm|pnpm)\s+(?:i|install|add)\s+${REST}(?:-g|--global)\b|bun\s+(?:add|install|i)\s+${REST}(?:-g|--global)\b|yarn\s+global\s+add\b|brew\s+install\b|uv\s+tool\s+install\b|pipx\s+install\b|cargo\s+install\b)`,
+  ),
 ]
+
+/**
+ * A command that hands its real work to another shell as a string the map cannot read: `bash -c`,
+ * `sh -c`, `eval`, `ssh host <command>`, or a script piped into a shell. Found on the stripped
+ * line, where the string itself is already blanked, so only the wrapper's shape is matched.
+ */
+export const WRAPPED = 'wrapped, not read'
+
+const SSH_ARG_FLAGS = 'bcDEeFIiJLlmOopQRSWw'
+const WRAPPERS: readonly RegExp[] = [
+  /^(?:\S*\/)?(?:ba|z|da|k|fi)?sh\s+(?:-\w+\s+)*-\w*c\b/,
+  /^eval\b/,
+  // ssh, its options (those that take a value with it), a host, then a command.
+  new RegExp(String.raw`^ssh(?:\s+(?:-[${SSH_ARG_FLAGS}]\s*\S+|-[AaCfGgKkMNnqsTtVvXxYy46]+))*\s+[^\s-]\S*\s+\S`),
+]
+const PIPED_TO_SHELL = /\|\s*(?:sudo\s+)?(?:\S*\/)?(?:ba|z|da|k)?sh(?:\s+-\S+)*\s*(?:$|[;&|\n)])/
+
+export function isWrapped(bare: string): boolean {
+  return PIPED_TO_SHELL.test(bare) || commandsOf(bare).some(c => WRAPPERS.some(w => w.test(c)))
+}
 
 /** Words that may stand before a command's program without changing what it runs. */
 const PREFIX = /^(?:\w+=\S*|sudo|time|exec|nohup|command|builtin|env|xargs|do|then|else|elif|if|while|until|\{|\(|!)$/
@@ -45,8 +97,13 @@ export function commandsOf(bare: string): string[] {
   return out
 }
 
-/** MCP tools on a remote service whose name says they change it. */
+/**
+ * MCP tools on a remote service whose name says they change it. A name heuristic: it cannot
+ * tell a remote service from a local one, so a `create` on a memory-style server (a knowledge
+ * graph's entities, relations, observations) is left untagged.
+ */
 const MCP_CHANGE = /(?:^|_)(delete|deploy|apply|create)(?:_|$)/i
+const LOCAL_MEMORY = /memor|knowledge|entit|relation|observation/i
 
 /**
  * How much of a command line the map reads. Every tool call waits on the
@@ -137,5 +194,8 @@ export function gateForCommand(command: string): string | undefined {
 
 export function gateForMcp(toolName: string): string | undefined {
   const m = toolName.split('__').slice(2).join('__').match(MCP_CHANGE)
-  return m ? `remote ${m[1]!.toLowerCase()}` : undefined
+  if (!m) return undefined
+  const verb = m[1]!.toLowerCase()
+  if (verb === 'create' && LOCAL_MEMORY.test(toolName)) return undefined
+  return `remote ${verb}`
 }

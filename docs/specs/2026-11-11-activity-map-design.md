@@ -92,13 +92,36 @@ advances the clock hands.
 - `Agent`/`Workflow` → agents; `Skill`/`ToolSearch` → skills.
 - An unknown tool → shell, labelled with its name.
 
-**Gate patterns** (`gate.ts`), derived from `CLAUDE.md`'s gated list, matched on the Bash command:
-`git push` (any; `--force`/`-f`/`--force-with-lease` labelled force), `git reset --hard`,
-`git branch -D`, `wrangler deploy|publish`, `wrangler d1 execute … --remote`, `wrangler d1
-migrations apply … --remote`, `wrangler r2 object put|delete … --remote`, `wrangler secret put`,
-`npm i -g`/`bun add -g`/`brew install`, `gh pr merge`. MCP tools whose names contain `delete`,
-`create`, `apply` or `deploy` on a remote service are marked too. The table is the single source;
-each row has a test.
+**Gate patterns** (`gate.ts`), derived from `CLAUDE.md`'s gated list, matched on the Bash command.
+A tag means the call matched one of these known patterns, nothing more: **no tag does not mean
+not gated.** An alias, a script, a Makefile target under another name or a tool these rows do not
+name all pass untagged, and the map is display only, never a check that a step was allowed.
+
+- `git push` (any; `--force`, `--force-with-lease`, a short-flag cluster holding `f` such as
+  `-uf`, or a `+refspec` labelled force), with git's global options (`-C dir`, `-c k=v`,
+  `--no-pager`, ...) allowed before the subcommand, as for every git row.
+- `git reset --hard`, `git branch -D`, and the discard family: `git checkout -- <paths>` or
+  `git checkout .`, `git clean -f…`, `git restore` of the worktree (not `--staged` alone),
+  `git stash drop|clear`.
+- Deploys: `wrangler deploy|publish|pages deploy|versions deploy`, `bun|npm|pnpm|yarn [run]
+  deploy…`, `make … deploy`.
+- Remote data: `wrangler d1 execute … --remote`, `wrangler d1 migrations apply … --remote`,
+  `wrangler r2 object put|delete … --remote`, `wrangler d1|r2|kv … create|delete`,
+  `wrangler secret put|delete|bulk`.
+- GitHub: `gh pr merge`, `gh repo delete`, `gh api -X DELETE` (or `--method DELETE`).
+- Global installs: `npm|pnpm i|install|add -g`, `bun add -g`, `yarn global add`, `brew install`,
+  `uv tool install`, `pipx install`, `cargo install`.
+
+A command whose payload is a string handed to another shell (`bash -c`, `sh -c`, `eval`,
+`ssh host <command>`, a script piped into `sh`) gets a distinct grey, dashed `not read` tag
+(`wrapped, not read` in the feed, `◇`) instead of nothing, since the map blanks quoted text and
+cannot see what it runs. A known gate on the same line outranks it.
+
+MCP tools whose names contain `delete`, `create`, `apply` or `deploy` are tagged `remote …`. It
+is a name heuristic with known limits: it cannot tell a remote service from a local one, so it
+skips `create` on memory-style tools (names holding `memory`, `knowledge`, `entities`,
+`relations`, `observations`), still tags their `delete`, and misses a remote change named any
+other way (`update_…`, `put_…`, `send_…`). The table is the single source; each row has a test.
 
 Classification is linear and bounded, since every tool call waits on it: the map reads at most
 the first 16 KB of a command, blanks quoted text and heredoc bodies in one left-to-right pass,

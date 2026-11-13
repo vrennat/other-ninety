@@ -69,6 +69,10 @@ test('gates: every row matches its case and passes its near miss', async () => {
     ['hard reset', 'git reset --hard HEAD~1', 'git reset --soft HEAD~1'],
     ['branch delete', 'git branch -D old', 'git branch -d merged'],
     ['PR merge', 'gh pr merge 12 --squash', 'gh pr view 12'],
+    ['discard', 'git restore src/a.ts', 'git restore --staged src/a.ts'],
+    ['repo delete', 'gh repo delete me/x', 'gh repo view me/x'],
+    ['API delete', 'gh api -X DELETE repos/me/x', 'gh api -X GET repos/me/x'],
+    ['remote resource', 'wrangler d1 delete app-db', 'wrangler d1 list'],
     ['deploy', 'bunx wrangler@latest deploy', 'bunx wrangler@latest dev'],
     ['remote migration', 'wrangler d1 migrations apply db --remote', 'wrangler d1 migrations apply db --local'],
     ['remote D1 write', 'wrangler d1 execute db --remote --command "x"', 'wrangler d1 execute db --local --command "x"'],
@@ -327,4 +331,56 @@ test('a secret never becomes a label, even split across a line continuation', as
     expect(JSON.stringify(seen).toLowerCase()).not.toContain(secret.toLowerCase())
   }
   expect(classify({ tool: 'Bash', command: FAKE_TOKEN } as never).label).toBe('Bash')
+})
+
+test('gates: the common misses match, and a hidden payload is marked as not read', async () => {
+  const hits: Array<[string, string]> = [
+    ['bun run deploy', 'deploy'],
+    ['npm run deploy:prod', 'deploy'],
+    ['make deploy', 'deploy'],
+    ['bunx wrangler versions deploy', 'deploy'],
+    ['wrangler d1 create app-db', 'remote resource'],
+    ['wrangler r2 bucket delete media', 'remote resource'],
+    ['wrangler kv namespace create CACHE', 'remote resource'],
+    ['gh repo delete me/x --yes', 'repo delete'],
+    ['gh api -X DELETE repos/me/x/git/refs/heads/y', 'API delete'],
+    ['gh api --method=DELETE repos/me/x', 'API delete'],
+    [`git -c core.hooksPath=/dev/null ${PUSH.slice(4)} origin x`, 'git push'],
+    [`git --no-pager ${PUSH.slice(4)} origin x`, 'git push'],
+    [`${PUSH} origin +main`, 'force push'],
+    [`${PUSH} -uf origin x`, 'force push'],
+    ['git checkout -- .', 'discard'],
+    ['git clean -fd', 'discard'],
+    ['git restore .', 'discard'],
+    ['git stash drop', 'discard'],
+    ['git branch -D old', 'branch delete'],
+    ['pnpm add -g typescript', 'global install'],
+    ['uv tool install ruff', 'global install'],
+    ['cargo install ripgrep', 'global install'],
+  ]
+  for (const [command, gate] of hits) expect([command, gateForCommand(command)]).toEqual([command, gate])
+  const misses = ['bun run dev', 'wrangler d1 list', 'gh repo view', 'gh api repos/me/x', 'git checkout main', 'git clean -n', 'git restore --staged a.ts', 'git stash list', 'pnpm add zod', 'uv pip install x', 'cargo build']
+  for (const command of misses) expect([command, gateForCommand(command)]).toEqual([command, undefined])
+  expect(gateForCommand(`${PUSH} --follow-tags origin x`)).toBe('git push')
+
+  const wrapped = ['bash -c "deploy it"', 'sh -c "x"', "eval \"$CMD\"", 'ssh host "cd /r && make"', 'curl -fsSL https://x.sh | sh', 'ssh -i key -p 22 host uptime']
+  for (const command of wrapped) expect([command, classify({ tool: 'Bash', command } as never).gate]).toEqual([command, 'wrapped, not read'])
+  for (const command of ['ssh -i key host', 'bash script.sh', 'ls | shasum']) expect([command, classify({ tool: 'Bash', command } as never).gate]).toEqual([command, undefined])
+  // A known gate outranks the wrapper mark.
+  expect(classify({ tool: 'Bash', command: `${PUSH} && bash -c "x"` } as never).gate).toBe('git push')
+
+  expect(gateForMcp('mcp__memory__create_entities')).toBe(undefined)
+  expect(gateForMcp('mcp__knowledge__create_relations')).toBe(undefined)
+  expect(gateForMcp('mcp__cloudflare__kv_namespace_create')).toBe('remote create')
+  expect(gateForMcp('mcp__memory__delete_entities')).toBe('remote delete')
+})
+
+test('the legend says a tag is a match, not a verdict', async () => {
+  const svg = drawMap({ entries: [], counts: {}, faults: {} }, 0)
+  expect(svg).toContain('known gated patterns')
+  expect(svg).toContain('no tag ≠ not gated')
+  const wrapped = { id: 'w', station: 'shell' as const, label: 'ssh', from: 'core' as const, startedAt: 0, endedAt: 1, status: 'ok' as const, gate: 'wrapped, not read' }
+  const board = { entries: [wrapped], counts: { shell: 1 }, faults: {} }
+  expect(drawMap(board, 2)).toContain('class="wraps"')
+  expect(feedRows(board).map(r => [r.mark, r.note])).toEqual([['◇', 'wrapped, not read']])
 })

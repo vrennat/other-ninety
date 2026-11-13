@@ -1,4 +1,5 @@
 import type { Board, Entry, StationId } from '../../types'
+import { WRAPPED } from './gate'
 
 /** Stations clockwise from the top. The person sits at the top, the network across from the model. */
 export const STATIONS: ReadonlyArray<{ id: StationId; name: string }> = [
@@ -69,17 +70,20 @@ const isFault = (e: Entry): boolean => e.status === 'err' || e.status === 'block
  *   clay    Claude at work: a running call's clock, its pulses. The app uses clay the same way.
  *   red     a fault (error or refusal), and context past 90%.
  *   yellow  context past 70%. Yellow, not amber, so it never reads as clay.
- *   violet  a gated action (push, deploy, migrate...). Blue is left to the app's links.
+ *   violet  a call matching a known gated pattern (push, deploy, migrate...). Blue is left to
+ *           the app's links. No tag does not mean not gated.
+ *   grey    a tag on a call whose payload sits in a wrapper (`bash -c`, `ssh host "..."`) the
+ *           map does not read.
  * Light mode values are chosen, not sampled: no light screenshot of the Code tab was available.
  */
 const STYLE = `
 .tile{fill:#f1f1ef}.spoke{stroke:#8a8a86}.ink{fill:#1f1f1e}.label{fill:#6b6b68}.faint{fill:#9a9a96}.glyph{stroke:#5f5f5c}
 .live{stroke:#c6613f}.livef{fill:#c6613f}.livet{fill:#c6613f}.err{fill:#d13d3d}.errt{fill:#ffffff}
-.gate{fill:#6d4fd1}.gates{stroke:#6d4fd1}.track{stroke:#e8e8e5}.ring{stroke:#6b6b68}.ring.warn{stroke:#d19e00}.ring.high{stroke:#d13d3d}.warnt{fill:#8f6a00}
+.gate{fill:#6d4fd1}.gates{stroke:#6d4fd1}.wrapt{fill:#6b6b68}.wraps{stroke:#8a8a86}.track{stroke:#e8e8e5}.ring{stroke:#6b6b68}.ring.warn{stroke:#d19e00}.ring.high{stroke:#d13d3d}.warnt{fill:#8f6a00}
 @media (prefers-color-scheme: dark){
 .tile{fill:#262626}.spoke{stroke:#9d9d9d}.ink{fill:#f3f3f3}.label{fill:#9d9d9d}.faint{fill:#6e6e6e}.glyph{stroke:#b4b4b4}
 .live{stroke:#d97757}.livef{fill:#d97757}.livet{fill:#d97757}.err{fill:#ef6461}
-.gate{fill:#b4a0ff}.gates{stroke:#b4a0ff}.track{stroke:#2a2a2a}.ring{stroke:#9d9d9d}.ring.warn{stroke:#e3b341}.ring.high{stroke:#ef6461}.warnt{fill:#e3b341}}
+.gate{fill:#b4a0ff}.gates{stroke:#b4a0ff}.wrapt{fill:#b4b4b4}.wraps{stroke:#6e6e6e}.track{stroke:#2a2a2a}.ring{stroke:#9d9d9d}.ring.warn{stroke:#e3b341}.ring.high{stroke:#ef6461}.warnt{fill:#e3b341}}
 text{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
 @media (prefers-reduced-motion: reduce){animate,animateTransform{display:none}}`
 
@@ -87,7 +91,10 @@ text{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
  * A gate names itself: the gate's short name on a tag beside its station's label (above the
  * tile in the top half), off the spoke so it reads as that station's, not the centre's.
  */
-function gateTag(push: (s: string) => void, x: number, y: number, name: string, labelChars: number): void {
+function gateTag(push: (s: string) => void, x: number, y: number, gate: string, labelChars: number): void {
+  // A wrapped call is told apart from a gate: grey and dashed, and shorter on the map.
+  const wrapped = gate === WRAPPED
+  const name = wrapped ? 'not read' : gate
   const w = name.length * 6.4 + 12
   let cx = x
   let cy = y - HALF - 11
@@ -98,8 +105,8 @@ function gateTag(push: (s: string) => void, x: number, y: number, name: string, 
     cx = x + half + 6 + w < SIZE - 4 ? x + half + 6 + w / 2 : x - half - 6 - w / 2
   }
   // Outlined, not filled: a gate is worth noticing but is quieter than the context ring.
-  push(`<rect class="gates" x="${n(cx - w / 2)}" y="${n(cy - 7.5)}" width="${n(w)}" height="15" rx="4" fill="none" stroke-width="1.2"/>`)
-  push(`<text class="gate" x="${n(cx)}" y="${n(cy + 4)}" font-size="11" font-weight="600" text-anchor="middle">${xml(name)}</text>`)
+  push(`<rect class="${wrapped ? 'wraps' : 'gates'}" x="${n(cx - w / 2)}" y="${n(cy - 7.5)}" width="${n(w)}" height="15" rx="4" fill="none" stroke-width="1.2"${wrapped ? ' stroke-dasharray="3 2"' : ''}/>`)
+  push(`<text class="${wrapped ? 'wrapt' : 'gate'}" x="${n(cx)}" y="${n(cy + 4)}" font-size="11" font-weight="600" text-anchor="middle">${xml(name)}</text>`)
 }
 
 /** Errors and refusals: a red pill that says what it counts. */
@@ -123,9 +130,11 @@ function legend(push: (s: string) => void): void {
   push(`<text class="label" x="${l + 26}" y="32" font-size="11">errors</text>`)
   push(`<line class="spoke" x1="${l}" y1="44" x2="${l + 9}" y2="44" stroke-width="1" stroke-opacity="0.5"/><line class="spoke" x1="${l + 12}" y1="44" x2="${l + 21}" y2="44" stroke-width="4" stroke-opacity="0.8"/>`)
   push(`<text class="label" x="${l + 26}" y="48" font-size="11">wider = more calls</text>`)
-  // Right: the two warnings that are not about one call.
-  push(`<text class="label" x="${r}" y="16" font-size="11" text-anchor="end"><tspan class="gate" font-weight="600">violet</tspan> = gated: push, deploy</text>`)
-  push(`<text class="label" x="${r}" y="32" font-size="11" text-anchor="end">context <tspan class="warnt">yellow 70%</tspan>, <tspan class="err">red 90%</tspan></text>`)
+  // Right: what a tag does and does not say, and the context warning.
+  // A tag is a match against known patterns, not a verdict: the second line says so.
+  push(`<text class="label" x="${r}" y="16" font-size="11" text-anchor="end"><tspan class="gate" font-weight="600">violet</tspan> = known gated patterns</text>`)
+  push(`<text class="label" x="${r}" y="32" font-size="11" text-anchor="end">no tag ≠ not gated · <tspan class="wrapt" font-weight="600">grey</tspan> = not read</text>`)
+  push(`<text class="label" x="${r}" y="48" font-size="11" text-anchor="end">context <tspan class="warnt">yellow 70%</tspan>, <tspan class="err">red 90%</tspan></text>`)
 }
 
 
@@ -207,7 +216,7 @@ export function drawMap(board: Board, now: number): string {
   return out.join('')
 }
 
-export type FeedRow = { mark: '●' | '·' | '✕' | '◆'; station: StationId; label: string; more: number; note?: string; programs?: string[] }
+export type FeedRow = { mark: '●' | '·' | '✕' | '◆' | '◇'; station: StationId; label: string; more: number; note?: string; programs?: string[] }
 
 /** The newest rows first. Finished calls in a row at one station fold into one. */
 export function feedRows(board: Board, limit = 16, only: StationId | null = null): FeedRow[] {
@@ -216,7 +225,7 @@ export function feedRows(board: Board, limit = 16, only: StationId | null = null
     if (only !== null && e.station !== only) continue
     // Model steps sit between every tool call; on the map they pulse, in the feed they are noise.
     if (e.station === 'model' && e.status !== 'err') continue
-    const mark: FeedRow['mark'] = e.status === 'run' ? '●' : isFault(e) ? '✕' : e.gate ? '◆' : '·'
+    const mark: FeedRow['mark'] = e.status === 'run' ? '●' : isFault(e) ? '✕' : e.gate === WRAPPED ? '◇' : e.gate ? '◆' : '·'
     const note = e.status === 'block' ? 'refused' : e.gate ? e.gate : undefined
     const prev = rows[rows.length - 1]
     if (prev && mark === '·' && prev.mark === '·' && prev.station === e.station) {

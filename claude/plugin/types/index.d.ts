@@ -24,7 +24,11 @@ export type Entry = {
   startedAt: number
   endedAt?: number
   status: Status
-  /** Set when the call matches one of o90's gated actions: the gate's short name. */
+  /**
+   * Set when the call matches a known pattern of o90's gated actions: the gate's short name; or
+   * `wrapped, not read` when its payload sits in a wrapper the map does not read. Unset does not
+   * mean the call was not gated.
+   */
   gate?: string
   /** For a shell call, the programs it runs in order (shell keywords and `cd` left out), at most three. */
   programs?: string[]

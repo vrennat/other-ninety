@@ -808,6 +808,11 @@ open.
 
 **Resolution (Tanner, 2026-11-11): b**, as recommended.
 
+Wording (agent, 2026-11-13, from the PR 13 review; not a decision of Tanner's): the gate tag marks
+a match against known gated patterns, and no tag does not mean a call was not gated. The map is
+display only. The legend says so, and a call whose payload is wrapped (`bash -c`, `ssh host
+"..."`) gets a separate "not read" tag.
+
 ## D29. Conductor: fan-out path, session mode, dormant modes — Resolved
 
 Tanner approved this on 2026-11-13 ("yes apply all"), on an agent audit of the conductor skill

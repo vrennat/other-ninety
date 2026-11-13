@@ -1,5 +1,5 @@
 import type { StationId } from '../../types'
-import { bareCommand, gateForBare, gateForMcp } from './gate'
+import { WRAPPED, bareCommand, gateForBare, gateForMcp, isWrapped } from './gate'
 
 /**
  * A tool call -> the station it lights, a label, and a gate name.
@@ -139,7 +139,8 @@ export function classify(call: Call): Classified {
     case 'PowerShell': {
       // Stripped once: each reader below scans the same bounded string.
       const bare = bareCommand(str(call.command) ?? '')
-      const gate = gateForBare(bare)
+      // A known gate outranks the wrapper mark: what the wrapper runs is not read either way.
+      const gate = gateForBare(bare) ?? (isWrapped(bare) ? WRAPPED : undefined)
       const progs = programsOf(bare)
       // A bare `cd` names nothing better than itself; anything else names its first real program.
       const label = clean(str(call.description) ?? progs[0] ?? (programs(bare)[0]?.[0] || tool))
