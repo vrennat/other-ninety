@@ -244,8 +244,12 @@ isolation and early-access notes stand.
 2. **Failed since your last message:** red `✕` rows, each ending in why: `blocked` (a hook's
    `deny`), `exit N` (a shell call's exit code, the only part of an error's text that is read),
    `stopped` (its turn ended first), or `failed`.
-3. **Used the internet:** the last four calls that left the machine and did not fail, each ending
-   in the program or host that did it (`gh`, `git fetch`, `docs.example.com`, a connector's name).
+3. **Seen using the internet:** the last four calls the map recognised as reaching off the
+   machine that did not fail, each ending in the program or host that did it (`gh`, `git fetch`,
+   `docs.example.com`, `browser`, a connector's name). The name says "seen": the lists are known
+   programs and tools, not proof that anything else stayed local. A failed call that reached out
+   is listed under Failed and still names the program (`curl · exit 22`); a wrapper the map could
+   not read names its program too (`ssh · not read`).
 4. **Recent:** the last twelve other calls, newest first. Repeats in a row fold into `3 times`.
    A gate match ends its row in violet (`git push`, `hard reset`); a wrapper it could not read
    ends in grey `not read`.
@@ -258,22 +262,31 @@ No legend, no counts, no diagram. Colours are the app's theme keys (`claude`, `e
 `agent`, `skill`, `session` (starting, messaging, stopping and archiving sessions), `tool` (a
 local MCP server or an unknown tool), and `app` (plans, chapters, wrap-ups, tool search,
 notifications: kept on the board, never drawn). A shell call counts as leaving the machine when
-any of its programs is a network program (`curl`, `gh`, `ssh`, ...) or a network subcommand
-(`git fetch`, `npm install`, ...).
+any of its simple commands (split as the gate code splits them, so `env`, `sudo -u`, `timeout`,
+`nohup`, `xargs`, `&`, backticks and subshells hide nothing; `bunx` and `npx` name the program
+they run) is a network program (`curl`, `gh`, `ssh`, `aws`, `kubectl`, `psql`, `claude`, ...),
+a network subcommand (`git fetch`, `npm install`, `docker run`, `go get`, ...), or `open` of a
+web URL; a call addressed only to this machine (`curl localhost:5173`) stays local, as do
+WebFetch to a loopback host and the preview server's tools. A browser tool that loads a page
+counts, ending in `browser`. A model-written description with a credential-shaped word is never
+a label; the program or tool name stands in.
 
-**You** is a `prompt.submit` whose `origin.kind` is `composer`, `sdk`, `bridge` or `slack-ping`
-and which is not `isMeta`. The desktop app runs Claude Code through the SDK; which of `composer`
-and `sdk` it stamps on a typed prompt was not checked live, so both count.
+**You** is a `prompt.submit` whose `origin.kind` is `composer`, `bridge` or `person` and which is
+not `isMeta`: the engine's own test for a person's prompt (Claude Code 2.1.323). The desktop app
+stores a typed prompt with origin `human`, which the engine hands on as `composer` (read from the
+binary, not seen live). A prompt queued with no origin arrives `unclassified` and is not counted.
 
 **Turn ends** close only their own loop's running calls (`agent` on the entry), so a background
-subagent keeps its row running after the main turn ends.
+subagent keeps its row running after the main turn ends. Each tick asks `$.agent.list()` which
+subagents are alive and closes the calls of any other as stopped. App bookkeeping does not keep
+the tick going.
 
 **Time moves while a call runs:** after a publish that finds a call running, a tick every 5 s
 redraws the pane until nothing runs. A tick that fires early starts no new one; a lost tick is
 retried after 15 s, as a lost publish is.
 
 **Acceptance (replacing 1 to 4 above):** the recorded session in
-`hooks/map/fixtures/conductor-2026-11-13.ts` (tool names, programs and prompt origins only) gives
-9 calls that left the machine and 7 typed prompts of 12, where the 0.6.0 map showed Network 50
-and You 17 for the same events; failures survive notices, peers and subagent turns and clear on a
+`hooks/map/fixtures/conductor-2026-11-13.ts` (its first 30 prompts; tool names, programs and
+prompt origins only) gives 19 calls seen reaching out and 12 typed prompts of 30, where the 0.6.0
+map showed Network 63 and You 36 for the same events; failures survive notices, peers and subagent turns and clear on a
 typed message; a background subagent's call survives the main turn's end.

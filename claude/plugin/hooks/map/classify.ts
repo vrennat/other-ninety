@@ -1,5 +1,5 @@
 import type { Kind } from '../../types'
-import { WRAPPED, bareCommand, gateForBare, gateForMcp, isWrapped } from './gate'
+import { WRAPPED, bareCommand, commandsOf, gateForBare, gateForMcp, isWrapped } from './gate'
 
 /**
  * A tool call -> what kind of call it is, a label, where it left this machine, and a gate name.
@@ -40,18 +40,32 @@ export function hostOf(url: string): string {
 
 const MEMORY_PATH = /[\\/]\.claude[\\/]projects[\\/][^\\/]+[\\/]memory[\\/]/
 
-const NET_WORDS = new Set(['curl', 'wget', 'ssh', 'scp', 'rsync', 'gh', 'nc', 'http', 'https', 'wrangler', 'dig', 'ping'])
+/** Programs that talk to another machine whatever their subcommand. */
+const NET_WORDS = new Set(['curl', 'wget', 'ssh', 'scp', 'sftp', 'ftp', 'rsync', 'gh', 'nc', 'telnet', 'http', 'https', 'xh', 'wrangler', 'dig', 'nslookup', 'ping', 'aws', 'gcloud', 'gsutil', 'az', 'kubectl', 'helm', 'flyctl', 'vercel', 'netlify', 'heroku', 'psql', 'mysql', 'mongosh', 'redis-cli', 'claude'])
+/** Programs that talk to another machine only for some subcommands. */
 const NET_SUB: Record<string, RegExp> = {
-  git: /^(push|pull|fetch|clone|ls-remote)$/,
-  npm: /^(i|install|ci|publish|view)$/,
-  bun: /^(add|install|i|x)$/,
-  pnpm: /^(add|install|i)$/,
-  yarn: /^(add|install)$/,
-  pip: /^install$/,
-  pip3: /^install$/,
-  brew: /^(install|upgrade|update)$/,
-  docker: /^(pull|push|login)$/,
+  git: /^(push|pull|fetch|clone|ls-remote|submodule)$/,
+  npm: /^(i|install|ci|publish|view|update|add)$/,
+  bun: /^(add|install|i|x|update|publish|create)$/,
+  pnpm: /^(add|install|i|update|publish|dlx)$/,
+  yarn: /^(add|install|dlx|publish|up)$/,
+  pip: /^(install|download)$/,
+  pip3: /^(install|download)$/,
+  uv: /^(add|sync|lock|pip|tool)$/,
+  cargo: /^(install|add|fetch|update|publish)$/,
+  go: /^(get|install|mod)$/,
+  gem: /^install$/,
+  brew: /^(install|upgrade|update|fetch|tap)$/,
+  docker: /^(pull|push|login|run|build)$/,
 }
+/** A word that points at this machine: a call addressed only to it stays local. */
+const LOOPBACK = /(?:^|[/@=])(?:localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|\[?::1\]?|[\w-]+\.localhost)(?=$|[:/])/i
+/** A word that names another machine: a URL or `user@host`, not a loopback one. */
+const REMOTE_ADDRESS = /^(?:[a-z][\w+.-]*:\/\/|[\w.-]+@[\w.-]+)/i
+/** Package runners whose next program word is the one that runs (`bunx wrangler deploy`). */
+const RUNNERS: Record<string, number> = { bunx: 1, npx: 1, 'npm exec': 2, 'pnpm dlx': 2, 'pnpm exec': 2, 'yarn dlx': 2, 'bun x': 2 }
+/** Git's options that come before its subcommand, and those that take the next word. */
+const GIT_VALUE_OPTIONS = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace'])
 
 /** Token prefixes of common credentials (GitHub, OpenAI and Stripe, Slack, AWS, GitLab, Google, npm, PyPI, JWT). */
 const SECRET_PREFIX = /^(?:gh[pousr]_|github_pat_|sk[-_]|rk_|pk_live|xox[abprs]-|AKIA|ASIA|glpat-|AIza|npm_|pypi-|eyJ)/
@@ -113,23 +127,74 @@ export function programsOf(bare: string, max = 3): string[] {
   return out
 }
 
+/** A command word as a program name: its last path part without a version (`wrangler@3`), or '' when it is not shaped like one. */
+function programName(word: string): string {
+  const base = word.replace(/^.*[\\/]/, '').replace(/@[^@]*$/, '')
+  return looksSecret(word) || !COMMAND_SHAPE.test(base) ? '' : base
+}
+
 /**
  * The first program in a stripped command line that reaches off this machine, as a row shows it:
  * the program (`gh`, `curl`), or the program and its subcommand where only some subcommands do
- * (`git fetch`, `npm install`). Undefined when every program stays local, as far as these lists know.
+ * (`git fetch`, `npm install`). Built on the gate's own splitter, so `env`, `sudo -u x`,
+ * `timeout 5`, `nohup`, `xargs -n1`, `&`, backticks and subshells hide nothing; package runners
+ * (`bunx`, `npx`) name the program they run. A call whose only addresses are this machine
+ * (`curl localhost:5173`) stays local. Undefined when nothing on these lists reaches out: the
+ * lists are known programs, not a proof that a command stayed local.
  */
 export function reachesOut(bare: string): string | undefined {
-  for (const [p, sub] of programs(bare)) {
-    if (NET_WORDS.has(p)) return p
-    if (NET_SUB[p]?.test(sub)) return `${p} ${sub}`
+  for (const command of commandsOf(bare)) {
+    const words = command.split(/\s+/).filter(Boolean)
+    let i = 0
+    // `bunx --bun wrangler deploy`, `npm exec -- wrangler deploy`
+    const two = `${words[0]} ${words[1] ?? ''}`
+    const skip = RUNNERS[two] ?? RUNNERS[words[0] ?? '']
+    if (skip !== undefined) {
+      i = skip
+      while (i < words.length - 1 && words[i]!.startsWith('-')) i += words[i] === '-p' || words[i] === '--package' ? 2 : 1
+    }
+    const prog = programName(words[i] ?? '')
+    if (!prog) continue
+    const args = words.slice(i + 1)
+    let sub = args[0] ?? ''
+    if (prog === 'git') {
+      let k = 0
+      while (k < args.length && args[k]!.startsWith('-')) k += GIT_VALUE_OPTIONS.has(args[k]!) ? 2 : 1
+      sub = args[k] ?? ''
+    }
+    const local = args.some(a => LOOPBACK.test(a)) && !args.some(a => REMOTE_ADDRESS.test(a) && !LOOPBACK.test(a))
+    if (NET_WORDS.has(prog)) {
+      if (!local) return prog
+    } else if (NET_SUB[prog]?.test(sub)) {
+      return `${prog} ${sub}`
+    } else if (prog === 'open' && args.some(a => /^https?:\/\//i.test(a) && !LOOPBACK.test(a))) {
+      return 'open'
+    }
   }
   return undefined
+}
+
+/**
+ * A model-written text as a label, or undefined when any word in it looks like a credential
+ * (`Bearer ghp_…`, `token=…`): the caller then falls back to a program or tool name.
+ */
+export function safeText(text: string | undefined): string | undefined {
+  if (text === undefined) return undefined
+  return text.split(/[\s,;()"'`<>[\]{}]+/).some(w => w.length > 0 && looksSecret(w)) ? undefined : text
+}
+
+/** Whether a URL points at this machine. */
+const isLoopbackUrl = (url: string): boolean => {
+  const host = hostOf(url)
+  return host !== 'url' && LOOPBACK.test(`/${host.replace(/^\[|\]$/g, '')}`)
 }
 
 const BROWSER_SERVER = /^mcp__(claude[-_]in[-_]chrome|claude_browser|playwright|computer[-_]use)__/i
 const MEMORY_SERVER = /^mcp__memory__/i
 /** MCP servers that run on this machine or inside the desktop app: their calls stay local. */
-const LOCAL_SERVER = /^mcp__(ccd_[a-z_]+|terminal|visualize|easel|rejig|scheduled-tasks|Claude_Code_iOS_Simulator)__/i
+const LOCAL_SERVER = /^mcp__(ccd_[a-z_]+|terminal|visualize|easel|rejig|scheduled-tasks|Claude_Code_iOS_Simulator|Claude_Preview)__/i
+/** Browser tools that load a page: the browser fetches it from wherever it lives. */
+const BROWSER_LOAD = /(?:^|_)(navigate|tabs_create|tabs_create_mcp|preview_start)$/i
 /** The desktop app's session tools a person cares about, by verb; the app's other tools are bookkeeping. */
 const SESSION_VERBS: Record<string, string> = {
   start_session: 'Started a session',
@@ -175,12 +240,13 @@ export function classify(call: Call): Classified {
       const gate = gateForBare(bare) ?? (isWrapped(bare) ? WRAPPED : undefined)
       const via = reachesOut(bare)
       // A bare `cd` names nothing better than itself; anything else names its first real program.
-      const label = clean(str(call.description) ?? programsOf(bare)[0] ?? (programs(bare)[0]?.[0] || tool))
+      const label = clean(safeText(str(call.description)) ?? programsOf(bare)[0] ?? (programs(bare)[0]?.[0] || tool))
       return { kind: 'shell', label, ...(via ? { via } : {}), ...(gate ? { gate } : {}) }
     }
     case 'WebFetch': {
-      const host = clean(hostOf(str(call.url) ?? ''))
-      return { kind: 'web', label: host, via: host }
+      const url = str(call.url) ?? ''
+      const host = clean(hostOf(url))
+      return { kind: 'web', label: host, ...(isLoopbackUrl(url) ? {} : { via: host }) }
     }
     case 'WebSearch':
       return { kind: 'web', label: 'Searched the web', via: 'web search' }
@@ -188,7 +254,7 @@ export function classify(call: Call): Classified {
       return { kind: 'web', label: 'Published a page', via: 'claude.ai' }
     case 'Agent':
     case 'Task':
-      return { kind: 'agent', label: clean(str(call.description) ?? str(call.subagent_type) ?? 'subagent') }
+      return { kind: 'agent', label: clean(safeText(str(call.description)) ?? str(call.subagent_type) ?? 'subagent') }
     case 'Workflow':
       return { kind: 'agent', label: 'workflow' }
     case 'Skill':
@@ -203,13 +269,20 @@ export function classify(call: Call): Classified {
   if (tool.startsWith('mcp__')) {
     const gate = gateForMcp(tool)
     const g = gate ? { gate } : {}
-    if (BROWSER_SERVER.test(tool)) return { kind: 'browser', label: clean(mcpLabel(tool)), ...g }
+    if (BROWSER_SERVER.test(tool)) {
+      const url = str(call.url)
+      const loads = BROWSER_LOAD.test(tool) && !(url !== undefined && isLoopbackUrl(url))
+      // No name gate here: opening or creating a tab changes nothing on a remote service.
+      // A page load ends in its host when the call names one (host only, never the path or query).
+      const via = url !== undefined && hostOf(url) !== 'url' ? clean(hostOf(url)) : 'browser'
+      return { kind: 'browser', label: clean(mcpLabel(tool)), ...(loads ? { via } : {}) }
+    }
     if (MEMORY_SERVER.test(tool)) return { kind: 'memory', label: clean(mcpLabel(tool)), ...g }
     if (LOCAL_SERVER.test(tool)) {
       const name = tool.split('__').slice(2).join('__')
       const session = /^mcp__ccd_session/i.test(tool) ? SESSION_VERBS[name] : undefined
       if (session) return { kind: 'session', label: session }
-      return { kind: /^mcp__ccd_/i.test(tool) ? 'app' : 'tool', label: clean(mcpLabel(tool)), ...g }
+      return { kind: /^mcp__ccd_/i.test(tool) ? 'app' : 'tool', label: clean(mcpLabel(tool)) }
     }
     // Any other server is a connector or a remote service: the call leaves this machine.
     return { kind: 'web', label: clean(mcpLabel(tool)), via: clean(mcpServer(tool) ?? 'connector'), ...g }
@@ -218,12 +291,14 @@ export function classify(call: Call): Classified {
 }
 
 /**
- * Whether a submitted prompt is one the person typed: at the terminal or the desktop app's
- * prompt box (`composer`; the desktop app runs Claude Code through the SDK, so `sdk` too), from
- * the phone or web (`bridge`), or a Slack ping. Not a background task's notice, another
- * session's message, a scheduled prompt, a relay or an engine-made `isMeta` prompt.
+ * Whether a submitted prompt is one the person typed, by the engine's own test (Claude Code
+ * 2.1.323): origin `composer` (the prompt box; the desktop app's typed prompts, stored with
+ * origin `human`, arrive as this), `bridge` (Remote Control) or `person`. Not `sdk`, a Slack
+ * ping, a background task's notice, another session's message, a scheduled prompt, or an
+ * engine-made `isMeta` prompt. A prompt queued with no origin arrives `unclassified` and is
+ * not counted.
  */
-const TYPED = new Set(['composer', 'sdk', 'bridge', 'slack-ping'])
+const TYPED = new Set(['composer', 'bridge', 'person'])
 export function isTyped(e: { origin?: { kind: string } | null; isMeta?: true }): boolean {
   const kind = e.origin?.kind
   return e.isMeta !== true && typeof kind === 'string' && TYPED.has(kind)

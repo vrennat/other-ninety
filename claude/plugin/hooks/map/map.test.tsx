@@ -2,9 +2,9 @@ import type { On } from 'claude-code'
 import { expect, test } from 'claude-code/testing'
 
 import type { Entry } from '../../types'
-import { classify, exitWhy, isTyped, looksSecret } from './classify'
+import { classify, exitWhy, isTyped, looksSecret, reachesOut } from './classify'
 import recorded from './fixtures/conductor-2026-11-13'
-import { GATES, gateForCommand, gateForMcp } from './gate'
+import { GATES, bareCommand, gateForCommand, gateForMcp } from './gate'
 import { clockSvg, contextTone, elapsed, sections, trimHistory } from './rows'
 
 const PANE = {
@@ -63,7 +63,7 @@ function engine(on: On, opts: Opts = {}) {
 type T$ = Parameters<Extract<Parameters<typeof test>[1], (...args: any[]) => unknown>>[0]
 const start = ($: T$, surface: 'desktop' | 'terminal' = 'desktop') =>
   $.session.start({ cwd: '/', surface, isInteractive: true })
-const typed = { text: 'go', origin: { kind: 'sdk' } } as never
+const typed = { text: 'go', origin: { kind: 'composer' } } as never
 const peer = { text: 'Another Claude session sent a message', origin: { kind: 'peer' }, isMeta: true } as never
 const notice = { text: '<task-notification>', origin: { kind: 'task-notification' } } as never
 
@@ -103,6 +103,11 @@ test('kinds: the app is not the internet, and a row names what left the machine'
     [{ tool: 'Agent', description: 'Survey specs' }, 'agent', undefined],
     [{ tool: 'Skill', skill: 'magpie' }, 'skill', undefined],
     [{ tool: 'mcp__playwright__browser_click' }, 'browser', undefined],
+    [{ tool: 'mcp__claude-in-chrome__navigate', url: `https://example.com/a?token=${FAKE_TOKEN}` }, 'browser', 'example.com'],
+    [{ tool: 'mcp__playwright__browser_navigate', url: 'http://localhost:5173' }, 'browser', undefined],
+    [{ tool: 'mcp__claude-in-chrome__tabs_create_mcp' }, 'browser', 'browser'],
+    [{ tool: 'WebFetch', url: 'http://localhost:3000/a' }, 'web', undefined],
+    [{ tool: 'mcp__Claude_Preview__preview_start' }, 'tool', undefined],
     [{ tool: 'SomeNewTool' }, 'tool', undefined],
   ]
   for (const [call, kind, via] of cases) {
@@ -112,21 +117,73 @@ test('kinds: the app is not the internet, and a row names what left the machine'
   expect(classify({ tool: 'Read', file_path: '/a/b/c/d.ts' } as never).label).toBe('Read c/d.ts')
   expect(classify({ tool: 'Write', file_path: '/a/b/c/d.ts' } as never).label).toBe('Wrote c/d.ts')
   expect(classify({ tool: 'mcp__ccd_session_mgmt__archive_session' } as never).label).toBe('Archived a session')
+  // Opening a tab is not a remote change.
+  expect(classify({ tool: 'mcp__claude-in-chrome__tabs_create_mcp' } as never).gate).toBe(undefined)
 })
 
-test('typed by the person: the composer, the desktop app, the phone; not notices, peers or meta prompts', async () => {
-  for (const kind of ['composer', 'sdk', 'bridge', 'slack-ping']) expect([kind, isTyped({ origin: { kind } })]).toEqual([kind, true])
-  for (const kind of ['task-notification', 'peer', 'peer-send-message', 'scheduled-trigger', 'channel', 'coordinator', 'auto-continuation', 'unclassified', 'projects-relay', 'observer'])
+test('reaching out: prefixes, separators, runners and more programs hide nothing; loopback stays local', async () => {
+  const out: Array<[string, string]> = [
+    ['env A=1 curl x.io', 'curl'],
+    ['timeout 5 curl x.io', 'curl'],
+    ['nohup curl x.io &', 'curl'],
+    ['xargs curl', 'curl'],
+    ['cat urls | xargs -n1 curl', 'curl'],
+    ['sleep 1 & curl x.io', 'curl'],
+    ['(curl x.io)', 'curl'],
+    ['echo `curl x.io`', 'curl'],
+    ['command curl x.io', 'curl'],
+    ['nice -n 5 curl x.io', 'curl'],
+    ['sudo -u bob curl x.io', 'curl'],
+    ['git -c core.x=y push', 'git push'],
+    ['git --no-pager fetch', 'git fetch'],
+    ['git -C /r pull', 'git pull'],
+    ['bunx wrangler deploy', 'wrangler'],
+    ['npx wrangler d1 list', 'wrangler'],
+    ['npm exec -- wrangler deploy', 'wrangler'],
+    ['uv add httpx', 'uv add'],
+    ['cargo install ripgrep', 'cargo install'],
+    ['go get example.com/x', 'go get'],
+    ['aws s3 ls', 'aws'],
+    ['gcloud run deploy', 'gcloud'],
+    ['kubectl get pods', 'kubectl'],
+    ['docker run alpine', 'docker run'],
+    [`sftp me${'@'}box`, 'sftp'],
+    [`psql postgres://u${'@'}db.example.com/x`, 'psql'],
+    ['mysql -h db.example.com', 'mysql'],
+    ['claude -p hi', 'claude'],
+    ['open https://example.com', 'open'],
+    ['ssh host uptime', 'ssh'],
+  ]
+  for (const [command, via] of out) expect([command, reachesOut(bareCommand(command))]).toEqual([command, via])
+  const local = ['curl localhost:5173', 'curl -s http://127.0.0.1:8787/x', 'curl http://[::1]:3000', `psql postgres://u${'@'}localhost/db`, 'open http://app.localhost:5173', 'open README.md', 'git status', 'bun test', 'docker ps', 'echo curl']
+  for (const command of local) expect([command, reachesOut(bareCommand(command))]).toEqual([command, undefined])
+  // A loopback address beside a remote one is not local.
+  expect(reachesOut(bareCommand('curl localhost:1 https://x.io'))).toBe('curl')
+})
+
+test('a description that holds a credential-shaped word is never a label', async () => {
+  const shell = classify({ tool: 'Bash', command: 'curl https://api.x.io', description: `Call API with Bearer ${FAKE_TOKEN}` } as never)
+  expect(JSON.stringify(shell)).not.toContain(FAKE_TOKEN)
+  expect(shell.label).toBe('curl')
+  const agent = classify({ tool: 'Agent', description: `use token=${'abc'}123`, subagent_type: 'Explore' } as never)
+  expect(agent.label).toBe('Explore')
+  expect(classify({ tool: 'Bash', command: 'ls', description: 'List the files' } as never).label).toBe('List the files')
+})
+
+test("typed by the person: the engine's own test, composer, bridge or person; not sdk, Slack, notices or peers", async () => {
+  for (const kind of ['composer', 'bridge', 'person']) expect([kind, isTyped({ origin: { kind } })]).toEqual([kind, true])
+  for (const kind of ['sdk', 'slack-ping', 'task-notification', 'peer', 'peer-send-message', 'scheduled-trigger', 'channel', 'coordinator', 'auto-continuation', 'unclassified', 'projects-relay', 'observer'])
     expect([kind, isTyped({ origin: { kind } })]).toEqual([kind, false])
-  expect(isTyped({ origin: { kind: 'sdk' }, isMeta: true })).toBe(false)
+  expect(isTyped({ origin: { kind: 'composer' }, isMeta: true })).toBe(false)
   expect(isTyped({})).toBe(false)
   expect(isTyped({ origin: null })).toBe(false)
 })
 
-// Recorded from the conductor session of 2026-11-13, from its start to the first message from
-// another session: tool names, programs and prompt origins only. Paths, descriptions and command
-// arguments were dropped. The transcript stores a desktop-typed prompt as origin `human`; it is
-// recorded here as `sdk`, the desktop app's kind in the mod API.
+// Recorded from the conductor session of 2026-11-13, its first 30 prompts: typed messages, task
+// notifications and other sessions' messages. Tool names, programs and prompt origins only; paths,
+// descriptions and command arguments were dropped. The transcript stores a desktop-typed prompt as
+// origin `human`, which the engine hands to `prompt.submit` as `composer` (2.1.323), so that is
+// what is recorded here.
 type Prompt = { kind: string; isMeta?: true }
 type Recorded = Call | { prompt: Prompt }
 const RECORDED = recorded as unknown as Recorded[]
@@ -134,16 +191,16 @@ const asPrompt = (e: Recorded): Prompt | undefined => ('tool' in e ? undefined :
 const recordedCalls = RECORDED.filter((e): e is Call => 'tool' in e)
 const recordedPrompts: Prompt[] = RECORDED.flatMap(e => asPrompt(e) ?? [])
 
-test('recorded session: 9 calls left the machine, not 50, and 7 of 12 prompts were typed', async () => {
-  // The map before this change counted 50 of these calls as Network and 17 or more as You
-  // (12 turn starts plus at least one per subagent run). See the baseline in the pull request.
-  expect(recordedCalls.length).toBe(77)
+test('recorded session: 19 calls seen reaching out, not 63, and 12 of 30 prompts were typed', async () => {
+  // The map before this change counted 63 of these calls as Network and 36 as You (30 turn
+  // starts plus one per subagent run). See the baseline in the pull request.
+  expect(recordedCalls.length).toBe(132)
   const vias = recordedCalls.map(c => classify(c as never).via).filter(Boolean)
-  expect(vias.length).toBe(9)
-  expect([...new Set(vias)].sort()).toEqual(['gh', 'git fetch', 'ssh'])
+  expect(vias.length).toBe(19)
+  expect([...new Set(vias)].sort()).toEqual(['browser', 'connector', 'gh', 'git fetch', 'ssh'])
   expect(recordedCalls.filter(c => c.tool.startsWith('mcp__ccd_') && classify(c as never).via).length).toBe(0)
-  expect(recordedPrompts.length).toBe(12)
-  expect(recordedPrompts.filter(p => isTyped({ origin: p, ...(p.isMeta ? { isMeta: true } : {}) })).length).toBe(7)
+  expect(recordedPrompts.length).toBe(30)
+  expect(recordedPrompts.filter(p => isTyped({ origin: p, ...(p.isMeta ? { isMeta: true } : {}) })).length).toBe(12)
 })
 
 test('recorded session through the hooks: You counts typed messages only, and the app stays off the list', async ($, on) => {
@@ -164,16 +221,16 @@ test('recorded session through the hooks: You counts typed messages only, and th
   }
   const lines = await paneLines($)
   expect(lines.some(l => /App|wrap_up|update_plan/.test(l))).toBe(false)
-  const outside = lines.slice(lines.indexOf('# Used the internet') + 1, lines.indexOf('# Recent'))
+  const outside = lines.slice(lines.indexOf('# Seen using the internet') + 1, lines.indexOf('# Recent'))
   expect(outside.length).toBe(4)
-  for (const l of outside) expect(l).toMatch(/(gh|git fetch|ssh)$/)
+  for (const l of outside) expect(l).toMatch(/(gh|git fetch|ssh|browser|connector)( · .*)?$/)
 
-  // Prompts alone: seven typed messages fold into one You row; notices add nothing.
+  // Prompts alone: twelve typed messages fold into one You row; notices and peers add nothing.
   for (const p of recordedPrompts) {
     await $.prompt.submit({ text: 'x', origin: p, ...(p.isMeta ? { isMeta: true } : {}) } as never)
     await settle()
   }
-  expect((await paneLines($)).find(l => l.startsWith('You'))).toBe('Youtyped a message7 times')
+  expect((await paneLines($)).find(l => l.startsWith('You'))).toBe('Youtyped a message12 times')
 })
 
 test('a failed row says why when the hook has a safe reason, and only that', async ($, on) => {
@@ -183,8 +240,10 @@ test('a failed row says why when the hook has a safe reason, and only that', asy
   await $.tool.call({ tool: 'mcp__ccd_session_mgmt__archive_session', error: 'Session x was not archived: it still has live work' } as never)
   const out = await $.tool.call({ tool: 'Bash', command: 'rm -rf /tmp/x', description: 'Remove a folder', deny: 'blocked by a hook' } as never)
   expect(out).toEqual({ deny: 'blocked by a hook' })
+  // A failed call that reached out still names what did.
+  await $.tool.call({ tool: 'Bash', command: 'curl -f -d @f https://x.io', description: 'Upload the report', error: 'Exit code 22' } as never)
   const lines = await paneLines($)
-  expect(lines.slice(1, 5)).toEqual(['# Failed since your last message', '✕ShellRemove a folderblocked', '✕SessionArchived a sessionfailed', '✕ShellRead the repo stateexit 2'])
+  expect(lines.slice(1, 6)).toEqual(['# Failed since your last message', '✕ShellUpload the reportcurl · exit 22', '✕ShellRemove a folderblocked', '✕SessionArchived a sessionfailed', '✕ShellRead the repo stateexit 2'])
   expect(JSON.stringify(lines)).not.toContain(FAKE_TOKEN)
   expect(JSON.stringify(lines)).not.toContain('live work')
   expect(exitWhy('Exit code 127\nnot found')).toBe('exit 127')
@@ -338,8 +397,8 @@ test('a gated call names its gate on its row, in the gate colour', async ($, on)
   await settle()
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   const lines = (await ui.findAll({ type: 'Box' })).filter(b => b.key?.startsWith('o90-row-')).map(b => b.text)
-  expect(lines).toEqual(['ShellBuild on the boxnot read', 'ShellPush the branchgit push', 'ShellDrop the last commithard reset'])
-  expect((await ui.find({ type: 'Text', text: 'git push' }))?.props.color).toBe('merged')
+  expect(lines).toEqual(['ShellBuild on the boxssh · not read', 'ShellPush the branchgit push · git push', 'ShellDrop the last commithard reset'])
+  expect((await ui.findAll({ type: 'Text' })).find(t => t.text === ' · git push')?.props.color).toBe('merged')
   await ui.unmount()
 })
 
@@ -542,6 +601,51 @@ test('a running call keeps the pane ticking, and a timer that fires early does n
   await flush()
   expect(held.length).toBe(0)
   await ui.unmount()
+})
+
+test("a subagent that ended without its turn's end being heard is closed as stopped", async ($, on) => {
+  let now = 1_000_000
+  const held: Array<() => void> = []
+  let alive = [{ id: 'sub1', status: 'running', description: 'x', type: 'Explore' }]
+  engine(on, { now: () => now, after: () => new Promise(resolve => held.push(() => resolve({ value: undefined }))) })
+  let asked = 0
+  on('agent.list', () => {
+    asked++
+    return { value: alive } as never
+  })
+  const flush = async () => {
+    for (const fire of held.splice(0)) fire()
+    await settle()
+  }
+  await start($)
+  void $.tool.call({ tool: 'hang', agentId: 'sub1' } as never)
+  await settle()
+  await flush()
+  now += 6_000
+  await flush()
+  expect((await paneLines($))[0]).toMatch(/running/)
+  expect(asked > 0).toBe(true)
+  alive = [{ id: 'sub1', status: 'killed', description: 'x', type: 'Explore' }]
+  now += 6_000
+  // The tick closes the call; the next publish draws it.
+  await flush()
+  await flush()
+  const lines = await paneLines($)
+  expect(lines[0]).toBe('Idle')
+  expect(lines).toContain('✕Toolhangstopped')
+})
+
+test("the app's own long waits do not keep the pane ticking", async ($, on) => {
+  const held: Array<() => void> = []
+  engine(on, { tool: () => new Promise(() => {}), after: () => new Promise(resolve => held.push(() => resolve({ value: undefined }))) })
+  await start($)
+  void $.tool.call({ tool: 'AskUserQuestion', questions: [] } as never)
+  await settle()
+  // One timer: the publish. No tick follows it for an app call.
+  expect(held.length).toBe(1)
+  held.splice(0).forEach(f => f())
+  await settle()
+  expect(held.length).toBe(0)
 })
 
 test('a state store that never answers cannot hold up a tool call', async ($, on) => {

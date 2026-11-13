@@ -52,7 +52,7 @@ async function publishSoon($: EngineInterface): Promise<void> {
         const latest = await read($, board)
         await update($, view, () => latest)
         // A call still open when the pane is drawn needs its time to move: start the tick.
-        if (latest.entries.some(e => e.status === 'run' && e.kind !== 'model')) void quietly(() => keepTicking($))
+        if (latest.entries.some(needsTime)) void quietly(() => keepTicking($))
       })
       // A publish that went stale and was replaced leaves the flag to its replacement.
       if (publishScheduledAt !== mine) return
@@ -73,6 +73,26 @@ const TICK_MS = 5_000
 const TICK_STALE_MS = 15_000
 let tickScheduledAt = 0
 
+/** A call whose running time the pane shows: not a model step, not the app's own bookkeeping. */
+const needsTime = (e: Entry): boolean => e.status === 'run' && e.kind !== 'model' && e.kind !== 'app'
+
+/** Subagent states in which its loop may still finish a call. */
+const ALIVE = new Set(['pending', 'running', 'waiting', 'idle'])
+
+/**
+ * A subagent's calls close when its own run ends. One that was killed, or ended without a
+ * `turn.complete` the map heard, would otherwise run on the pane for the session: each tick asks
+ * the engine which subagents are still alive and closes the rest as stopped.
+ */
+async function closeEndedAgents($: EngineInterface, b: Board): Promise<void> {
+  if (!b.entries.some(e => e.status === 'run' && e.agent !== undefined)) return
+  const alive = new Set((await $.agent.list()).filter(a => ALIVE.has(a.status)).map(a => a.id))
+  const ended = (e: Entry) => e.status === 'run' && e.agent !== undefined && !alive.has(e.agent)
+  if (!b.entries.some(ended)) return
+  const now = await $.clock.now()
+  await updateBoard($, x => ({ ...x, entries: x.entries.map(e => (ended(e) ? { ...e, status: 'err', endedAt: now, why: 'stopped' } : e)) }))
+}
+
 async function keepTicking($: EngineInterface): Promise<void> {
   const now = await $.clock.now()
   if (tickScheduledAt !== 0 && now - tickScheduledAt < TICK_STALE_MS) return
@@ -85,7 +105,8 @@ async function keepTicking($: EngineInterface): Promise<void> {
       // A timer that fires early (or at once, as in a test) does not start another: no busy loop.
       if ((await $.clock.now()) - mine < TICK_MS / 2) return
       const b = await read($, view)
-      if (!b.entries.some(e => e.status === 'run' && e.kind !== 'model')) return
+      if (!b.entries.some(needsTime)) return
+      await closeEndedAgents($, b)
       await update($, tick, t => t + 1)
       await keepTicking($)
     })
@@ -327,30 +348,40 @@ export const register: Register = on => {
     )
 
     // A row: the kind as a quiet first word, the label, and one fact at the end.
-    const row = (x: Entry, end: { text: string; color?: string; dim?: boolean } | null, times = 1) => (
-      <Box key={`o90-row-${x.id}`} flexDirection="row" gap={1}>
-        {isFault(x) ? <Text color="error" weight="bold">✕</Text> : null}
-        {/* The kind sits in a column of its own, so a wrapped label lines up under itself. */}
-        <Box flexShrink={0}>
-          <Text dimColor>{KIND_NAME[x.kind as Kind]}</Text>
-        </Box>
-        <Box flexGrow={1} flexShrink={1}>
-          <Text>{x.label}</Text>
-        </Box>
-        {/* The fact at the end never shrinks: a narrow pane wraps the label, not "gh". */}
-        {end ? (
+    // A row: the kind as a quiet first word, the label, and its facts at the end: what took it
+    // off the machine, a gate in violet (or a wrapper it could not read, in grey), why it failed
+    // in red, or how many times it repeated.
+    const row = (x: Entry, times = 1) => {
+      const facts: Array<{ text: string; color?: string; dim?: boolean }> = []
+      if (x.via) facts.push({ text: x.via, dim: true })
+      if (x.gate) facts.push(x.gate.startsWith('wrapped') ? { text: 'not read', dim: true } : { text: x.gate, color: 'merged' })
+      if (isFault(x)) facts.push({ text: faultWord(x), color: 'error' })
+      if (times > 1) facts.push({ text: `${times} times`, dim: true })
+      return (
+        <Box key={`o90-row-${x.id}`} flexDirection="row" gap={1}>
+          {isFault(x) ? <Text color="error" weight="bold">✕</Text> : null}
+          {/* The kind sits in a column of its own, so a wrapped label lines up under itself. */}
           <Box flexShrink={0}>
-            <Text color={end.color} dimColor={end.dim}>{end.text}</Text>
+            <Text dimColor>{KIND_NAME[x.kind as Kind]}</Text>
           </Box>
-        ) : times > 1 ? (
-          <Box flexShrink={0}>
-            <Text dimColor>{`${times} times`}</Text>
+          <Box flexGrow={1} flexShrink={1}>
+            <Text>{x.label}</Text>
           </Box>
-        ) : null}
-      </Box>
-    )
-    // A gate names itself in violet; a wrapper the map could not read says so in grey.
-    const gateEnd = (x: Entry) => (x.gate ? (x.gate.startsWith('wrapped') ? { text: 'not read', dim: true } : { text: x.gate, color: 'merged' }) : null)
+          {/* The facts never shrink: a narrow pane wraps the label, not "gh". */}
+          {facts.length > 0 ? (
+            <Box flexShrink={0}>
+              <Text>
+                {facts.map((f, i) => (
+                  <Text key={`f${i}`} color={f.color} dimColor={f.dim}>
+                    {i > 0 ? ` · ${f.text}` : f.text}
+                  </Text>
+                ))}
+              </Text>
+            </Box>
+          ) : null}
+        </Box>
+      )
+    }
     const heading = (text: string) => (
       <Box key={`o90-h-${text}`} marginTop={1}>
         <Text size="caption" weight="semibold" dimColor>{text}</Text>
@@ -361,11 +392,12 @@ export const register: Register = on => {
       <Box flexDirection="column">
         {head}
         {s.failed.length > 0 && heading('Failed since your last message')}
-        {s.failed.map(x => row(x, { text: faultWord(x), color: 'error' }))}
-        {s.outside.length > 0 && heading('Used the internet')}
-        {s.outside.map(x => row(x, gateEnd(x) ?? { text: x.via ?? '', dim: true }))}
+        {s.failed.map(x => row(x))}
+        {/* What the map recognised as reaching out, not every call that did: the name says so. */}
+        {s.outside.length > 0 && heading('Seen using the internet')}
+        {s.outside.map(x => row(x))}
         {s.recent.length > 0 && heading('Recent')}
-        {s.recent.map(r => row(r.entry, isFault(r.entry) ? { text: faultWord(r.entry), color: 'error' } : gateEnd(r.entry), r.times))}
+        {s.recent.map(r => row(r.entry, r.times))}
         {b.entries.length === 0 ? <Text dimColor>No calls yet.</Text> : null}
       </Box>
     )

@@ -947,17 +947,21 @@ and the session's transcript, and proposed two directions with mocks:
 
 What the agent found, and what B changes because of it:
 
-- Every MCP tool that was not a browser or memory tool counted as Network. In the recorded
-  session 50 calls counted as Network; 9 left the machine. The app's own tools are now `app`
-  (not drawn) or `session`, and a row under "Used the internet" names the program that reached
-  out, wherever it sits in the command.
+- Every MCP tool that was not a browser or memory tool counted as Network. Over the recorded
+  session's first 30 prompts, 63 calls counted as Network; the new rules see 19 reaching out. The
+  app's own tools are now `app` (not drawn) or `session`, and a row names the program or host that
+  reached out, wherever it sits in the command. The section is called "Seen using the internet":
+  it lists what the map recognised, not everything that left the machine.
 - Every turn start counted as You, including background-task notices, other sessions' messages and
-  each subagent's run: 17 or more in that session against 7 typed messages. You now counts only
-  `prompt.submit` from the person (`composer`, `sdk`, `bridge`, `slack-ping`, not `isMeta`).
+  each subagent's run: 36 in that window against 12 typed messages. You now counts only a
+  `prompt.submit` the engine itself treats as the person's: origin `composer`, `bridge` or
+  `person`, not `isMeta` (the test in the Claude Code 2.1.323 binary). A prompt typed in the
+  desktop app is stored with origin `human`, which the engine hands on as `composer`.
 - The same hook cleared the failure marks, so they vanished early. Failures now stay listed until
   the person types.
 - A turn's end marked every running call done, including a background subagent's. Now a turn
-  closes only its own loop's calls.
+  closes only its own loop's calls, and a call whose subagent `$.agent.list()` no longer shows as
+  alive is closed as stopped.
 - A refusal by a hook arrives as `deny`; the app declining a call arrives as an error result. A
   failed row ends in `blocked`, `exit N` for a shell call, `stopped`, or `failed`. Nothing else
   of an error's text is shown, since it may hold anything.
