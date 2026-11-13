@@ -32,6 +32,13 @@ history can explain does not.
 | D20 | Session audit 2026-10-09: start directory, permissions, push guard, model routing, settings | Resolved |
 | D21 | Second session audit 2026-10-09: text-only push guard, authorization scope, shell environment, repeatable audit | Resolved |
 | D22 | Trim always-loaded guidance for the Claude 5 family | Resolved |
+| D29 | Conductor: fan-out path, session mode, dormant modes | Resolved |
+| D30 | Push guard: text in heredocs and messages | Resolved |
+| D31 | Drift check reports dangling symlinks | Resolved |
+| D32 | Global skills with no recent use | Proposed |
+| D33 | Bypass flags and browser routing in the global rules | Resolved |
+| D34 | Session rules: start directory, compaction handoff, no sleep-polling | Resolved |
+| D35 | Opus effort and the auto-compact window | Resolved |
 
 ---
 
@@ -673,3 +680,108 @@ Rejected, agent recommendation Tanner did not contest:
   "a reviewer is never weaker than the author".
 
 Check: re-count audit-style `Explore` calls after 30 days with the same transcript scan.
+
+## D29. Conductor: fan-out path, session mode, dormant modes — Resolved
+
+Tanner approved this on 2026-11-13 ("yes apply all"), on an agent audit of the conductor skill
+against transcripts from 2026-09-13 to 2026-11-12.
+
+What the audit measured, over the 5 sessions that loaded the skill:
+
+- All 5 started from the phrase ("act as conductor", `/conductor`); none from the shape of the
+  work. Six other "master" sessions that started 187 desktop sub-sessions never loaded it.
+- The three most recent were one-sitting fan-outs, not standing agents: 18 of 18, 43 of 47 and 9
+  of 10 spawns had unique names. Only the two October runs kept standing agents.
+- Every spawn that set an effort set `medium` (21); the skill said "run the conductor at xhigh".
+- The corrections the pattern claims came from one-shot reviewers' BLOCKs and builders checking
+  the brief's premise, not from standing exclusive authority.
+- Manager mode: 46 pi seat runs in August, 5 in September, 1 in October, 0 since. Loop mode:
+  `loop-protocol.md` was never read in any retained transcript.
+- Session mode (trial) effectively passed its checks in the ZTS master session without the skill
+  loaded: 230 of 230 sends delivered or queued, 18 transcript reads in 230 exchanges, and 51 of 89
+  sub-sessions steered directly by Tanner. 41 of 187 starts failed: 21 on a `background` under 80
+  characters, 13 on Remote Control turns, 5 on automated turns.
+
+- **(a) Add a fan-out path and pick the shape first; widen the trigger to master-session work;
+  spawn at medium effort; promote session mode with its start constraints; write down the
+  conductor-merge pattern (reviewed SHA pinned); mark manager mode dormant; archive the loop
+  protocol; name the authenticated CLI in briefs, never a credential file; bring the public and
+  overlay copies in line.** ← chosen
+- (b) Keep the skill and enforce the standing-agent doctrine harder.
+
+**Resolution (2026-11-13):** (a). The teammate agent moves from `effort: high` to `medium`. The
+session-mode address and report rules were rechecked against the current `SendMessage` and
+`start_session` tool descriptions: a session's name is its address, and the 400-character report
+note could not be confirmed, so it was dropped. This supersedes the D17 placement of the loop
+envelope (the archived file keeps it) and D22 item 6 and D23's "conductor public copy: no change".
+
+## D30. Push guard: text in heredocs and messages — Resolved
+
+Tanner approved fixing the guard's false positives on 2026-11-13, with an `adversarial-reviewer`
+pass required. Of the 11 distinct blocked commands since 2026-10-09, two pushed nothing: heredocs
+fed to python that held the words of a forced push to main (2026-10-24, 2026-11-12). The rest were
+real forced pushes or deletions of main or master, or a forced push with no refspec.
+
+- (a) Blank heredoc bodies fed to non-shell programs and quoted `-m`/`--body` values before
+  parsing. Drafted; the review found 20 bypasses (`cat <<EOF | bash`, python or perl running the
+  body, fake heredoc markers, an option regex that ignores quote state).
+- **(b) Keep the false positive, say so in the header, and make the block message name the way
+  out (the Write tool, `git commit -F`). Block a Bash command the hook cannot read, which the old
+  hook allowed.** ← chosen
+
+**Resolution (2026-11-13):** (b), agent choice within Tanner's approval after the review; the
+revised diff was re-reviewed (APPROVE: nothing the old hook blocked is allowed). Remaining low gap:
+a failing `tool_name` read still allows.
+
+## D31. Drift check reports dangling symlinks — Resolved
+
+Tanner approved this on 2026-11-13. Six links in `~/.pi/agent/skills` pointed at paths the repo
+had deleted; they resolved inside the repo, so the stray-link sweep read them as clean. The sweep
+now reports any link whose target does not exist. Clearing the six live links is a manual step.
+
+## D32. Global skills with no recent use — Proposed
+
+Tanner approved "remove or scope" for `summarize`, `svelte5-best-practices`, `retro` and `ponytail`
+on 2026-11-13, on an audit that counted 0 Skill-tool calls in 60 days. Rechecking before removal
+found the finding weaker than stated: all four set `disable-model-invocation: true`, so none is in
+the always-loaded skill list and removing them saves no context; `retro`'s scripts ran in 4
+sessions for audits; `summarize` is the source for a private export.
+
+- **(a) Keep all four; they cost nothing until invoked.** ← recommended (agent)
+- (b) Remove them anyway.
+
+Not resolved: this is an agent recommendation awaiting Tanner. The model-invocable skills that cost
+context (`hyperframes*`, `logo-design`, `media-use`, about 7,100 characters of descriptions, 0
+uses in 60 days) are not managed by o90; moving them is a manual step for Tanner.
+
+## D33. Bypass flags and browser routing in the global rules — Resolved
+
+Tanner decided both on 2026-11-13 ("change the rule for both").
+
+- Bypass: the rule forbade `--admin` outright while Tanner had asked for admin-bypass merges. Now a
+  bypass flag is used only when Tanner asks for that bypass in the current session and names the PR
+  or branch, never on an agent's own initiative.
+- Browsers: the rule said Claude Browser only for logged-in sites, but over 30 days it had 6,270
+  calls in 76 project folders against playwright's 4,630 in 37. Claude Browser is now the default;
+  playwright, muted, for scripted runs, sweeps and where the pane is unavailable; Claude in Chrome
+  for Tanner's own Chrome.
+
+## D34. Session rules: start directory, compaction handoff, no sleep-polling — Resolved
+
+Tanner decided these on 2026-11-13 ("yes I think so"), on audit evidence of master sessions that
+compacted 29 to 108 times and of sessions started in `~/Developer`. Start sessions inside the target
+repository, root-folder sessions only for cross-repository work; after a second auto-compaction
+write a handoff note and continue in a fresh session; wait with Monitor or `run_in_background`,
+never sleep-poll.
+
+## D35. Opus effort and the auto-compact window — Resolved
+
+Tanner decided Opus 5.5 at `medium` on 2026-11-13 ("yes"), matching his 2026-10-24 instruction
+(Opus at medium or below). The overlay's `modelSettings.claude-opus-5-5.effortLevel` moves from
+`high` to `medium`. A desktop session's effort picker still outranks it (D23).
+
+He also asked for longer auto-compaction windows. The overlay already sets `autoCompactWindow:
+"auto"` for Opus, Sonnet and Haiku 5.5, which the docs put at about 967K tokens on 1M-window
+models. `/autocompact 600` means 600,000 tokens (a bare number from 100 to 1000 is thousands) and
+was saved for `claude-fable-5-2` only. Setting 600,000 for Opus would shorten the window, so no
+change was made. Tension with D34: a longer window means each turn re-reads a larger cache.
