@@ -22,7 +22,7 @@ For new projects without a stated stack, prefer **SvelteKit with Svelte 5 runes*
 
 - Reddit and web.archive.org are blocked for WebFetch. Use the reddit MCP for Reddit.
 - At a task boundary, name what is still running, how to check it (`/tasks`), and the next action.
-- Browsers: Claude Browser (the desktop pane) is the default for opening, reading, and clicking through pages, logged-in sites included. Use the playwright MCP, muted, for scripted or repeated runs and screenshot sweeps, and where the pane is unavailable. Use Claude in Chrome only when the task needs Tanner's own Chrome.
+- Browsers: Claude in Chrome is the default for pages Tanner will look at, sign in to, or act on, logged-in sites included. Use Claude Browser (the desktop pane) for previews of local dev servers and local files, and the playwright MCP, muted, for scripted or repeated runs and screenshot sweeps.
 - Wait for long commands with Monitor or `run_in_background`; never sleep-poll.
 
 ## Sessions
