@@ -407,3 +407,37 @@ test('a dropped publish timer does not freeze the pane: a stale pending publish 
   expect((await ui.find({ type: 'Text', text: /second\.ts/ }))?.text).toMatch(/files/)
   await ui.unmount()
 })
+
+test('a state store that never answers cannot hold up a tool call', async ($, on) => {
+  let called = false
+  on('clock.now', () => ({ value: 1_000_000 }))
+  on('clock.after', () => ({ value: undefined }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('command.register', () => ({ value: { command: 'map' } }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('tool.call', () => {
+    called = true
+    return { result: { stdout: 'ok' } } as never
+  })
+  on('state.set', () => new Promise<never>(() => {}))
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  const late = new Promise(resolve => setTimeout(() => resolve('still waiting'), 300))
+  const out = await Promise.race([$.tool.call({ tool: 'Bash', command: 'ls', description: 'List' }), late])
+  expect(called).toBe(true)
+  expect(out).toEqual({ result: { stdout: 'ok' } })
+})
+
+test('a call that ends before its start is recorded still closes its entry', async ($, on) => {
+  engine(on)
+  // Every write lands 40 ms late, so the tool returns before `begin` has stored its entry.
+  on('state.set', async ($$, e, next) => {
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 40))
+    return next(e)
+  })
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'bun test', description: 'Run tests' })
+  await new Promise<void>(resolve => setTimeout(() => resolve(), 400))
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect((await ui.find({ type: 'Text', text: /Run tests/ }))?.text).toMatch(/^· shell/)
+  await ui.unmount()
+})

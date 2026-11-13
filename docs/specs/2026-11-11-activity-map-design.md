@@ -144,6 +144,10 @@ is never a label or a program name; the call falls back to the tool's name.
 
 **Fault isolation:** every handler runs inside a catch that swallows its own errors; `tool.call`
 always returns `next(e)`'s result unchanged. A map fault never alters a tool call or a turn.
+No hook waits on its own state writes before or after `next(e)`: a write is started and left to
+land, since the mod API does not count time in a `$` call against a hook's budget, so a hung
+`state.set` awaited there would hold the tool call with no limit. `finish` waits for `begin`'s
+write, so a call that ends before its start is stored still closes its entry.
 
 **D15 amendment:** the plugin gains a hooks module. The PARITY line "The plugin ships no
 SessionStart hook" becomes "The plugin adds nothing to the conversation or system prompt; its only

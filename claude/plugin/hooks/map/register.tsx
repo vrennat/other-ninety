@@ -114,10 +114,17 @@ async function begin($: EngineInterface, start: Begin): Promise<string | undefin
   })
 }
 
-async function finish($: EngineInterface, id: string | undefined, status: Exclude<Status, 'run'>): Promise<void> {
-  if (id === undefined) return
+/**
+ * Closes the entry `begin` opened. Takes begin's promise, not its id: the hooks below start
+ * `begin` and call `next` without waiting for the write, so a slow or hung state store never
+ * holds up a tool call or a turn. The end time is read first; the write waits for begin's own,
+ * so a call that finishes before its start is recorded still closes its entry.
+ */
+async function finish($: EngineInterface, started: Promise<string | undefined>, status: Exclude<Status, 'run'>): Promise<void> {
   await quietly(async () => {
     const now = await $.clock.now()
+    const id = await started
+    if (id === undefined) return
     await updateBoard($, b => {
       const open = b.entries.find(e => e.id === id)
       if (!open || open.status !== 'run') return b
@@ -159,16 +166,14 @@ export const register: Register = on => {
   on('turn.complete', async ($, e, next) => {
     if (!('agentId' in e && e.agentId)) {
       const status: Status = e.reason === 'answer' ? 'ok' : 'err'
-      const now = await quietly(() => $.clock.now())
-      if (now !== undefined) {
-        await quietly(() =>
-          updateBoard($, b =>
-            b.entries.some(x => x.status === 'run')
-              ? { ...b, entries: b.entries.map(x => (x.status === 'run' ? { ...x, status, endedAt: now } : x)) }
-              : b,
-          ),
+      void quietly(async () => {
+        const now = await $.clock.now()
+        await updateBoard($, b =>
+          b.entries.some(x => x.status === 'run')
+            ? { ...b, entries: b.entries.map(x => (x.status === 'run' ? { ...x, status, endedAt: now } : x)) }
+            : b,
         )
-      }
+      })
     }
     return next(e)
   })
@@ -180,7 +185,7 @@ export const register: Register = on => {
 
   // Closed by the person, by the plugin or by a reload: the button above the prompt comes back.
   on('ui.close', async ($, e, next) => {
-    if (e.id === PANE) await quietly(() => update($, isMapOpen, () => false))
+    if (e.id === PANE) void quietly(() => update($, isMapOpen, () => false))
     return next(e)
   })
 
@@ -200,54 +205,58 @@ export const register: Register = on => {
 
   // The person's own message: a pulse on You, and the fault counts start over.
   on('turn.start', async ($, e, next) => {
-    await quietly(() => updateBoard($, b => ({ ...b, faults: {} })))
-    await begin($, { station: 'you', label: 'message', status: 'ok' })
+    void quietly(async () => {
+      await updateBoard($, b => ({ ...b, faults: {} }))
+      await begin($, { station: 'you', label: 'message', status: 'ok' })
+    })
     return next(e)
   })
 
   // A model request streams: forward every chunk untouched and mark its start and end.
   on('turn.step', async function* ($, e, next) {
-    const id = await begin($, { station: 'model', label: clean(e.model), from: e.agentId ? 'agents' : 'core' })
+    const id = begin($, { station: 'model', label: clean(e.model), from: e.agentId ? 'agents' : 'core' })
     try {
       const out = yield* next(e)
-      await finish($, id, 'ok')
+      void finish($, id, 'ok')
       return out
     } catch (err) {
-      await finish($, id, 'err')
+      void finish($, id, 'err')
       throw err
     }
   })
 
   on('tool.call', async ($, e, next) => {
     const seen = await quietly(async () => classify(e as unknown as { tool: string }))
-    const id = seen ? await begin($, { ...seen, from: e.agentId ? 'agents' : 'core' }) : undefined
+    // Started, not awaited: the tool runs whatever the state store is doing.
+    const id = seen ? begin($, { ...seen, from: e.agentId ? 'agents' : 'core' }) : Promise.resolve(undefined)
     // The engine's own error passes through untouched; the map only records it.
-    const out = await next(e).catch(async (err: unknown) => {
-      await finish($, id, 'err')
+    const out = await next(e).catch((err: unknown) => {
+      void finish($, id, 'err')
       throw err
     })
     if ('deny' in out && out.deny !== undefined) {
-      await finish($, id, 'block')
-      await begin($, { station: 'hooks', label: `refused · ${e.tool.startsWith('mcp__') ? 'MCP tool' : e.tool}`, status: 'block' })
+      void finish($, id, 'block').then(() =>
+        begin($, { station: 'hooks', label: `refused · ${e.tool.startsWith('mcp__') ? 'MCP tool' : e.tool}`, status: 'block' }),
+      )
     } else {
-      await finish($, id, out.isError ? 'err' : 'ok')
+      void finish($, id, out.isError ? 'err' : 'ok')
     }
     return out
   })
 
   on('session.measure', async ($, e, next) => {
     const pct = e.context.percent
-    if (pct !== undefined) await quietly(() => updateBoard($, b => (b.context === pct ? b : { ...b, context: pct })))
+    if (pct !== undefined) void quietly(() => updateBoard($, b => (b.context === pct ? b : { ...b, context: pct })))
     return next(e)
   })
 
   on('session.compact', async ($, e, next) => {
-    const id = await begin($, { station: 'model', label: 'compaction' })
-    const out = await next(e).catch(async (err: unknown) => {
-      await finish($, id, 'err')
+    const id = begin($, { station: 'model', label: 'compaction' })
+    const out = await next(e).catch((err: unknown) => {
+      void finish($, id, 'err')
       throw err
     })
-    await finish($, id, 'ok')
+    void finish($, id, 'ok')
     return out
   })
 
