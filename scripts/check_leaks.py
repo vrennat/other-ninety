@@ -77,7 +77,9 @@ def history(root: Path) -> list[tuple[str, str]]:
             "-C",
             str(root),
             "log",
-            "--all",
+            # History reachable from the checked-out commit only. CI fetches every branch, and with --all one
+            # branch's leak failed every other branch's run; each branch's own run still scans its own history.
+            "HEAD",
             # Author and committer identity are left out: GitHub shows them on every commit, and its own merges
             # stamp the account's primary email there. Messages (trailers included) and patches are still scanned.
             "--format=%x1e%H%x1f%B",

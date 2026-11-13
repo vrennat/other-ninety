@@ -66,6 +66,22 @@ class HistoryTest(unittest.TestCase):
         self.assertNotIn(email, text)
         self.assertIn(trailer, text)
 
+    def test_history_is_what_the_checked_out_commit_reaches(self) -> None:
+        on_head = "head" + "@" + "private.test"
+        elsewhere = "side" + "@" + "private.test"
+        with tempfile.TemporaryDirectory() as tmp:
+            author = "p" + "@" + "example.com"
+            git = ["git", "-C", tmp, "-c", "user.name=P", "-c", f"user.email={author}"]
+            subprocess.run(["git", "init", "-q", "-b", "main", tmp], check=True)
+            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", "base"], check=True)
+            subprocess.run([*git, "checkout", "-q", "-b", "side"], check=True)
+            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", f"leak {elsewhere}"], check=True)
+            subprocess.run([*git, "checkout", "-q", "main"], check=True)
+            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", f"leak {on_head}"], check=True)
+            text = "".join(body for _, body in history(Path(tmp)))
+        self.assertIn(on_head, text)
+        self.assertNotIn(elsewhere, text)
+
 
 if __name__ == "__main__":
     unittest.main()
