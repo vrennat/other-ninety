@@ -12,5 +12,6 @@
     "workflow",
     "skills",
     "lean"
-  ]
+  ],
+  "types": "./types/index.d.ts"
 }
