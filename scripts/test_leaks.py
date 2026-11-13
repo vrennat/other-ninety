@@ -133,6 +133,7 @@ class HistoryTest(unittest.TestCase):
         in_message = "message" + "@" + "private.test"
         in_blob = "blob" + "@" + "private.test"
         tagger = "tagger" + "@" + "private.test"
+        disguised = "disguised" + "@" + "private.test"
         with tempfile.TemporaryDirectory() as tmp:
             git = ["git", "-C", tmp, "-c", "user.name=T", "-c", f"user.email={tagger}"]
             subprocess.run(["git", "init", "-q", "-b", "main", tmp], check=True)
@@ -143,10 +144,12 @@ class HistoryTest(unittest.TestCase):
             ).stdout.strip()
             subprocess.run([*git, "tag", "data", blob], check=True)
             subprocess.run([*git, "tag", "plain"], check=True)
+            subprocess.run([*git, "tag", "-a", "v2", "-m", f"tagger {disguised}"], check=True)
             texts = dict(tag_texts(Path(tmp)))
         self.assertIn(in_message, texts["v1"])
         self.assertNotIn(tagger, texts["v1"])
         self.assertIn(in_blob, texts["data"])
+        self.assertIn(disguised, texts["v2"])
         self.assertNotIn("plain", texts)
 
 if __name__ == "__main__":

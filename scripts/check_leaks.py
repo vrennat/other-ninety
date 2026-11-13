@@ -127,8 +127,10 @@ def tag_texts(root: Path) -> list[tuple[str, str]]:
         name, obj, kind, peeled = (line.split("\t") + ["", "", "", ""])[:4]
         parts: list[str] = []
         if kind == "tag":
-            body = cat_file(root, obj)
-            parts.append("\n".join(row for row in body.splitlines() if not row.startswith("tagger ")))
+            # The header (object, type, tag, tagger) ends at the first blank line; only its tagger line is dropped,
+            # so a message line that happens to start with "tagger " is still read.
+            header, _, message = cat_file(root, obj).partition("\n\n")
+            parts.append("\n".join(row for row in header.splitlines() if not row.startswith("tagger ")) + "\n" + message)
         if kind == "blob" or peeled == "blob":
             parts.append(cat_file(root, f"{obj}^{{}}"))
         if parts:
