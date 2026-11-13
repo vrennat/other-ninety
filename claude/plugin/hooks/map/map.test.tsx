@@ -313,3 +313,18 @@ test('a pathological command classifies in linear time, from at most its first 1
   // Only the head is read: a push past 16 KB is not seen.
   expect(gateForCommand(`${'echo x; '.repeat(3_000)}${PUSH}`)).toBe(undefined)
 })
+
+test('a secret never becomes a label, even split across a line continuation', async () => {
+  const continued = classify({ tool: 'Bash', command: `export GH_TOKEN=\\\n${FAKE_TOKEN} && gh pr list` } as never)
+  expect(JSON.stringify(continued)).not.toContain(FAKE_TOKEN)
+  expect(continued.label).toBe('gh')
+  // A secret in program position, with or without a known prefix, gives the generic label.
+  const bare = ['sk', 'live', 'Zq9xW2mR7tY4uP1oK8jH3gF6'].join('_')
+  const mixed = 'aB3dE5fG7hJ9kL1mN3pQ5rS7tU9'
+  for (const secret of [FAKE_TOKEN, bare, mixed]) {
+    const seen = classify({ tool: 'Bash', command: `${secret}\nls` } as never)
+    expect(JSON.stringify(seen)).not.toContain(secret)
+    expect(JSON.stringify(seen).toLowerCase()).not.toContain(secret.toLowerCase())
+  }
+  expect(classify({ tool: 'Bash', command: FAKE_TOKEN } as never).label).toBe('Bash')
+})

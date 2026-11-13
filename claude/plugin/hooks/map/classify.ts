@@ -1,5 +1,5 @@
 import type { StationId } from '../../types'
-import { MAX_COMMAND, gateForBare, gateForMcp, withoutQuoted } from './gate'
+import { bareCommand, gateForBare, gateForMcp } from './gate'
 
 /**
  * A tool call -> the station it lights, a label, and a gate name.
@@ -52,6 +52,19 @@ const NET_SUB: Record<string, RegExp> = {
   docker: /^(pull|push|login)$/,
 }
 
+/** Token prefixes of common credentials (GitHub, OpenAI and Stripe, Slack, AWS, GitLab, Google, npm, PyPI, JWT). */
+const SECRET_PREFIX = /^(?:gh[pousr]_|github_pat_|sk[-_]|rk_|pk_live|xox[abprs]-|AKIA|ASIA|glpat-|AIza|npm_|pypi-|eyJ)/
+
+/**
+ * Whether a word could be a credential rather than a program name: a known token prefix, a
+ * value that holds `=`, or a long run that mixes upper case, lower case and digits. Such a word
+ * is never used as a label; the call falls back to a generic one.
+ */
+export function looksSecret(word: string): boolean {
+  if (word.includes('=') || SECRET_PREFIX.test(word)) return true
+  return word.length >= 20 && /[A-Z]/.test(word) && /[a-z]/.test(word) && /\d/.test(word)
+}
+
 const LEAD_KEYWORDS = new Set(['do', 'then', 'else', 'elif', 'if', 'while', 'until', '{', '(', '!'])
 
 /** The program and its first argument for each simple command in a stripped line (`withoutQuoted`). */
@@ -66,7 +79,9 @@ function programs(bare: string): Array<[string, string]> {
     })
     .filter(words => words.length > 0)
     .map(words => {
-      const prog = (words[0] ?? '').replace(/^.*[\\/]/, '').replace(/^["']|["']$/g, '').toLowerCase()
+      const raw = words[0] ?? ''
+      // Checked before lower-casing, which would hide a mixed-case token.
+      const prog = looksSecret(raw) ? '' : raw.replace(/^.*[\\/]/, '').replace(/^["']|["']$/g, '').toLowerCase()
       // `git -C <dir> push` names its subcommand after the directory.
       const rest = prog === 'git' && words[1] === '-C' ? words.slice(3) : words.slice(1)
       return [prog, rest[0] ?? ''] as [string, string]
@@ -75,11 +90,6 @@ function programs(bare: string): Array<[string, string]> {
 
 /** Words that start a command but say nothing about what it does. */
 const SHELL_NOISE = new Set(['cd', 'pushd', 'popd', 'export', 'set', 'unset', 'source', '.', 'for', 'while', 'until', 'do', 'done', 'if', 'then', 'else', 'elif', 'fi', 'case', 'esac', 'in', '[', '[[', 'test', 'true', 'false', ':', '{', '}', '(', ')', 'local', 'eval'])
-
-/** The command's bounded head with quoted text and heredoc bodies blanked: what every reader below takes. */
-export function bareCommand(command: string): string {
-  return withoutQuoted(command.slice(0, MAX_COMMAND))
-}
 
 /** The programs a stripped command line runs, in order, without shell keywords or repeats: names only. */
 export function programsOf(bare: string, max = 3): string[] {
@@ -132,7 +142,7 @@ export function classify(call: Call): Classified {
       const gate = gateForBare(bare)
       const progs = programsOf(bare)
       // A bare `cd` names nothing better than itself; anything else names its first real program.
-      const label = clean(str(call.description) ?? progs[0] ?? programs(bare)[0]?.[0] ?? tool)
+      const label = clean(str(call.description) ?? progs[0] ?? (programs(bare)[0]?.[0] || tool))
       return { station: stationForCommand(bare), label, ...(gate ? { gate } : {}), ...(progs.length ? { programs: progs } : {}) }
     }
     case 'WebFetch':

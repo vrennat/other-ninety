@@ -123,8 +123,16 @@ export function gateForBare(bare: string): string | undefined {
   return GATES.find(g => commands.some(c => g.pattern.test(c)))?.name
 }
 
+/**
+ * The command's bounded head, line continuations joined, quoted text and heredoc bodies blanked:
+ * what every reader of a command line takes. Joined first, so `X=\<newline>value` stays one word.
+ */
+export function bareCommand(command: string): string {
+  return withoutQuoted(command.slice(0, MAX_COMMAND).replace(/\\\r?\n/g, ''))
+}
+
 export function gateForCommand(command: string): string | undefined {
-  return gateForBare(withoutQuoted(command.slice(0, MAX_COMMAND)))
+  return gateForBare(bareCommand(command))
 }
 
 export function gateForMcp(toolName: string): string | undefined {

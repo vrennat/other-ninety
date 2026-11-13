@@ -112,6 +112,13 @@ unmarked, and so does a gated program named as an argument (`echo git push`).
 A test feeds a command line that contains a fake token and asserts the token reaches no label,
 feed row or stored state.
 
+The label rule matters beyond the screen: the board lives in `$.state`, and the mod API lets any
+plugin read any plugin's state ("Any plugin reads any value; its owner alone writes it"), so
+whatever the map stores, every other installed plugin can read. Line continuations are joined
+before a command is split, and a word that looks like a credential (a known token prefix such
+as `ghp_` or `sk-`, a value holding `=`, or a long run mixing upper case, lower case and digits)
+is never a label or a program name; the call falls back to the tool's name.
+
 **Fault isolation:** every handler runs inside a catch that swallows its own errors; `tool.call`
 always returns `next(e)`'s result unchanged. A map fault never alters a tool call or a turn.
 
