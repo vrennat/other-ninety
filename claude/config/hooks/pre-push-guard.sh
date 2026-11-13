@@ -32,7 +32,11 @@
 # and backticks end a command, `N>&M` and `> file` redirections are dropped,
 # and git is recognized by basename after its global options (-C, -c, …).
 # Known false positive: the words "git push --force … main" inside a quoted
-# string (a commit message) block; reword the string.
+# string, a commit message, or a heredoc body block (two 2026-10/11 blocks were
+# heredocs fed to python). Kept on purpose (D30): python, node, perl and
+# `cat <<EOF | bash` all run such text, and a static reader cannot tell which
+# heredoc is data. The block message points to the Write tool instead.
+# A Bash command the hook cannot read is blocked, not allowed.
 # Known gap: a destination produced by $(…) at run time.
 #
 # Exit codes:
@@ -53,7 +57,12 @@ if [[ "$tool_name" != "Bash" ]]; then
   exit 0
 fi
 
-cmd=$(python3 -c 'import json, sys; data=json.load(sys.stdin).get("tool_input") or {}; print(data.get("command") or "")' <<<"$payload")
+if ! cmd=$(python3 -c 'import json, sys; data=json.load(sys.stdin).get("tool_input") or {}; print(data.get("command") or "")' <<<"$payload"); then
+  # A Bash payload that mentions push but whose command cannot be read (for
+  # example a lone surrogate the print cannot encode) fails closed.
+  echo "pre-push-guard: BLOCKED — the command could not be read, so a push in it cannot be checked." >&2
+  exit 2
+fi
 if [[ -z "$cmd" ]]; then
   exit 0
 fi
@@ -63,6 +72,7 @@ block() {
   echo "  command: $cmd" >&2
   echo "  $2" >&2
   echo "If main itself must change this way, run the command yourself outside Claude." >&2
+  echo "If the push is only text (a note, a heredoc fed to python, a commit message), write that text with the Write tool or use git commit -F <file>: the guard reads command text and cannot tell data from a push." >&2
   exit 2
 }
 
