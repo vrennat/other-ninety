@@ -1,5 +1,7 @@
 # Activity map: design
 
+Removed on 2026-11-13 (D37): Tanner decided to remove the map from the plugin. Kept here as a record.
+
 Status: spec, not built. Decisions: D27 (ships inside `other-ninety`, on for every install) and
 D28 (core map plus a gate marker), both settled by Tanner on 2026-11-11. Tanner also chose an
 o90-native mod over vendoring lot-map that day.
