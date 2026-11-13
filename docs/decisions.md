@@ -28,12 +28,12 @@ history can explain does not.
 | D16 | Cut workflow layers and share configuration ownership | Resolved |
 | D17 | Unattended merges require behavior-aware classification | Resolved |
 | D18 | Capture portable private Codex configuration with native profiles | Resolved |
-| D27 | Activity map: where the mod ships | Resolved |
-| D28 | Activity map: the o90-specific part of v1 | Resolved |
 | D19 | Claude 5-era always-loaded text: second strip | Resolved |
 | D20 | Session audit 2026-10-09: start directory, permissions, push guard, model routing, settings | Resolved |
 | D21 | Second session audit 2026-10-09: text-only push guard, authorization scope, shell environment, repeatable audit | Resolved |
 | D22 | Trim always-loaded guidance for the Claude 5 family | Resolved |
+| D27 | Activity map: where the mod ships | Resolved |
+| D28 | Activity map: the o90-specific part of v1 | Resolved |
 | D29 | Conductor: fan-out path, session mode, dormant modes | Resolved |
 | D30 | Push guard: text in heredocs and messages | Resolved |
 | D31 | Drift check reports dangling symlinks | Resolved |
