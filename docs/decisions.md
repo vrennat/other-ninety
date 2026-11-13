@@ -48,6 +48,7 @@ the goal changes.
 | D33 | Bypass flags and browser routing in the global rules | Resolved |
 | D34 | Session rules: start directory, compaction handoff, no sleep-polling | Resolved |
 | D35 | Opus effort and the auto-compact window | Resolved |
+| D37 | Activity map: a status list in place of the diagram | Resolved |
 
 ---
 
@@ -917,3 +918,35 @@ He also asked for longer auto-compaction windows. The overlay already sets `auto
 models. `/autocompact 600` means 600,000 tokens (a bare number from 100 to 1000 is thousands) and
 was saved for `claude-fable-5-2` only. Setting 600,000 for Opus would shorten the window, so no
 change was made. Tension with D34: a longer window means each turn re-reads a larger cache.
+
+## D37. Activity map: a status list in place of the diagram — Resolved
+
+Raised 2026-11-13 after Tanner looked at the 0.6.0 map in a long conductor session: "I don't feel
+like the activity map is useful or readable yet". An agent checked his screenshot against the code
+and the session's transcript, and proposed two directions with mocks:
+
+- **A.** Repair the diagram: drop the legend and the chips, give the app's tools their own station.
+- **B.** Replace the diagram with a status list: what is running now, what failed since your last
+  message, what used the internet, and recent calls. **(recommended)**
+
+**Resolution (Tanner, 2026-11-13, through the conductor session): B** ("activity map b").
+
+What the agent found, and what B changes because of it:
+
+- Every MCP tool that was not a browser or memory tool counted as Network. In the recorded
+  session 50 calls counted as Network; 9 left the machine. The app's own tools are now `app`
+  (not drawn) or `session`, and a row under "Used the internet" names the program that reached
+  out, wherever it sits in the command.
+- Every turn start counted as You, including background-task notices, other sessions' messages and
+  each subagent's run: 17 or more in that session against 7 typed messages. You now counts only
+  `prompt.submit` from the person (`composer`, `sdk`, `bridge`, `slack-ping`, not `isMeta`).
+- The same hook cleared the failure marks, so they vanished early. Failures now stay listed until
+  the person types.
+- A turn's end marked every running call done, including a background subagent's. Now a turn
+  closes only its own loop's calls.
+- A refusal by a hook arrives as `deny`; the app declining a call arrives as an error result. A
+  failed row ends in `blocked`, `exit N` for a shell call, `stopped`, or `failed`. Nothing else
+  of an error's text is shown, since it may hold anything.
+
+Not changed: the gate patterns and the "names, never content" rule. Left open: a setting to stop
+the pane opening by itself (D27 follow-up).

@@ -1,6 +1,6 @@
 # Activity map: design
 
-Status: spec, not built. Decisions: D27 (ships inside `other-ninety`, on for every install) and
+Status: built in 0.6.0 as a diagram; replaced by a status list (D37, section "Revision: status list" at the end). Decisions: D27 (ships inside `other-ninety`, on for every install) and
 D28 (core map plus a gate marker), both settled by Tanner on 2026-11-11. Tanner also chose an
 o90-native mod over vendoring lot-map that day.
 
@@ -229,3 +229,51 @@ unless marked as an agent proposal.
 - **Out of the docs survey (agent proposal, not yet confirmed):** permission-wait marking via
   `tool.check`, station marks on transcript tool rows, a station suffix on the spinner word,
   remembering a closed pane in `$.store`, and jumping to a subagent with `$.ui.view`.
+
+## Revision: status list (2026-11-13, D37)
+
+Tanner chose direction B over a repaired diagram. This section replaces the Overview, Goals 1, 4,
+6 and 7, Rendering and Classification above where they differ; the gate patterns, labels, fault
+isolation and early-access notes stand.
+
+**The pane, top to bottom.** A section shows only when it has rows.
+
+1. **Now:** the newest running call as `Kind label`, `running 40 s` in clay, and `context N%`
+   (yellow at 70, red at 90). A small clay clock beside it on surfaces with `Svg`. With nothing
+   running, a quiet `Idle` or `Thinking` line.
+2. **Failed since your last message:** red `✕` rows, each ending in why: `blocked` (a hook's
+   `deny`), `exit N` (a shell call's exit code, the only part of an error's text that is read),
+   `stopped` (its turn ended first), or `failed`.
+3. **Used the internet:** the last four calls that left the machine and did not fail, each ending
+   in the program or host that did it (`gh`, `git fetch`, `docs.example.com`, a connector's name).
+4. **Recent:** the last twelve other calls, newest first. Repeats in a row fold into `3 times`.
+   A gate match ends its row in violet (`git push`, `hard reset`); a wrapper it could not read
+   ends in grey `not read`.
+
+No legend, no counts, no diagram. Colours are the app's theme keys (`claude`, `error`, `warning`,
+`merged`), so light and dark follow the app.
+
+**Kinds** (`classify.ts`): `files` and `memory` (rows start with Read, Wrote, Edited, Searched),
+`shell`, `web` (WebFetch, WebSearch, Artifact, any MCP server not known to be local), `browser`,
+`agent`, `skill`, `session` (starting, messaging, stopping and archiving sessions), `tool` (a
+local MCP server or an unknown tool), and `app` (plans, chapters, wrap-ups, tool search,
+notifications: kept on the board, never drawn). A shell call counts as leaving the machine when
+any of its programs is a network program (`curl`, `gh`, `ssh`, ...) or a network subcommand
+(`git fetch`, `npm install`, ...).
+
+**You** is a `prompt.submit` whose `origin.kind` is `composer`, `sdk`, `bridge` or `slack-ping`
+and which is not `isMeta`. The desktop app runs Claude Code through the SDK; which of `composer`
+and `sdk` it stamps on a typed prompt was not checked live, so both count.
+
+**Turn ends** close only their own loop's running calls (`agent` on the entry), so a background
+subagent keeps its row running after the main turn ends.
+
+**Time moves while a call runs:** after a publish that finds a call running, a tick every 5 s
+redraws the pane until nothing runs. A tick that fires early starts no new one; a lost tick is
+retried after 15 s, as a lost publish is.
+
+**Acceptance (replacing 1 to 4 above):** the recorded session in
+`hooks/map/fixtures/conductor-2026-11-13.ts` (tool names, programs and prompt origins only) gives
+9 calls that left the machine and 7 typed prompts of 12, where the 0.6.0 map showed Network 50
+and You 17 for the same events; failures survive notices, peers and subagent turns and clear on a
+typed message; a background subagent's call survives the main turn's end.

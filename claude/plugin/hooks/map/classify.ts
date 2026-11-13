@@ -1,25 +1,27 @@
-import type { StationId } from '../../types'
+import type { Kind } from '../../types'
 import { WRAPPED, bareCommand, gateForBare, gateForMcp, isWrapped } from './gate'
 
 /**
- * A tool call -> the station it lights, a label, and a gate name.
+ * A tool call -> what kind of call it is, a label, where it left this machine, and a gate name.
  *
- * Labels hold names, never content: the last two parts of a path, a URL's
- * host, a Bash call's own `description` or else its first word, a subagent's
- * description. A command line, a file's text, a query or a prompt never
- * reaches a label.
+ * Labels hold names, never content: the last two parts of a path, a URL's host, a Bash call's
+ * own `description` or else its first program, a subagent's description. A command line, a
+ * file's text, a query or a prompt never reaches a label.
  */
-export type Classified = { station: StationId; label: string; gate?: string; programs?: string[] }
+export type Classified = { kind: Kind; label: string; via?: string; gate?: string }
 
 type Call = { tool: string; [arg: string]: unknown }
 
-const MAX_LABEL = 60
+const MAX_LABEL = 100
 
-/** Strips control characters and caps the length. */
+/** Strips control characters and caps the length, cutting at a word break where there is one. */
 export function clean(text: string): string {
   // eslint-disable-next-line no-control-regex
   const flat = text.replace(/[\u0000-\u001f\u007f-\u009f]+/g, ' ').replace(/\s+/g, ' ').trim()
-  return flat.length > MAX_LABEL ? `${flat.slice(0, MAX_LABEL - 1)}…` : flat
+  if (flat.length <= MAX_LABEL) return flat
+  const head = flat.slice(0, MAX_LABEL - 1)
+  const brk = head.lastIndexOf(' ')
+  return `${brk > MAX_LABEL / 2 ? head.slice(0, brk) : head}…`
 }
 
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v.length > 0 ? v : undefined)
@@ -38,7 +40,6 @@ export function hostOf(url: string): string {
 
 const MEMORY_PATH = /[\\/]\.claude[\\/]projects[\\/][^\\/]+[\\/]memory[\\/]/
 
-const FILE_WORDS = new Set(['cat', 'head', 'tail', 'sed', 'awk', 'grep', 'rg', 'find', 'ls', 'mv', 'cp', 'rm', 'mkdir', 'touch', 'tee', 'wc', 'diff', 'stat', 'chmod', 'ln', 'sort', 'uniq', 'cut', 'tr', 'echo', 'printf', 'test', 'cd', 'pwd', 'realpath', 'dirname', 'basename', 'file', 'du'])
 const NET_WORDS = new Set(['curl', 'wget', 'ssh', 'scp', 'rsync', 'gh', 'nc', 'http', 'https', 'wrangler', 'dig', 'ping'])
 const NET_SUB: Record<string, RegExp> = {
   git: /^(push|pull|fetch|clone|ls-remote)$/,
@@ -112,70 +113,127 @@ export function programsOf(bare: string, max = 3): string[] {
   return out
 }
 
-export function stationForCommand(bare: string): StationId {
-  const progs = programs(bare)
-  if (progs.some(([p, sub]) => NET_WORDS.has(p) || (NET_SUB[p]?.test(sub) ?? false))) return 'network'
-  if (progs.length > 0 && progs.every(([p]) => FILE_WORDS.has(p))) return 'files'
-  return 'shell'
+/**
+ * The first program in a stripped command line that reaches off this machine, as a row shows it:
+ * the program (`gh`, `curl`), or the program and its subcommand where only some subcommands do
+ * (`git fetch`, `npm install`). Undefined when every program stays local, as far as these lists know.
+ */
+export function reachesOut(bare: string): string | undefined {
+  for (const [p, sub] of programs(bare)) {
+    if (NET_WORDS.has(p)) return p
+    if (NET_SUB[p]?.test(sub)) return `${p} ${sub}`
+  }
+  return undefined
 }
 
 const BROWSER_SERVER = /^mcp__(claude[-_]in[-_]chrome|claude_browser|playwright|computer[-_]use)__/i
 const MEMORY_SERVER = /^mcp__memory__/i
+/** MCP servers that run on this machine or inside the desktop app: their calls stay local. */
+const LOCAL_SERVER = /^mcp__(ccd_[a-z_]+|terminal|visualize|easel|rejig|scheduled-tasks|Claude_Code_iOS_Simulator)__/i
+/** The desktop app's session tools a person cares about, by verb; the app's other tools are bookkeeping. */
+const SESSION_VERBS: Record<string, string> = {
+  start_session: 'Started a session',
+  send_message: 'Messaged a session',
+  stop_session: 'Stopped a session',
+  archive_session: 'Archived a session',
+  unarchive_session: 'Unarchived a session',
+  delete_session: 'Deleted a session',
+  hand_off_to_session: 'Handed off to a session',
+}
+/** Built-in tools that serve the app or the session itself, not the work: never drawn as rows. */
+const APP_TOOLS = new Set(['ToolSearch', 'SendUserFile', 'ReadNotifications', 'ListAgents', 'TaskStop', 'TaskOutput', 'Monitor', 'ScheduleWakeup', 'CronCreate', 'CronDelete', 'CronList', 'TodoWrite', 'TaskCreate', 'TaskUpdate', 'TaskList', 'TaskGet', 'EnterPlanMode', 'ExitPlanMode', 'EnterWorktree', 'ExitWorktree'])
 const UUIDISH = /^[0-9a-f]{8}-[0-9a-f]{4}-/i
+const FILE_VERBS: Record<string, string> = { Read: 'Read', Write: 'Wrote', Edit: 'Edited', NotebookEdit: 'Edited', Glob: 'Searched', Grep: 'Searched' }
+
+/** An MCP tool's server, or nothing for a connector named by a bare id. */
+function mcpServer(tool: string): string | undefined {
+  const server = tool.split('__')[1] ?? ''
+  return UUIDISH.test(server) || !server ? undefined : server
+}
 
 function mcpLabel(tool: string): string {
-  const [, server = '', ...rest] = tool.split('__')
-  const name = rest.join('__')
-  return UUIDISH.test(server) ? name : `${server} · ${name}`
+  const name = tool.split('__').slice(2).join('__')
+  const server = mcpServer(tool)
+  return server ? `${server} · ${name}` : name
 }
 
 export function classify(call: Call): Classified {
   const { tool } = call
   const path = str(call.file_path) ?? str(call.notebook_path) ?? str(call.path)
 
+  const verb = FILE_VERBS[tool]
+  if (verb) {
+    const kind: Kind = path !== undefined && MEMORY_PATH.test(path) ? 'memory' : 'files'
+    return { kind, label: clean(path ? `${verb} ${shortPath(path)}` : `${verb} files`) }
+  }
   switch (tool) {
-    case 'Read':
-    case 'Write':
-    case 'Edit':
-    case 'NotebookEdit':
-    case 'Glob':
-    case 'Grep': {
-      const isMemory = path !== undefined && MEMORY_PATH.test(path)
-      const label = path ? shortPath(path) : tool
-      return { station: isMemory ? 'memory' : 'files', label: clean(label) }
-    }
     case 'Bash':
     case 'PowerShell': {
       // Stripped once: each reader below scans the same bounded string.
       const bare = bareCommand(str(call.command) ?? '')
       // A known gate outranks the wrapper mark: what the wrapper runs is not read either way.
       const gate = gateForBare(bare) ?? (isWrapped(bare) ? WRAPPED : undefined)
-      const progs = programsOf(bare)
+      const via = reachesOut(bare)
       // A bare `cd` names nothing better than itself; anything else names its first real program.
-      const label = clean(str(call.description) ?? progs[0] ?? (programs(bare)[0]?.[0] || tool))
-      return { station: stationForCommand(bare), label, ...(gate ? { gate } : {}), ...(progs.length ? { programs: progs } : {}) }
+      const label = clean(str(call.description) ?? programsOf(bare)[0] ?? (programs(bare)[0]?.[0] || tool))
+      return { kind: 'shell', label, ...(via ? { via } : {}), ...(gate ? { gate } : {}) }
     }
-    case 'WebFetch':
-      return { station: 'network', label: clean(hostOf(str(call.url) ?? '')) }
+    case 'WebFetch': {
+      const host = clean(hostOf(str(call.url) ?? ''))
+      return { kind: 'web', label: host, via: host }
+    }
     case 'WebSearch':
-      return { station: 'network', label: 'web search' }
+      return { kind: 'web', label: 'Searched the web', via: 'web search' }
+    case 'Artifact':
+      return { kind: 'web', label: 'Published a page', via: 'claude.ai' }
     case 'Agent':
     case 'Task':
-      return { station: 'agents', label: clean(str(call.description) ?? str(call.subagent_type) ?? 'subagent') }
+      return { kind: 'agent', label: clean(str(call.description) ?? str(call.subagent_type) ?? 'subagent') }
     case 'Workflow':
-      return { station: 'agents', label: 'workflow' }
+      return { kind: 'agent', label: 'workflow' }
     case 'Skill':
-      return { station: 'skills', label: clean(str(call.skill) ?? 'skill') }
-    case 'ToolSearch':
-      return { station: 'skills', label: 'tool search' }
+      return { kind: 'skill', label: clean(str(call.skill) ?? 'skill') }
+    case 'SendMessage':
+      return { kind: 'session', label: SESSION_VERBS.send_message! }
     case 'AskUserQuestion':
-      return { station: 'you', label: 'question' }
+      return { kind: 'app', label: 'Asked you a question' }
   }
+  if (APP_TOOLS.has(tool)) return { kind: 'app', label: clean(tool) }
 
   if (tool.startsWith('mcp__')) {
     const gate = gateForMcp(tool)
-    const station: StationId = BROWSER_SERVER.test(tool) ? 'browser' : MEMORY_SERVER.test(tool) ? 'memory' : 'network'
-    return { station, label: clean(mcpLabel(tool)), ...(gate ? { gate } : {}) }
+    const g = gate ? { gate } : {}
+    if (BROWSER_SERVER.test(tool)) return { kind: 'browser', label: clean(mcpLabel(tool)), ...g }
+    if (MEMORY_SERVER.test(tool)) return { kind: 'memory', label: clean(mcpLabel(tool)), ...g }
+    if (LOCAL_SERVER.test(tool)) {
+      const name = tool.split('__').slice(2).join('__')
+      const session = /^mcp__ccd_session/i.test(tool) ? SESSION_VERBS[name] : undefined
+      if (session) return { kind: 'session', label: session }
+      return { kind: /^mcp__ccd_/i.test(tool) ? 'app' : 'tool', label: clean(mcpLabel(tool)), ...g }
+    }
+    // Any other server is a connector or a remote service: the call leaves this machine.
+    return { kind: 'web', label: clean(mcpLabel(tool)), via: clean(mcpServer(tool) ?? 'connector'), ...g }
   }
-  return { station: 'shell', label: clean(tool) }
+  return { kind: 'tool', label: clean(tool) }
+}
+
+/**
+ * Whether a submitted prompt is one the person typed: at the terminal or the desktop app's
+ * prompt box (`composer`; the desktop app runs Claude Code through the SDK, so `sdk` too), from
+ * the phone or web (`bridge`), or a Slack ping. Not a background task's notice, another
+ * session's message, a scheduled prompt, a relay or an engine-made `isMeta` prompt.
+ */
+const TYPED = new Set(['composer', 'sdk', 'bridge', 'slack-ping'])
+export function isTyped(e: { origin?: { kind: string } | null; isMeta?: true }): boolean {
+  const kind = e.origin?.kind
+  return e.isMeta !== true && typeof kind === 'string' && TYPED.has(kind)
+}
+
+/**
+ * A failed shell call's exit code as the reason on its row (`exit 1`). Only the digits are taken;
+ * the rest of an error's text is the command's output and may hold anything.
+ */
+export function exitWhy(text: string | undefined): string | undefined {
+  const m = /^Exit code (\d{1,3})\b/.exec(text ?? '')
+  return m ? `exit ${m[1]}` : undefined
 }
