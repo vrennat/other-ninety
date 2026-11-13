@@ -1,5 +1,5 @@
 import type { StationId } from '../../types'
-import { gateForCommand, gateForMcp, withoutQuoted } from './gate'
+import { MAX_COMMAND, gateForBare, gateForMcp, withoutQuoted } from './gate'
 
 /**
  * A tool call -> the station it lights, a label, and a gate name.
@@ -54,9 +54,9 @@ const NET_SUB: Record<string, RegExp> = {
 
 const LEAD_KEYWORDS = new Set(['do', 'then', 'else', 'elif', 'if', 'while', 'until', '{', '(', '!'])
 
-/** The program and its first argument for each simple command in a line. */
-function programs(command: string): Array<[string, string]> {
-  return withoutQuoted(command)
+/** The program and its first argument for each simple command in a stripped line (`withoutQuoted`). */
+function programs(bare: string): Array<[string, string]> {
+  return bare
     .split(/&&|\|\||[;|\n]|\$\(/)
     .map(part => {
       const words = part.trim().split(/\s+/).filter(w => !/^\w+=/.test(w) && w !== 'sudo' && w !== 'time' && w !== 'exec')
@@ -76,10 +76,15 @@ function programs(command: string): Array<[string, string]> {
 /** Words that start a command but say nothing about what it does. */
 const SHELL_NOISE = new Set(['cd', 'pushd', 'popd', 'export', 'set', 'unset', 'source', '.', 'for', 'while', 'until', 'do', 'done', 'if', 'then', 'else', 'elif', 'fi', 'case', 'esac', 'in', '[', '[[', 'test', 'true', 'false', ':', '{', '}', '(', ')', 'local', 'eval'])
 
-/** The programs a command line runs, in order, without shell keywords or repeats: names only. */
-export function programsOf(command: string, max = 3): string[] {
+/** The command's bounded head with quoted text and heredoc bodies blanked: what every reader below takes. */
+export function bareCommand(command: string): string {
+  return withoutQuoted(command.slice(0, MAX_COMMAND))
+}
+
+/** The programs a stripped command line runs, in order, without shell keywords or repeats: names only. */
+export function programsOf(bare: string, max = 3): string[] {
   const out: string[] = []
-  for (const [prog] of programs(command)) {
+  for (const [prog] of programs(bare)) {
     const name = prog.replace(/[^a-z0-9._+-]/gi, '')
     if (!name || SHELL_NOISE.has(name) || out.includes(name)) continue
     out.push(name)
@@ -88,8 +93,8 @@ export function programsOf(command: string, max = 3): string[] {
   return out
 }
 
-export function stationForCommand(command: string): StationId {
-  const progs = programs(command)
+export function stationForCommand(bare: string): StationId {
+  const progs = programs(bare)
   if (progs.some(([p, sub]) => NET_WORDS.has(p) || (NET_SUB[p]?.test(sub) ?? false))) return 'network'
   if (progs.length > 0 && progs.every(([p]) => FILE_WORDS.has(p))) return 'files'
   return 'shell'
@@ -122,12 +127,13 @@ export function classify(call: Call): Classified {
     }
     case 'Bash':
     case 'PowerShell': {
-      const command = str(call.command) ?? ''
-      const gate = gateForCommand(command)
-      const progs = programsOf(command)
+      // Stripped once: each reader below scans the same bounded string.
+      const bare = bareCommand(str(call.command) ?? '')
+      const gate = gateForBare(bare)
+      const progs = programsOf(bare)
       // A bare `cd` names nothing better than itself; anything else names its first real program.
-      const label = clean(str(call.description) ?? progs[0] ?? programs(command)[0]?.[0] ?? tool)
-      return { station: stationForCommand(command), label, ...(gate ? { gate } : {}), ...(progs.length ? { programs: progs } : {}) }
+      const label = clean(str(call.description) ?? progs[0] ?? programs(bare)[0]?.[0] ?? tool)
+      return { station: stationForCommand(bare), label, ...(gate ? { gate } : {}), ...(progs.length ? { programs: progs } : {}) }
     }
     case 'WebFetch':
       return { station: 'network', label: clean(hostOf(str(call.url) ?? '')) }

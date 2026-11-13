@@ -296,3 +296,20 @@ test('station chips narrow the feed, and pressing the same chip again clears it'
   expect((await ui.find({ type: 'Text', text: /a\.ts/ }))?.text).toMatch(/files/)
   await ui.unmount()
 })
+
+test('a pathological command classifies in linear time, from at most its first 16 KB', async () => {
+  const shapes = [
+    '<<a\n'.repeat(125_000),
+    `cat <<EOF\n${'line of a body\n'.repeat(35_000)}`,
+    `echo "${'a\\'.repeat(250_000)}`,
+    `${PUSH} `.repeat(55_000),
+  ]
+  for (const command of shapes) {
+    expect(command.length > 450_000).toBe(true)
+    const t = Date.now()
+    classify({ tool: 'Bash', command } as never)
+    expect(Date.now() - t < 50).toBe(true)
+  }
+  // Only the head is read: a push past 16 KB is not seen.
+  expect(gateForCommand(`${'echo x; '.repeat(3_000)}${PUSH}`)).toBe(undefined)
+})
