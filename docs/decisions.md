@@ -48,6 +48,7 @@ the goal changes.
 | D33 | Bypass flags and browser routing in the global rules | Resolved |
 | D34 | Session rules: start directory, compaction handoff, no sleep-polling | Resolved |
 | D35 | Opus effort and the auto-compact window | Resolved |
+| D36 | Claude in Chrome as the default browser | Resolved |
 
 ---
 
@@ -896,7 +897,7 @@ Tanner decided both on 2026-11-13 ("change the rule for both").
 - Browsers: the rule said Claude Browser only for logged-in sites, but over 30 days it had 6,270
   calls in 76 project folders against playwright's 4,630 in 37. Claude Browser is now the default;
   playwright, muted, for scripted runs, sweeps and where the pane is unavailable; Claude in Chrome
-  for Tanner's own Chrome.
+  for Tanner's own Chrome. The browser default is superseded by D36.
 
 ## D34. Session rules: start directory, compaction handoff, no sleep-polling — Resolved
 
@@ -917,3 +918,16 @@ He also asked for longer auto-compaction windows. The overlay already sets `auto
 models. `/autocompact 600` means 600,000 tokens (a bare number from 100 to 1000 is thousands) and
 was saved for `claude-fable-5-2` only. Setting 600,000 for Opus would shorten the window, so no
 change was made. Tension with D34: a longer window means each turn re-reads a larger cache.
+
+## D36. Claude in Chrome as the default browser — Resolved
+
+Tanner decided this on 2026-11-13. After an agent opened a page for him in the built-in browser
+pane, he said "generally chrome is going to be better off than the in app browser FYI"; told that
+the global rules said the opposite, he answered "update browser rule". This replaces D33's browser
+default.
+
+- Claude in Chrome is the default for pages Tanner will look at, sign in to, or act on, logged-in
+  sites included.
+- Claude Browser, the desktop pane, keeps previews of local dev servers and local files; the
+  playwright MCP, muted, keeps scripted or repeated runs and screenshot sweeps. This split is the
+  conductor session's reading of his words, not his own wording.
