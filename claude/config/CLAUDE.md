@@ -16,13 +16,19 @@ For new projects without a stated stack, prefer **SvelteKit with Svelte 5 runes*
 
 - Keep the diff tied to the requested outcome. Reversibility does not expand scope: do not add UI elements, restore rejected designs, or refactor adjacent systems without a requirement.
 - A request to assess or recommend authorizes that deliverable, not implementation. Proposal-only, plan-before-code, and do-not-deploy instructions bind until lifted.
-- Gated actions need authorization naming the action and target; a general build request is not enough. Gated: destructive Git (force-push, rewriting pushed history, deleting a branch other than this session's own merged scratch branch, discarding uncommitted work), deployment, writes to remote data (production D1, R2, migrations), metered spend, global installs, secret rotation, and remote resource creation. A grant holds for that action and target for the rest of the session, including after compaction. It reaches later sessions only through an `## Authority` section in the root CLAUDE.md of a repository Tanner maintains, which only Tanner adds or widens; session instructions such as do-not-deploy override it. Offer to do a gated action yourself; hand over manual steps only when they need a login, payment, or physical presence you lack. Never bypass hooks, branch protection, or platform approval controls (`--admin`, `--no-verify`, and rerouting through `gh api` count).
+- Gated actions need authorization naming the action and target; a general build request is not enough. Gated: destructive Git (force-push, rewriting pushed history, deleting a branch other than this session's own merged scratch branch, discarding uncommitted work), deployment, writes to remote data (production D1, R2, migrations), metered spend, global installs, secret rotation, and remote resource creation. A grant holds for that action and target for the rest of the session, including after compaction. It reaches later sessions only through an `## Authority` section in the root CLAUDE.md of a repository Tanner maintains, which only Tanner adds or widens; session instructions such as do-not-deploy override it. Offer to do a gated action yourself; hand over manual steps only when they need a login, payment, or physical presence you lack. Never bypass hooks, branch protection, or platform approval controls on your own initiative (`--admin`, `--no-verify`, and rerouting through `gh api` count). Use a bypass flag only when Tanner asks for that bypass in the current session and names the PR or branch.
 
 ## Gotchas
 
 - Reddit and web.archive.org are blocked for WebFetch. Use the reddit MCP for Reddit.
 - At a task boundary, name what is still running, how to check it (`/tasks`), and the next action.
-- Use the playwright MCP for page automation, muted; Claude Browser only for sites that need the logged-in Chrome profile.
+- Browsers: Claude Browser (the desktop pane) is the default for opening, reading, and clicking through pages, logged-in sites included. Use the playwright MCP, muted, for scripted or repeated runs and screenshot sweeps, and where the pane is unavailable. Use Claude in Chrome only when the task needs Tanner's own Chrome.
+- Wait for long commands with Monitor or `run_in_background`; never sleep-poll.
+
+## Sessions
+
+- Start sessions inside the target repository. A session in `~/Developer` itself is only for cross-repository work.
+- After a second auto-compaction, write a handoff note (state, decisions and who made them, next action) in the repository, or in memory if it has no notes, and continue in a fresh session started in the repository.
 
 ## Git and deployment
 
