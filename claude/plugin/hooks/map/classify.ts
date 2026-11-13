@@ -1,5 +1,5 @@
 import type { Kind } from '../../types'
-import { WRAPPED, bareCommand, commandsOf, gateForBare, gateForMcp, isWrapped } from './gate'
+import { WRAPPED, bareCommand, commandsOf, gateForBare, gateForMcp, heredocToShell, isWrapped } from './gate'
 
 /**
  * A tool call -> what kind of call it is, a label, where it left this machine, and a gate name.
@@ -58,10 +58,34 @@ const NET_SUB: Record<string, RegExp> = {
   brew: /^(install|upgrade|update|fetch|tap)$/,
   docker: /^(pull|push|login|run|build)$/,
 }
-/** A word that points at this machine: a call addressed only to it stays local. */
-const LOOPBACK = /(?:^|[/@=])(?:localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|\[?::1\]?|[\w-]+\.localhost)(?=$|[:/])/i
-/** A word that names another machine: a URL or `user@host`, not a loopback one. */
-const REMOTE_ADDRESS = /^(?:[a-z][\w+.-]*:\/\/|[\w.-]+@[\w.-]+)/i
+/** Hosts that are this machine. */
+const LOOPBACK_HOST = /^(?:localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|::1|[\w-]+\.localhost)$/i
+
+/**
+ * The host an argument names, or undefined when it names none: an option or option value
+ * (`-x`, `--noproxy=localhost`, `ProxyJump=localhost`), a path (`/tmp/localhost`, `./a`), or a
+ * bare word with no dot that is not a loopback name. `https://u@h:8080/x`, `u@h`, `h:22` and
+ * `api.example.com/x` all name `h` or `api.example.com`.
+ */
+function hostIn(arg: string): string | undefined {
+  if (arg.startsWith('-') || arg.includes('=') || /^[/.~$]/.test(arg)) return undefined
+  const rest = arg.replace(/^[a-z][\w+.-]*:\/\//i, '').replace(/^[^@/]*@/, '')
+  // `[::1]:3000`: the host is inside the brackets; otherwise it ends at a port or a path.
+  const host = rest.startsWith('[') ? rest.slice(1, rest.indexOf(']') >>> 0) : rest.replace(/[:/].*$/, '')
+  if (!host) return undefined
+  return LOOPBACK_HOST.test(host) || host.includes('.') ? host : undefined
+}
+
+/**
+ * Whether a network program's call stays on this machine: it names a host, and every host it
+ * names is a loopback one. Option values and paths are not hosts, so a proxy on localhost or an
+ * output file called `localhost` does not hide the remote host the call goes to.
+ */
+function onlyLoopback(args: string[]): boolean {
+  const hosts = args.map(hostIn).filter((h): h is string => h !== undefined)
+  return hosts.length > 0 && hosts.every(h => LOOPBACK_HOST.test(h))
+}
+
 /** Package runners whose next program word is the one that runs (`bunx wrangler deploy`). */
 const RUNNERS: Record<string, number> = { bunx: 1, npx: 1, 'npm exec': 2, 'pnpm dlx': 2, 'pnpm exec': 2, 'yarn dlx': 2, 'bun x': 2 }
 /** Git's options that come before its subcommand, and those that take the next word. */
@@ -162,31 +186,43 @@ export function reachesOut(bare: string): string | undefined {
       while (k < args.length && args[k]!.startsWith('-')) k += GIT_VALUE_OPTIONS.has(args[k]!) ? 2 : 1
       sub = args[k] ?? ''
     }
-    const local = args.some(a => LOOPBACK.test(a)) && !args.some(a => REMOTE_ADDRESS.test(a) && !LOOPBACK.test(a))
     if (NET_WORDS.has(prog)) {
-      if (!local) return prog
+      if (!onlyLoopback(args)) return prog
     } else if (NET_SUB[prog]?.test(sub)) {
       return `${prog} ${sub}`
-    } else if (prog === 'open' && args.some(a => /^https?:\/\//i.test(a) && !LOOPBACK.test(a))) {
+    } else if (prog === 'open' && args.some(a => /^https?:\/\//i.test(a) && !onlyLoopback([a]))) {
       return 'open'
     }
   }
   return undefined
 }
 
+/** Words after which the next word is taken as a secret value (`password hunter2`). */
+const SECRET_NAMES = /^(?:password|passwd|token|secret|apikey|api_key|bearer)$/i
+const EMAIL = /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i
+
 /**
- * A model-written text as a label, or undefined when any word in it looks like a credential
- * (`Bearer ghp_…`, `token=…`): the caller then falls back to a program or tool name.
+ * A model-written text as a label, or undefined when it may hold a credential: a word that looks
+ * like one (also each part of a word split on `:` and `=`, as in `token:sk-…`), an email
+ * address, or any word right after "password", "token", "secret" and the like. The caller then
+ * falls back to a program or tool name.
  */
 export function safeText(text: string | undefined): string | undefined {
   if (text === undefined) return undefined
-  return text.split(/[\s,;()"'`<>[\]{}]+/).some(w => w.length > 0 && looksSecret(w)) ? undefined : text
+  const words = text.split(/[\s,;()"'`<>[\]{}]+/).filter(Boolean)
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i]!
+    if (looksSecret(w) || EMAIL.test(w)) return undefined
+    if (w.split(/[:=]+/).some(part => part.length > 0 && (looksSecret(part) || SECRET_NAMES.test(part)) && part !== w)) return undefined
+    if (SECRET_NAMES.test(w.replace(/[.!?]$/, '')) && i + 1 < words.length) return undefined
+  }
+  return text
 }
 
 /** Whether a URL points at this machine. */
 const isLoopbackUrl = (url: string): boolean => {
   const host = hostOf(url)
-  return host !== 'url' && LOOPBACK.test(`/${host.replace(/^\[|\]$/g, '')}`)
+  return host !== 'url' && LOOPBACK_HOST.test(host.replace(/^\[|\]$/g, ''))
 }
 
 const BROWSER_SERVER = /^mcp__(claude[-_]in[-_]chrome|claude_browser|playwright|computer[-_]use)__/i
@@ -237,7 +273,7 @@ export function classify(call: Call): Classified {
       // Stripped once: each reader below scans the same bounded string.
       const bare = bareCommand(str(call.command) ?? '')
       // A known gate outranks the wrapper mark: what the wrapper runs is not read either way.
-      const gate = gateForBare(bare) ?? (isWrapped(bare) ? WRAPPED : undefined)
+      const gate = gateForBare(bare) ?? (isWrapped(bare) || heredocToShell(str(call.command) ?? '') ? WRAPPED : undefined)
       const via = reachesOut(bare)
       // A bare `cd` names nothing better than itself; anything else names its first real program.
       const label = clean(safeText(str(call.description)) ?? programsOf(bare)[0] ?? (programs(bare)[0]?.[0] || tool))

@@ -266,7 +266,8 @@ any of its simple commands (split as the gate code splits them, so `env`, `sudo 
 `nohup`, `xargs`, `&`, backticks and subshells hide nothing; `bunx` and `npx` name the program
 they run) is a network program (`curl`, `gh`, `ssh`, `aws`, `kubectl`, `psql`, `claude`, ...),
 a network subcommand (`git fetch`, `npm install`, `docker run`, `go get`, ...), or `open` of a
-web URL; a call addressed only to this machine (`curl localhost:5173`) stays local, as do
+web URL; a call whose every named host is this machine (`curl localhost:5173`; option values
+such as a proxy, and paths, are not hosts) stays local, as do
 WebFetch to a loopback host and the preview server's tools. A browser tool that loads a page
 counts, ending in `browser`. A model-written description with a credential-shaped word is never
 a label; the program or tool name stands in.
@@ -277,9 +278,11 @@ stores a typed prompt with origin `human`, which the engine hands on as `compose
 binary, not seen live). A prompt queued with no origin arrives `unclassified` and is not counted.
 
 **Turn ends** close only their own loop's running calls (`agent` on the entry), so a background
-subagent keeps its row running after the main turn ends. Each tick asks `$.agent.list()` which
-subagents are alive and closes the calls of any other as stopped. App bookkeeping does not keep
-the tick going.
+subagent keeps its row running after the main turn ends. Each tick then asks `$.agent.list()`, in
+its own catch with a 2 s timeout: a call is closed as stopped when its subagent is listed as
+completed, failed or killed, or has been missing from the list for 10 minutes (the list leaves out
+workflow agents and lists a teammate under another id). A later finish writes the real result
+over that stop. App bookkeeping does not keep the tick going.
 
 **Time moves while a call runs:** after a publish that finds a call running, a tick every 5 s
 redraws the pane until nothing runs. A tick that fires early starts no new one; a lost tick is

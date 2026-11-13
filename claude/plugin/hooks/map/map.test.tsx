@@ -2,7 +2,7 @@ import type { On } from 'claude-code'
 import { expect, test } from 'claude-code/testing'
 
 import type { Entry } from '../../types'
-import { classify, exitWhy, isTyped, looksSecret, reachesOut } from './classify'
+import { classify, exitWhy, isTyped, looksSecret, reachesOut, safeText } from './classify'
 import recorded from './fixtures/conductor-2026-11-13'
 import { GATES, bareCommand, gateForCommand, gateForMcp } from './gate'
 import { clockSvg, contextTone, elapsed, sections, trimHistory } from './rows'
@@ -36,12 +36,12 @@ type Call = { tool: string; error?: string; [arg: string]: unknown }
  * The engine beneath the plugin, answering the calls the map makes. A call carrying `error`
  * answers as a tool error with that text; one named `hang` never answers.
  */
-type Opts = { now?: () => number; after?: () => unknown; tool?: (c: Call) => unknown }
+type Opts = { now?: () => number; after?: (e: { ms: number }) => unknown; tool?: (c: Call) => unknown }
 function engine(on: On, opts: Opts = {}) {
   const now = opts.now ?? (() => 1_000_000)
   on('clock.now', () => ({ value: now() }))
   // Timers fire at once here unless a test holds them, so the pane shows each call as it is made.
-  on('clock.after', () => (opts.after ? opts.after() : { value: undefined }) as never)
+  on('clock.after', (_, e) => (opts.after ? opts.after(e as { ms: number }) : { value: undefined }) as never)
   on('session.measure', () => ({ changed: [] }) as never)
   on('command.register', () => ({ value: { command: 'map' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
@@ -61,6 +61,32 @@ function engine(on: On, opts: Opts = {}) {
 // The engine a test body gets.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- only to pick the body out of test()'s overloads
 type T$ = Parameters<Extract<Parameters<typeof test>[1], (...args: any[]) => unknown>>[0]
+/**
+ * The engine on a clock the test moves: each timer fires once its delay has passed, as the
+ * engine's would, and not before.
+ */
+function timeline(on: On, opts: Opts = {}) {
+  let now = 1_000_000
+  const timers: Array<{ due: number; fire: () => void }> = []
+  engine(on, { ...opts, now: () => now, after: e => new Promise(resolve => timers.push({ due: now + e.ms, fire: () => resolve({ value: undefined }) })) })
+  const run = async () => {
+    for (let k = 0; k < 20; k++) {
+      const due = timers.filter(t => t.due <= now)
+      if (due.length === 0) break
+      for (const t of due) timers.splice(timers.indexOf(t), 1)
+      for (const t of due) t.fire()
+      await settle()
+    }
+  }
+  return {
+    run,
+    advance: async (ms: number) => {
+      now += ms
+      await run()
+    },
+  }
+}
+
 const start = ($: T$, surface: 'desktop' | 'terminal' = 'desktop') =>
   $.session.start({ cwd: '/', surface, isInteractive: true })
 const typed = { text: 'go', origin: { kind: 'composer' } } as never
@@ -157,8 +183,20 @@ test('reaching out: prefixes, separators, runners and more programs hide nothing
   for (const [command, via] of out) expect([command, reachesOut(bareCommand(command))]).toEqual([command, via])
   const local = ['curl localhost:5173', 'curl -s http://127.0.0.1:8787/x', 'curl http://[::1]:3000', `psql postgres://u${'@'}localhost/db`, 'open http://app.localhost:5173', 'open README.md', 'git status', 'bun test', 'docker ps', 'echo curl']
   for (const command of local) expect([command, reachesOut(bareCommand(command))]).toEqual([command, undefined])
-  // A loopback address beside a remote one is not local.
+  // A loopback address beside a remote one is not local; option values and paths are not targets.
   expect(reachesOut(bareCommand('curl localhost:1 https://x.io'))).toBe('curl')
+  const hidden: Array<[string, string]> = [
+    ['curl -x http://127.0.0.1:8080 api.example.com', 'curl'],
+    ['curl --proxy socks5://localhost:1080 api.example.com/upload', 'curl'],
+    ['curl api.example.com --noproxy=localhost', 'curl'],
+    ['ssh box.example.com -o ProxyJump=localhost', 'ssh'],
+    ['wget api.example.com/x -O /tmp/localhost', 'wget'],
+  ]
+  for (const [command, via] of hidden) expect([command, reachesOut(bareCommand(command))]).toEqual([command, via])
+  // A heredoc fed to a shell is a wrapper the map does not read.
+  expect(classify({ tool: 'Bash', command: 'sh <<EOF\ncurl x.io\nEOF' } as never).gate).toBe('wrapped, not read')
+  expect(classify({ tool: 'Bash', command: "bash -s <<'X'\ncurl x.io\nX" } as never).gate).toBe('wrapped, not read')
+  expect(classify({ tool: 'Bash', command: 'cat <<EOF > a.txt\nhi\nEOF' } as never).gate).toBe(undefined)
 })
 
 test('a description that holds a credential-shaped word is never a label', async () => {
@@ -168,6 +206,13 @@ test('a description that holds a credential-shaped word is never a label', async
   const agent = classify({ tool: 'Agent', description: `use token=${'abc'}123`, subagent_type: 'Explore' } as never)
   expect(agent.label).toBe('Explore')
   expect(classify({ tool: 'Bash', command: 'ls', description: 'List the files' } as never).label).toBe('List the files')
+  const fake = ['sk', 'FAKEabc123def456'].join('-')
+  for (const description of [`Use token:${fake}`, `email bob${'@'}example.com the report`, 'password hunter2xyz', 'Set the secret to swordfish', `Pass TOKEN=${'abc'}`]) {
+    expect([description, classify({ tool: 'Bash', command: 'ls', description } as never).label]).toEqual([description, 'ls'])
+  }
+  for (const description of ['Read the key findings', 'Check the token budget page', 'Run the tests: unit and e2e']) {
+    expect([description, safeText(description)]).toEqual([description, description === 'Check the token budget page' ? undefined : description])
+  }
 })
 
 test("typed by the person: the engine's own test, composer, bridge or person; not sdk, Slack, notices or peers", async () => {
@@ -633,6 +678,77 @@ test("a subagent that ended without its turn's end being heard is closed as stop
   const lines = await paneLines($)
   expect(lines[0]).toBe('Idle')
   expect(lines).toContain('✕Toolhangstopped')
+})
+
+test('a subagent missing from the list, or listed under another id, keeps running until it has been gone 10 minutes', async ($, on) => {
+  let listed: Array<{ id: string; status: string; description: string; type: string }> = []
+  const t = timeline(on)
+  on('agent.list', () => ({ value: listed }) as never)
+  await start($)
+  // One call in a subagent that is first missing from the list (as a workflow agent always is)
+  // and then listed only under another id (as a teammate can be): both are absence.
+  void $.tool.call({ tool: 'hang', agentId: 'wf1' } as never)
+  await settle()
+  await t.advance(1_000)
+  for (const set of [[], [{ id: 'other-id', status: 'running', description: 'x', type: 'teammate' }]]) {
+    listed = set
+    for (let k = 0; k < 3; k++) await t.advance(5_000)
+    const lines = await paneLines($)
+    expect(lines[0]).toMatch(/running/)
+    expect(lines.some(l => /stopped/.test(l))).toBe(false)
+  }
+  for (let k = 0; k < 9 * 12; k++) await t.advance(5_000)
+  expect((await paneLines($))[0]).toMatch(/running 9 min/)
+  for (let k = 0; k < 2 * 12; k++) await t.advance(5_000)
+  const end = await paneLines($)
+  expect(end[0]).toBe('Idle')
+  expect(end.filter(l => /stopped/.test(l)).length).toBe(1)
+})
+
+test('a later finish writes the real result over a stop the tick wrote', async ($, on) => {
+  let answer: (v: unknown) => void = () => {}
+  const t = timeline(on, { tool: () => new Promise(resolve => (answer = resolve)) })
+  on('agent.list', () => ({ value: [{ id: 'sub1', status: 'failed', description: 'x', type: 'Explore' }] }) as never)
+  await start($)
+  const call = $.tool.call({ tool: 'Bash', command: 'make', description: 'Long build', agentId: 'sub1' } as never)
+  await settle()
+  await t.advance(1_000)
+  await t.advance(5_000)
+  await t.advance(1_000)
+  expect(await paneLines($)).toContain('✕ShellLong buildstopped')
+  answer({ result: {} })
+  await call
+  await settle()
+  await t.advance(1_000)
+  await t.advance(1_000)
+  const lines = await paneLines($)
+  expect(lines.some(l => /stopped/.test(l))).toBe(false)
+  expect(lines).toContain('ShellLong build')
+})
+
+test('an agent list that throws or hangs never stops the clock', async ($, on) => {
+  let asked = 0
+  let mode = 'throw'
+  const t = timeline(on)
+  on('agent.list', () => {
+    asked++
+    if (mode === 'throw') throw new Error('list down')
+    return new Promise<never>(() => {})
+  })
+  await start($)
+  void $.tool.call({ tool: 'hang', agentId: 'sub1' } as never)
+  await settle()
+  await t.advance(1_000)
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  for (const [m, secs] of [['throw', 6], ['throw', 11], ['hang', 16], ['hang', 21], ['hang', 26]] as const) {
+    mode = m
+    const before = asked
+    await t.advance(5_000)
+    expect([m, (await ui.find({ key: 'o90-now' }))?.text]).toEqual([m, `Tool hangrunning ${secs} s`])
+    // A hung list is not asked again while it hangs (it is given up on after its timeout).
+    if (m === 'hang' && secs > 16) expect(asked - before <= 1).toBe(true)
+  }
+  await ui.unmount()
 })
 
 test("the app's own long waits do not keep the pane ticking", async ($, on) => {

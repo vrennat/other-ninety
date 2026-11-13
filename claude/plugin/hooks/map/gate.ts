@@ -80,6 +80,15 @@ const WRAPPERS: readonly RegExp[] = [
 ]
 const PIPED_TO_SHELL = /\|\s*(?:sudo\s+)?(?:\S*\/)?(?:ba|z|da|k)?sh(?:\s+-\S+)*\s*(?:$|[;&|\n)])/
 
+/**
+ * A heredoc fed to a shell (`sh <<EOF`, `bash -s <<'X'`), read on the raw command head, since the
+ * stripped form blanks the marker with the body.
+ */
+const HEREDOC_TO_SHELL = /(?:^|[\s;&|(])(?:[\w./-]*\/)?(?:ba|z|da|k)?sh(?:\s+-[A-Za-z]+)*\s*<<-?\s*['"]?\w/
+export function heredocToShell(command: string): boolean {
+  return HEREDOC_TO_SHELL.test(command.slice(0, MAX_COMMAND))
+}
+
 export function isWrapped(bare: string): boolean {
   return PIPED_TO_SHELL.test(bare) || commandsOf(bare).some(c => WRAPPERS.some(w => w.test(c)))
 }

@@ -77,20 +77,57 @@ let tickScheduledAt = 0
 const needsTime = (e: Entry): boolean => e.status === 'run' && e.kind !== 'model' && e.kind !== 'app'
 
 /** Subagent states in which its loop may still finish a call. */
-const ALIVE = new Set(['pending', 'running', 'waiting', 'idle'])
+/** Subagent states that end its loop: its calls still open will not finish. */
+const ENDED = new Set(['completed', 'failed', 'killed'])
+/**
+ * How long a subagent may be missing from `$.agent.list()` before its open calls are taken as
+ * orphaned. The list leaves some live loops out (workflow agents; a teammate listed under
+ * another id), so absence alone is weak evidence and waits this long.
+ */
+const MISSING_MS = 10 * 60_000
+/** An `$.agent.list()` that has not answered in this long is given up on for this tick. */
+const LIST_TIMEOUT_MS = 2_000
+// Module variables on purpose: a reload drops them, and the next tick starts the count again.
+const missingSince = new Map<string, number>()
+let listingSince = 0
 
 /**
- * A subagent's calls close when its own run ends. One that was killed, or ended without a
- * `turn.complete` the map heard, would otherwise run on the pane for the session: each tick asks
- * the engine which subagents are still alive and closes the rest as stopped.
+ * Closes a subagent's open calls as stopped when the engine lists the subagent as ended, or
+ * when it has been missing from the list for MISSING_MS. A `finish` that arrives later still
+ * writes the call's real result over the stop (see `finish`).
  */
 async function closeEndedAgents($: EngineInterface, b: Board): Promise<void> {
-  if (!b.entries.some(e => e.status === 'run' && e.agent !== undefined)) return
-  const alive = new Set((await $.agent.list()).filter(a => ALIVE.has(a.status)).map(a => a.id))
-  const ended = (e: Entry) => e.status === 'run' && e.agent !== undefined && !alive.has(e.agent)
-  if (!b.entries.some(ended)) return
+  const agents = [...new Set(b.entries.filter(e => e.status === 'run' && e.agent !== undefined).map(e => e.agent!))]
+  if (agents.length === 0) return
   const now = await $.clock.now()
-  await updateBoard($, x => ({ ...x, entries: x.entries.map(e => (ended(e) ? { ...e, status: 'err', endedAt: now, why: 'stopped' } : e)) }))
+  // One listing at a time: a list that hangs does not stack a new call on every tick.
+  if (listingSince !== 0 && now - listingSince < LIST_TIMEOUT_MS * 5) return
+  listingSince = now
+  try {
+    const listed = await Promise.race([
+      $.agent.list(),
+      new Promise<undefined>(resolve => $.clock.after(LIST_TIMEOUT_MS, () => resolve(undefined))),
+    ])
+    if (listed === undefined) return
+    const status = new Map(listed.map(a => [a.id, a.status as string]))
+    const done = new Set<string>()
+    for (const id of agents) {
+      const st = status.get(id)
+      if (st !== undefined) {
+        missingSince.delete(id)
+        if (ENDED.has(st)) done.add(id)
+      } else {
+        const since = missingSince.get(id) ?? now
+        missingSince.set(id, since)
+        if (now - since >= MISSING_MS) done.add(id)
+      }
+    }
+    if (done.size === 0) return
+    const ended = (e: Entry) => e.status === 'run' && e.agent !== undefined && done.has(e.agent)
+    await updateBoard($, x => ({ ...x, entries: x.entries.map(e => (ended(e) ? { ...e, status: 'err', endedAt: now, why: 'stopped' } : e)) }))
+  } finally {
+    listingSince = 0
+  }
 }
 
 async function keepTicking($: EngineInterface): Promise<void> {
@@ -106,9 +143,10 @@ async function keepTicking($: EngineInterface): Promise<void> {
       if ((await $.clock.now()) - mine < TICK_MS / 2) return
       const b = await read($, view)
       if (!b.entries.some(needsTime)) return
-      await closeEndedAgents($, b)
       await update($, tick, t => t + 1)
       await keepTicking($)
+      // Last and on its own: an agent list that throws or hangs never stops the clock.
+      void quietly(() => closeEndedAgents($, b))
     })
   })
 }
@@ -168,8 +206,10 @@ async function finish($: EngineInterface, started: Promise<string | undefined>, 
     if (id === undefined) return
     await updateBoard($, b => {
       const open = b.entries.find(e => e.id === id)
-      if (!open || open.status !== 'run') return b
-      return { ...b, entries: b.entries.map(e => (e.id === id ? { ...e, status, endedAt: now, ...(why ? { why } : {}) } : e)) }
+      // A call a tick closed as stopped can still finish: its real result wins.
+      const reopened = open?.status === 'err' && open.why === 'stopped'
+      if (!open || (open.status !== 'run' && !reopened)) return b
+      return { ...b, entries: b.entries.map(e => (e.id === id ? { ...e, status, endedAt: now, why } : e)) }
     })
   })
 }

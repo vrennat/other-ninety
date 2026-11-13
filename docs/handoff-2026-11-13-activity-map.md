@@ -1,7 +1,7 @@
 # Handoff: activity map status list (2026-11-13)
 
-Branch `feat/map-status-list`, pull request 22. Head at handoff: the commit that adds this file,
-on top of `d7a0a74`. Nothing is half-done: the plugin tests pass at head.
+Branch `feat/map-status-list`, pull request 22. Nothing is half-done: the plugin tests pass at
+head. Updated after the second review (section "Re-review at 10cf2dc").
 
 ## Next action
 
@@ -20,7 +20,10 @@ list); "Recent". No diagram, legend or counts. Code: `claude/plugin/hooks/map/` 
 `gate.ts`, `rows.ts`, `register.tsx`), tests in `map.test.tsx`, recorded fixture in
 `fixtures/conductor-2026-11-13.ts`.
 
-## Adversarial review at f681cfa: five findings, all fixed in d7a0a74
+## Adversarial review at f681cfa: five findings
+
+`d7a0a74` addressed all five. The re-review at `10cf2dc` closed 1 to 3, found 4 only partly
+closed, and found two new defects in the fix for 5 (see below).
 
 1. Network commands missed behind prefixes and separators (`env`, `sudo -u`, `timeout`, `nohup`,
    `xargs`, `&`, backticks, subshells, `bunx`/`npx`, many programs). Fixed: `reachesOut` uses the
@@ -49,9 +52,30 @@ claude/plugin` exit 0; `scripts/verify.sh` exit 0. Baseline: the 0.6.0 code repl
 fixture shows You 36 and Network 63; the new code sees 19 calls reaching out and 12 of 30 prompts
 typed.
 
+## Re-review at 10cf2dc: A to E
+
+- **A.** A live subagent could be closed as stopped when missing from `$.agent.list()` (the list
+  leaves out workflow agents and lists a teammate under another id), and its later real result
+  was lost. Fixed: a call is closed only when its subagent is listed as completed, failed or
+  killed, or has been missing for 10 minutes; a later finish writes its real result over the stop.
+- **B.** An `agent.list` that threw or hung stopped the clock. Fixed: the check runs last in the
+  tick, in its own catch, with a 2 s timeout and one listing at a time.
+- **C.** Any loopback-looking word made a remote call local (a proxy on localhost, an output file
+  named localhost). Fixed: only hosts count; option values and paths are not hosts; a call is
+  local only when every host it names is loopback.
+- **D.** Finding 4 partly open (`token:sk-…`, an email address, `password hunter2`). Fixed: words
+  are also split on `:` and `=`, email addresses count as secret, and so does the word after
+  password, passwd, token, secret, apikey or bearer.
+- **E.** This file said all five were fixed. Corrected here.
+- Also: a heredoc fed to a shell (`sh <<EOF`) is now tagged "not read".
+
+Accepted by the reviewer as known limits, given the heading "Seen using the internet":
+`find -exec curl`, `watch curl`, `parallel curl`, `python3 -m pip install`, a quoted `"curl"`,
+`$CURL`.
+
 ## Owed before merge
 
-- A re-review of d7a0a74 by a fresh adversarial reviewer. The fixes have not been reviewed.
+- One more check of the A to E fixes by the same reviewer. They have not been reviewed.
 
 ## Only Tanner can confirm, by looking at the real pane
 
