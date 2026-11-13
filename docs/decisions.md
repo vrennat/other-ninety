@@ -38,6 +38,7 @@ the goal changes.
 | D21 | Second session audit 2026-10-09: text-only push guard, authorization scope, shell environment, repeatable audit | Resolved |
 | D22 | Trim always-loaded guidance for the Claude 5 family | Resolved |
 | D24 | Ticket-graph fan-out in `/impl`; multi-session sections in `/brainstorm` | Resolved |
+| D26 | Dev servers get a port per checkout and a way to ask who holds one | Resolved |
 | D29 | Conductor: fan-out path, session mode, dormant modes | Resolved |
 | D30 | Push guard: text in heredocs and messages | Resolved |
 | D31 | Drift check reports dangling symlinks | Resolved |
@@ -731,6 +732,40 @@ Rejected, agent recommendation Tanner did not contest:
   "a reviewer is never weaker than the author".
 
 Check: re-count audit-style `Explore` calls after 30 days with the same transcript scan.
+
+## D26. Dev servers get a port per checkout and a way to ask who holds one — Resolved
+
+Tanner approved this on 2026-11-06, on an agent proposal made after reviewing simctlhouse, a pool
+that leases iOS simulators to parallel agents, and asking how the idea applies to dev servers.
+Tanner reported agents getting their wires crossed over dev server ports.
+
+`rules/dev-servers.md` tells agents to check who holds a port before trusting it, and the `devport`
+skill does that check, derives a port from the checkout's path, runs a server for the life of a
+command, and lists leftovers.
+
+Why: a wrong server gives real-looking results, so nothing fails. In about three weeks of one
+machine's transcripts, a hand read of about half of 71 keyword matches found at least 6 runs that
+reached another checkout's server, including a trace that measured the wrong code. That count only
+includes cases an agent noticed. The same 30-day scan found 73 loud port errors in 59 of 1,322
+transcript files, subagents included. At the time of review, 4 servers were still running from
+deleted worktrees, and `::1` and `127.0.0.1` were shown to hold one port without an error at the
+socket level.
+
+Rejected, agent recommendation Tanner did not contest:
+
+- **A lease pool like simctlhouse's.** Simulators are interchangeable, so handing a warm one to the
+  next agent is a feature. A server is tied to one checkout's code, so reuse is this bug.
+- **A state file and daemon.** The path gives the port and `lsof` shows who holds it, so there is no
+  record to go stale.
+- **Stopping servers automatically.** Age doesn't show that nobody is using a server, so `gc` only
+  reports, and only for checkouts that are gone.
+- **Installing simctlhouse itself.** Tanner leaned against it, expecting Claude Desktop's simulator
+  support to cover this. That tool doesn't isolate sessions: its docs say it uses a running simulator
+  even if another session opened it. The agent reached the same answer for other reasons: this
+  machine had only 10 simulator sessions in 30 days, and the project was three days old.
+
+Check: repeat the transcript scan after 30 days and compare wrong-server reports, with the same
+limit that only noticed cases show up. No baseline rate of unnoticed cases exists.
 
 ## D29. Conductor: fan-out path, session mode, dormant modes — Resolved
 

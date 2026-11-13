@@ -1,0 +1,234 @@
+#!/usr/bin/env python3
+"""devport: a dev-server port per checkout, and who holds which port. See SKILL.md."""
+
+# Keeps the `str | None` annotations unevaluated, so macOS /usr/bin/python3 (3.9) can run this.
+from __future__ import annotations
+
+import argparse
+import os
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+BASE = 21000
+SPAN = 8000
+STOP_GRACE_SECONDS = 3
+SERVER_RUNTIMES = ("node", "bun", "deno", "workerd", "python", "ruby", "php", "java")
+
+
+def git_root(path: str) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", path, "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return None
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def checkout(path: str = ".") -> str:
+    return git_root(path) or os.path.realpath(path)
+
+
+def port_for(root: str, name: str = "dev") -> int:
+    """FNV-1a of the checkout path and server name. Repo helpers copy this exactly."""
+    value = 0x811C9DC5
+    for byte in f"{root}\0{name}".encode():
+        value = ((value ^ byte) * 0x01000193) & 0xFFFFFFFF
+    return BASE + value % SPAN
+
+
+def lsof(*args: str) -> str:
+    # lsof exits 1 when nothing matches, which is a normal empty answer here.
+    try:
+        return subprocess.run(["lsof", *args], capture_output=True, text=True).stdout
+    except FileNotFoundError:
+        sys.exit("devport: lsof is required and was not found")
+
+
+def listeners() -> list[dict]:
+    found: dict[tuple[int, int], dict] = {}
+    pid = command = None
+    for line in lsof("-nP", "-iTCP", "-sTCP:LISTEN", "-Fpcn").splitlines():
+        field, value = line[:1], line[1:]
+        if field == "p":
+            pid = int(value)
+        elif field == "c":
+            command = value
+        elif field == "n":
+            host, _, port = value.rpartition(":")
+            entry = found.setdefault(
+                (int(port), pid),
+                {"port": int(port), "pid": pid, "command": command, "hosts": []},
+            )
+            if host not in entry["hosts"]:
+                entry["hosts"].append(host)
+    entries = sorted(found.values(), key=lambda entry: (entry["port"], entry["pid"]))
+    if not entries:
+        return []
+
+    pids = ",".join(sorted({str(entry["pid"]) for entry in entries}))
+    cwds: dict[int, str] = {}
+    pid = None
+    for line in lsof("-a", "-p", pids, "-d", "cwd", "-Fpn").splitlines():
+        if line[:1] == "p":
+            pid = int(line[1:])
+        elif line[:1] == "n":
+            cwds[pid] = line[1:]
+    ages = subprocess.run(
+        ["ps", "-o", "pid=,etime=", "-p", pids], capture_output=True, text=True
+    ).stdout
+    age_by_pid = {int(row.split()[0]): row.split()[1] for row in ages.splitlines() if row.strip()}
+
+    for entry in entries:
+        cwd = cwds.get(entry["pid"])
+        entry["cwd"] = cwd
+        entry["age"] = age_by_pid.get(entry["pid"], "?")
+        entry["gone"] = bool(cwd) and (".ccd-trash" in cwd or not os.path.isdir(cwd))
+        entry["checkout"] = None if entry["gone"] or not cwd else checkout(cwd)
+    return entries
+
+
+def describe(entry: dict) -> str:
+    owner = "checkout gone: " + (entry["cwd"] or "?") if entry["gone"] else entry["checkout"] or "unknown"
+    return f"{entry['port']}  pid {entry['pid']}  {entry['command']}  up {entry['age']}  {owner}"
+
+
+def command_port(args: argparse.Namespace) -> int:
+    print(port_for(checkout(), args.name))
+    return 0
+
+
+def command_whose(args: argparse.Namespace) -> int:
+    """0: this checkout holds the port. 1: anything else does. 2: nothing listens."""
+    holders = [entry for entry in listeners() if entry["port"] == args.port]
+    if not holders:
+        print(f"nothing listens on {args.port}")
+        return 2
+    root = checkout()
+    for entry in holders:
+        print(describe(entry))
+    return 0 if all(entry["checkout"] == root for entry in holders) else 1
+
+
+def is_dev_server(entry: dict) -> bool:
+    # Tunnels, databases and desktop apps also listen. `whose` still reports them.
+    return (
+        (entry["command"] or "").lower().startswith(SERVER_RUNTIMES)
+        and bool(entry["cwd"])
+        and entry["cwd"] not in {"/", str(Path.home())}
+    )
+
+
+def command_ls(_: argparse.Namespace) -> int:
+    for entry in listeners():
+        if is_dev_server(entry):
+            print(describe(entry))
+    return 0
+
+
+def command_gc(_: argparse.Namespace) -> int:
+    stale = [entry for entry in listeners() if entry["gone"]]
+    for entry in stale:
+        print(describe(entry))
+    if stale:
+        pids = " ".join(sorted({str(entry["pid"]) for entry in stale}))
+        print(f"Report only; nothing was stopped. To stop these: kill {pids}")
+    else:
+        print("No servers from deleted checkouts.")
+    return 0
+
+
+def signal_group(child: subprocess.Popen, signum: int) -> bool:
+    """False when the group is gone. macOS answers EPERM for a group holding only zombies."""
+    try:
+        os.killpg(child.pid, signum)
+    except (ProcessLookupError, PermissionError):
+        return False
+    return True
+
+
+def stop_group(child: subprocess.Popen) -> None:
+    if not signal_group(child, signal.SIGTERM):
+        return
+    try:
+        child.wait(STOP_GRACE_SECONDS)
+    except subprocess.TimeoutExpired:
+        pass
+    signal_group(child, signal.SIGKILL)
+
+
+def command_run(args: argparse.Namespace) -> int:
+    argv = args.command[1:] if args.command[:1] == ["--"] else args.command
+    if not argv:
+        print("devport run: give a command after --", file=sys.stderr)
+        return 64
+    root = checkout()
+    port = port_for(root, args.name)
+    holders = [entry for entry in listeners() if entry["port"] == port]
+    if holders:
+        print(f"devport: port {port} is already held; refusing to reuse it:", file=sys.stderr)
+        for entry in holders:
+            print(f"  {describe(entry)}", file=sys.stderr)
+        return 3
+
+    print(f"devport: {args.name} on http://127.0.0.1:{port} for {root}", file=sys.stderr)
+    child = subprocess.Popen(
+        [part.replace("{port}", str(port)) for part in argv],
+        env={**os.environ, "PORT": str(port)},
+        start_new_session=True,
+    )
+    received: list[int] = []
+    kill_at: list[float] = []
+
+    def forward(signum: int, _frame: object) -> None:
+        received.append(signum)
+        if not kill_at:
+            kill_at.append(time.monotonic() + STOP_GRACE_SECONDS)
+        signal_group(child, signum)
+
+    for signum in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+        signal.signal(signum, forward)
+    try:
+        # A server can ignore the forwarded signal, so the wait after one has to end on its own.
+        while (status := child.poll()) is None:
+            if kill_at and time.monotonic() >= kill_at[0]:
+                signal_group(child, signal.SIGKILL)
+            time.sleep(0.1)
+    finally:
+        stop_group(child)
+    if received:
+        return 128 + received[0]
+    return status if status >= 0 else 128 - status
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(prog="devport", description=__doc__)
+    parser.add_argument("--name", default="dev", help="server name, for a checkout that runs several")
+    parser.set_defaults(handler=command_port)
+    commands = parser.add_subparsers()
+
+    run = commands.add_parser("run", help="run a server on this checkout's port; it stops when this exits")
+    run.add_argument("--name", default="dev", help="server name, for a checkout that runs several")
+    run.add_argument("command", nargs=argparse.REMAINDER)
+    run.set_defaults(handler=command_run)
+
+    whose = commands.add_parser("whose", help="exit 0 only if this checkout holds the port")
+    whose.add_argument("port", type=int)
+    whose.set_defaults(handler=command_whose)
+
+    commands.add_parser("ls", help="list dev servers").set_defaults(handler=command_ls)
+    commands.add_parser("gc", help="report servers from deleted checkouts; stops nothing").set_defaults(
+        handler=command_gc
+    )
+
+    args = parser.parse_args()
+    return args.handler(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
