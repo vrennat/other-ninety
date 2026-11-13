@@ -9,7 +9,8 @@ Parity means the public toolkit preserves reusable behavior from the private sou
 - [ ] Agents load: `adversarial-reviewer`.
 - [ ] Skills load: `clean-writing`, `design-taste`.
 - [ ] `scripts/test_parity.py` keeps the lists in this file and the public `CLAUDE.md` equal to the tree.
-- [ ] The plugin ships no SessionStart hook; the global `CLAUDE.md` carries the routing and stakes rules (D15).
+- [ ] The plugin adds nothing to the conversation or system prompt; the global `CLAUDE.md` carries the routing and stakes rules (D15, amended by D27). Its one hooks module is the activity map (`hooks/map/`), which only draws a pane.
+- [ ] `claude plugin validate claude/plugin` passes and lists no `$.http`, `$.fs`, `$.process` or `$.model` call; `claude plugin test claude/plugin` passes on the Claude Code version current at release (the mod API is early access).
 - [ ] `/impl` prints clarity and stakes before editing, completes authorized work within scope, dispatches `adversarial-reviewer` on high stakes regardless of diff size, and ends with at most one `docs/lessons.md` line or `Lesson: none`. Use `docs/autonomy-scenarios.md` to review the scope boundary.
 
 - [ ] Claude `/impl`, Pi `/impl`, and the Pi validator record baseline/final identity, commands/cwd/exit status/evidence, separate requested and preserved behavior, scrutinize test changes, and use PASS/FAIL/INCONCLUSIVE with missing decisive evidence blocking completion.
@@ -57,6 +58,7 @@ Parity means the public toolkit preserves reusable behavior from the private sou
 ## Intentional differences
 
 - Claude plugin commands and Pi prompt templates use runtime-specific tool names and delegation primitives.
+- The activity map is Claude-only: it is a mod drawn by Claude Code's own panes, with no Codex or Pi counterpart.
 - Pi keeps `status`, `research`, and `tdd` templates that the Claude plugin retired under D6; further removal needs Pi-side evidence. The obsolete `/debt` marker audit and `/mode` setting are retired.
 - Pi has no `/bootstrap` prompt. `/impl` uses the request and repository instructions for scope and confirmation.
 - Public settings are safe examples, not the maintainer's provider, model, permission, MCP, status-line, or notification choices.
