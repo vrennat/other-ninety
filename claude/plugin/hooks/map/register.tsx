@@ -30,29 +30,36 @@ const view = atom({ plugin: 'other-ninety', key: 'view' } as const, { entries: [
   shape: 'map-board-1',
 })
 const PUBLISH_MS = 750
+/**
+ * A publish still pending this long after it was scheduled is taken as lost. A timer a hook
+ * refuses or the host drops never calls back, and nothing reports it, so without this the
+ * pane would stop updating for the rest of the session.
+ */
+const PUBLISH_STALE_MS = 3_000
 // Module variables on purpose: a reload drops them with the timer they guard, and the next write schedules again.
 let publishPending = false
+let publishScheduledAt = 0
 let writes = 0
 
-function publishSoon($: EngineInterface): void {
-  if (publishPending) return
+async function publishSoon($: EngineInterface): Promise<void> {
+  const now = await $.clock.now()
+  if (publishPending && now - publishScheduledAt < PUBLISH_STALE_MS) return
   publishPending = true
-  void quietly(async () => {
-    try {
-      await $.clock.after(PUBLISH_MS, async () => {
-        const seen = writes
-        await quietly(async () => {
-          const latest = await read($, board)
-          await update($, view, () => latest)
-        })
-        publishPending = false
-        // A write that landed while this publish read the board gets a publish of its own.
-        if (writes !== seen) publishSoon($)
+  publishScheduledAt = now
+  const mine = now
+  $.clock.after(PUBLISH_MS, () => {
+    void quietly(async () => {
+      const seen = writes
+      await quietly(async () => {
+        const latest = await read($, board)
+        await update($, view, () => latest)
       })
-    } catch (err) {
+      // A publish that went stale and was replaced leaves the flag to its replacement.
+      if (publishScheduledAt !== mine) return
       publishPending = false
-      throw err
-    }
+      // A write that landed while this publish read the board gets a publish of its own.
+      if (writes !== seen) await publishSoon($)
+    })
   })
 }
 
@@ -60,7 +67,7 @@ function publishSoon($: EngineInterface): void {
 async function updateBoard($: EngineInterface, change: (b: Board) => Board): Promise<void> {
   await update($, board, change)
   writes++
-  publishSoon($)
+  void quietly(() => publishSoon($))
 }
 
 /** Whether the map pane is up: while it is not, a button beside the spinner offers to open it. */

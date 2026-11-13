@@ -384,3 +384,26 @@ test('the legend says a tag is a match, not a verdict', async () => {
   expect(drawMap(board, 2)).toContain('class="wraps"')
   expect(feedRows(board).map(r => [r.mark, r.note])).toEqual([['◇', 'wrapped, not read']])
 })
+
+test('a dropped publish timer does not freeze the pane: a stale pending publish is retried', async ($, on) => {
+  let now = 1_000_000
+  let afters = 0
+  on('clock.now', () => ({ value: now }))
+  // The first timer is refused, so its callback never runs; every later one fires at once.
+  on('clock.after', () => (++afters === 1 ? { deny: 'dropped in this test' } : { value: undefined }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('command.register', () => ({ value: { command: 'map' } }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('tool.call', () => ({ result: {} }) as never)
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Read', file_path: '/r/first.ts' })
+  await settle()
+  expect(afters).toBe(1)
+  now += 4_000
+  await $.tool.call({ tool: 'Read', file_path: '/r/second.ts' })
+  await settle()
+  expect(afters > 1).toBe(true)
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect((await ui.find({ type: 'Text', text: /second\.ts/ }))?.text).toMatch(/files/)
+  await ui.unmount()
+})
