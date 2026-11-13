@@ -83,5 +83,30 @@ class HistoryTest(unittest.TestCase):
         self.assertNotIn(elsewhere, text)
 
 
+    def test_history_follows_merges_detached_heads_and_named_revisions(self) -> None:
+        merged = "merged" + "@" + "private.test"
+        detached = "detached" + "@" + "private.test"
+        with tempfile.TemporaryDirectory() as tmp:
+            author = "p" + "@" + "example.com"
+            git = ["git", "-C", tmp, "-c", "user.name=P", "-c", f"user.email={author}"]
+            subprocess.run(["git", "init", "-q", "-b", "main", tmp], check=True)
+            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", "base"], check=True)
+            subprocess.run([*git, "checkout", "-q", "-b", "feature"], check=True)
+            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", f"leak {merged}"], check=True)
+            subprocess.run([*git, "checkout", "-q", "main"], check=True)
+            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", "main moves on"], check=True)
+            subprocess.run([*git, "merge", "-q", "--no-ff", "--no-edit", "feature"], check=True)
+            self.assertIn(merged, "".join(body for _, body in history(Path(tmp))))
+
+            subprocess.run([*git, "checkout", "-q", "-b", "other", "main~1"], check=True)
+            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", f"leak {detached}"], check=True)
+            other = subprocess.run([*git, "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+            subprocess.run([*git, "checkout", "-q", "--detach", other], check=True)
+            self.assertIn(detached, "".join(body for _, body in history(Path(tmp))))
+
+            subprocess.run([*git, "checkout", "-q", "main"], check=True)
+            self.assertNotIn(detached, "".join(body for _, body in history(Path(tmp))))
+            self.assertIn(detached, "".join(body for _, body in history(Path(tmp), [other])))
+
 if __name__ == "__main__":
     unittest.main()

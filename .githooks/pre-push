@@ -2,4 +2,15 @@
 set -euo pipefail
 root=$(git rev-parse --show-toplevel)
 "$root/scripts/lint-plugin.sh"
-exec "$root/check-leaks.sh"
+# git names each ref being sent on stdin: <local ref> <local sha> <remote ref> <remote sha>.
+# Scan the history of every commit being sent, so sending a branch other than the checked-out
+# one, or all branches and tags at once, is covered; a deletion sends no commit.
+zero=0000000000000000000000000000000000000000
+revs=()
+while read -r _local_ref local_sha _remote_ref _remote_sha; do
+  if [[ -n ${local_sha:-} && $local_sha != "$zero" ]]; then
+    revs+=(--rev "$local_sha")
+  fi
+done
+# bash 3.2 (macOS) treats an empty array as unset under set -u, hence the ${x+...} form.
+exec "$root/check-leaks.sh" ${revs[@]+"${revs[@]}"}

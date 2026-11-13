@@ -70,21 +70,24 @@ def scan_text(text: str, rules: dict[str, re.Pattern[str]], location: str) -> li
     return findings
 
 
-def history(root: Path) -> list[tuple[str, str]]:
+def history(root: Path, revs: list[str] | None = None) -> list[tuple[str, str]]:
     result = subprocess.run(
         [
             "git",
             "-C",
             str(root),
             "log",
-            # History reachable from the checked-out commit only. CI fetches every branch, and with --all one
-            # branch's leak failed every other branch's run; each branch's own run still scans its own history.
-            "HEAD",
+            # History reachable from the given revisions, the checked-out commit by default. CI fetches every
+            # branch, and with --all one branch's leak failed every other branch's run; CI now runs on every
+            # pushed branch and tag, and the pre-push hook names the commits being pushed.
             # Author and committer identity are left out: GitHub shows them on every commit, and its own merges
             # stamp the account's primary email there. Messages (trailers included) and patches are still scanned.
             "--format=%x1e%H%x1f%B",
             "--patch",
             "--no-color",
+            # A revision that looks like an option is never read as one.
+            "--end-of-options",
+            *(revs or ["HEAD"]),
         ],
         capture_output=True,
         check=True,
@@ -133,6 +136,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Check worktree and Git history for likely private data.")
     parser.add_argument("--patterns-file", type=Path, help="private file with one additional literal per line")
     parser.add_argument("--no-history", action="store_true", help="skip committed history")
+    parser.add_argument(
+        "--rev",
+        action="append",
+        dest="revs",
+        help="scan the history these revisions reach (repeatable; default HEAD)",
+    )
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parents[1]
@@ -174,7 +183,7 @@ def main() -> int:
         findings.extend(scan_text(text, rules, str(path.relative_to(root))))
 
     if not args.no_history:
-        findings.extend(scan_history(history(root), rules, load_history_baseline(root)))
+        findings.extend(scan_history(history(root, args.revs), rules, load_history_baseline(root)))
 
     if findings:
         print("FAIL: possible private data found", file=sys.stderr)
