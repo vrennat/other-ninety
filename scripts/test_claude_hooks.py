@@ -294,6 +294,54 @@ class HookTests(unittest.TestCase):
                     result = self.push_guard(directory, command)
                     self.assertEqual(result.returncode, 2, result.stderr)
 
+    def test_push_words_carried_as_data_still_block_and_name_the_fix(self):
+        # 2026-10-24 and 2026-11-12: a heredoc fed to python held the words of a
+        # forced push, and the guard blocked a command that pushed nothing. That
+        # false positive is kept (D30): the same heredoc shapes run their text
+        # (`cat <<EOF | bash`, `python3 - <<EOF` calling os.system), so the block
+        # message names the way out instead.
+        with tempfile.TemporaryDirectory() as directory:
+            for command in (
+                "cd ~/m && python3 - <<'EOF'\np='note.md'\ns=\"Tanner runs `git push --force-with-lease=main:82034f3 -u origin main` himself.\"\nEOF",
+                'git commit -qm "docs: never git push --force origin main" && git push -u origin feature',
+            ):
+                with self.subTest(command=command):
+                    result = self.push_guard(directory, command)
+                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertIn("write that text with the Write tool", result.stderr)
+
+    def test_heredocs_that_run_their_body_block(self):
+        # Adversarial review of a heredoc-blanking draft (2026-11-13) found these
+        # pass a forced push to main through any "data heredoc" exemption.
+        push = "git push -f origin main"
+        with tempfile.TemporaryDirectory() as directory:
+            for command in (
+                f"cat <<EOF | bash\n{push}\nEOF",
+                f"cat <<'EOF' | sh -s\n{push}\nEOF",
+                f"bash -c \"$(cat <<EOF\n{push}\nEOF\n)\"",
+                f"eval \"$(cat <<'EOF'\n{push}\nEOF\n)\"",
+                f"python3 - <<'EOF'\nimport os; os.system('{push}')\nEOF",
+                f"perl <<'EOF'\nsystem('{push}');\nEOF",
+                f"cat \"<<EOF\"\n{push}\nEOF",
+                f"grep foo <<<EOF\n{push}\nEOF",
+                f"echo ' -m ' ; {push} ; echo ' x'",
+                f"git commit -m \"a\\\\\" && {push} && echo \"b\"",
+            ):
+                with self.subTest(command=command):
+                    self.assertEqual(self.push_guard(directory, command).returncode, 2)
+
+    def test_unreadable_command_fails_closed(self):
+        # A lone surrogate makes the command unprintable; the guard used to read
+        # that as an empty command and allow it.
+        with tempfile.TemporaryDirectory() as directory:
+            payload = '{"tool_name":"Bash","tool_input":{"command":"git push -f origin main \\ud800"}}'
+            result = subprocess.run(
+                ["bash", str(Path(__file__).resolve().parent.parent / "claude/config/hooks/pre-push-guard.sh")],
+                input=payload, capture_output=True, text=True, cwd=directory,
+            )
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertIn("could not be read", result.stderr)
+
     def test_force_push_with_an_unwritten_destination_blocks(self):
         # The hook never asks git which branch is checked out, so HEAD, @, a
         # variable, a stray 2>&1, or --mirror cannot be cleared.

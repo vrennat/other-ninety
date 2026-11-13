@@ -15,7 +15,7 @@ VOLATILE = {"lastChangelogVersion", "model"}
 
 
 def stray_links(directories: list[Path], sources: list[Path]) -> tuple[list[str], int]:
-    """Symlinks living in a managed directory that resolve outside every managed source.
+    """Symlinks in a managed directory that dangle or resolve outside every managed source.
 
     The name-by-name checks below only inspect paths we expect, so a leftover pointer at a
     retired repo reads as clean. This sweep is what catches those.
@@ -30,6 +30,11 @@ def stray_links(directories: list[Path], sources: list[Path]) -> tuple[list[str]
                 continue
             scanned += 1
             target = item.resolve()
+            if not item.exists():
+                # A link into a managed source still dangles once the repo drops
+                # the path it names (retired skills, renamed directories).
+                findings.append(f"{item}: dangling symlink to {item.readlink()}")
+                continue
             if not any(target == source or target.is_relative_to(source) for source in sources):
                 findings.append(f"{item}: points outside every managed source ({target})")
     return findings, scanned
