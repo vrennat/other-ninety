@@ -158,3 +158,31 @@ Preserved behaviour:
     plugin" checklist).
 11. No network request, file read or process call appears in the module (`claude plugin validate`'s
     report of what the module calls).
+
+## Revisions after first live use (2026-11-12)
+
+Tanner used the dev copy in the desktop Code tab and steered these changes. Decisions are his
+unless marked as an agent proposal.
+
+- **Look: Clay, blended into Claude Code (Tanner).** Chosen from three directions (Blueprint,
+  Clay, Scope) an Opus subagent rendered and put past a blind critic; Tanner preferred Clay and
+  asked that it "blends into claude code". Transparent background, the app's greys and system
+  sans, line-glyph stations, clay only for running work.
+- **Legibility over minimalism (Tanner).** After "it's not really clear what's happening": every
+  colour is named in an in-map legend; the gate mark is a violet tag naming the action; the
+  dashed route line and Memory's purple were dropped as unexplained. Tanner kept the in-map
+  legend and the yellow (context 70%) and violet (gated) colours over the critic's suggestion
+  to fold them into clay, which would have given clay two meanings.
+- **Calm over hover (Tanner).** The map is drawn as a plain image, not an interactive frame:
+  the frame reloaded on every redraw and flickered. Hover detail was dropped with it.
+- **Redraws debounced (Tanner asked; 750 ms is the agent's number).** The pane draws from a
+  snapshot published at most every 750 ms, because one tool call wrote the board two or three
+  times.
+- **Opening it (Tanner).** No slash command needed: the pane opens when the desktop app
+  attaches, and while it is closed a "Show map" button sits beside Claude Code's spinner. The
+  mod API has no sidebar or toolbar entry. `/map` remains for idle sessions.
+- **Feed (Tanner).** Model steps are off the feed (they still pulse); station chips filter it;
+  shell rows name their real programs, skipping `cd` and shell keywords.
+- **Out of the docs survey (agent proposal, not yet confirmed):** permission-wait marking via
+  `tool.check`, station marks on transcript tool rows, a station suffix on the spinner word,
+  remembering a closed pane in `$.store`, and jumping to a subagent with `$.ui.view`.

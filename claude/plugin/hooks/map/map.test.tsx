@@ -181,8 +181,10 @@ test('context ring: amber at 70, red at 90', async () => {
   expect(contextTone(89)).toBe('warn')
   expect(contextTone(90)).toBe('high')
   const base = { entries: [], counts: {}, faults: {} }
-  expect(drawMap({ ...base, context: 75 }, 0)).toContain('#ba7517')
-  expect(drawMap({ ...base, context: 92 }, 0)).toContain('#e24b4a')
+  // The ring's colour comes from a class, so light and dark can differ; every hex sits in the style block.
+  expect(drawMap({ ...base, context: 75 }, 0)).toContain('class="ring warn"')
+  expect(drawMap({ ...base, context: 92 }, 0)).toContain('class="ring high"')
+  expect(drawMap({ ...base, context: 40 }, 0)).not.toMatch(/class="ring (warn|high)"/)
   expect(drawMap({ ...base, context: 40 }, 0)).toContain('40% context')
 })
 
