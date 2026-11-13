@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { expect, test } from 'claude-code/testing'
 
-import { classify } from './classify'
+import { classify, looksSecret } from './classify'
 import { contextTone, describeNow, drawMap, feedRows, trimHistory } from './draw'
 import { GATES, gateForCommand, gateForMcp } from './gate'
 
@@ -485,4 +485,16 @@ test('gates: runners, prefixes and their options do not hide a deploy', async ()
   const t = Date.now()
   gateForCommand('sudo -u x timeout 9 nice -n 1 '.repeat(20_000))
   expect(Date.now() - t < 50).toBe(true)
+})
+
+test('only a word shaped like a command is shown as a program', async () => {
+  const hex = 'deadbeef'.repeat(8)
+  const hexLine = classify({ tool: 'Bash', command: `${hex} && ls` } as never)
+  expect(JSON.stringify(hexLine)).not.toContain(hex)
+  expect(hexLine.label).toBe('ls')
+  expect(looksSecret('a1b2c3d4'.repeat(4))).toBe(true)
+  const short = classify({ tool: 'Bash', command: 'Q8xk2Lm9Pz' } as never)
+  expect(JSON.stringify(short).toLowerCase()).not.toContain('q8xk2lm9pz')
+  expect(short.label).toBe('Bash')
+  expect(classify({ tool: 'Bash', command: '/usr/local/bin/python3.12 -m x && wrangler-dev_2 x' } as never).programs).toEqual(['python3.12', 'wrangler-dev_2'])
 })

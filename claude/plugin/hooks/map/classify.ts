@@ -57,13 +57,21 @@ const SECRET_PREFIX = /^(?:gh[pousr]_|github_pat_|sk[-_]|rk_|pk_live|xox[abprs]-
 
 /**
  * Whether a word could be a credential rather than a program name: a known token prefix, a
- * value that holds `=`, or a long run that mixes upper case, lower case and digits. Such a word
+ * value that holds `=`, a run of 32 or more hex digits, or a long run that mixes upper case,
+ * lower case and digits. Such a word
  * is never used as a label; the call falls back to a generic one.
  */
 export function looksSecret(word: string): boolean {
-  if (word.includes('=') || SECRET_PREFIX.test(word)) return true
+  if (word.includes('=') || SECRET_PREFIX.test(word) || /^[0-9a-f]{32,}$/i.test(word)) return true
   return word.length >= 20 && /[A-Z]/.test(word) && /[a-z]/.test(word) && /\d/.test(word)
 }
+
+/**
+ * What a program name looks like: lower case letters, digits, `-`, `_` and `.`, starting with a
+ * letter, at most 24 characters. Anything else (`Q8xk2Lm9Pz`, a hex digest) is never shown as a
+ * program; shell punctuation such as `[` or `.` is dropped with it, which costs nothing.
+ */
+const COMMAND_SHAPE = /^[a-z][a-z0-9._-]{0,23}$/
 
 const LEAD_KEYWORDS = new Set(['do', 'then', 'else', 'elif', 'if', 'while', 'until', '{', '(', '!'])
 
@@ -80,8 +88,9 @@ function programs(bare: string): Array<[string, string]> {
     .filter(words => words.length > 0)
     .map(words => {
       const raw = words[0] ?? ''
-      // Checked before lower-casing, which would hide a mixed-case token.
-      const prog = looksSecret(raw) ? '' : raw.replace(/^.*[\\/]/, '').replace(/^["']|["']$/g, '').toLowerCase()
+      const base = raw.replace(/^.*[\\/]/, '').replace(/^["']|["']$/g, '')
+      // Checked on the word as written: lower-casing would hide a mixed-case token.
+      const prog = looksSecret(raw) || !COMMAND_SHAPE.test(base) ? '' : base
       // `git -C <dir> push` names its subcommand after the directory.
       const rest = prog === 'git' && words[1] === '-C' ? words.slice(3) : words.slice(1)
       return [prog, rest[0] ?? ''] as [string, string]
@@ -94,8 +103,8 @@ const SHELL_NOISE = new Set(['cd', 'pushd', 'popd', 'export', 'set', 'unset', 's
 /** The programs a stripped command line runs, in order, without shell keywords or repeats: names only. */
 export function programsOf(bare: string, max = 3): string[] {
   const out: string[] = []
-  for (const [prog] of programs(bare)) {
-    const name = prog.replace(/[^a-z0-9._+-]/gi, '')
+  // `programs` already gives only command-shaped names, or '' for a word that is not one.
+  for (const [name] of programs(bare)) {
     if (!name || SHELL_NOISE.has(name) || out.includes(name)) continue
     out.push(name)
     if (out.length >= max) break

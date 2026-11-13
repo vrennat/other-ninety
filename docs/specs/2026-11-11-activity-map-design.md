@@ -141,7 +141,9 @@ plugin read any plugin's state ("Any plugin reads any value; its owner alone wri
 whatever the map stores, every other installed plugin can read. Line continuations are joined
 before a command is split, and a word that looks like a credential (a known token prefix such
 as `ghp_` or `sk-`, a value holding `=`, or a long run mixing upper case, lower case and digits)
-is never a label or a program name; the call falls back to the tool's name.
+is never a label or a program name; the call falls back to the tool's name. A run of 32 or more
+hex digits counts as a credential, and a word is shown as a program only if it is shaped like one:
+lower case letters, digits, `-`, `_` and `.`, starting with a letter, at most 24 characters.
 
 **Fault isolation:** every handler runs inside a catch that swallows its own errors; `tool.call`
 always returns `next(e)`'s result unchanged. A map fault never alters a tool call or a turn.
