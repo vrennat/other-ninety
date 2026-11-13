@@ -264,6 +264,23 @@ class DriftCheckerTest(InstallerHarness):
             self.assertIn("points outside every managed source", drift.stdout)
             self.assertIn("leftover.md", drift.stdout)
 
+    def test_dangling_symlink_into_the_repo_is_reported(self) -> None:
+        # 2026-11-12: six links in ~/.pi/agent/skills pointed at paths the repo
+        # had since deleted; inside a managed source, so the sweep read them clean.
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            _, pi, _, _ = self.targets(root)
+            self.run_installer("--apply", "--with", "pi", *self.arguments(root))
+            self.assertEqual(self.run_drift(root, "--with", "pi").returncode, 0)
+
+            (pi / "skills").mkdir(exist_ok=True)
+            (pi / "skills" / "retired").symlink_to(ROOT / "plugins" / "retired-skill")
+
+            drift = self.run_drift(root, "--with", "pi")
+            self.assertNotEqual(drift.returncode, 0, drift.stdout)
+            self.assertIn("dangling symlink", drift.stdout)
+            self.assertIn("retired", drift.stdout)
+
     def test_leftover_pi_text_link_is_drift_unless_pi_text_selected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
