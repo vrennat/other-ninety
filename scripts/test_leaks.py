@@ -82,7 +82,6 @@ class HistoryTest(unittest.TestCase):
         self.assertIn(on_head, text)
         self.assertNotIn(elsewhere, text)
 
-
     def test_history_follows_merges_detached_heads_and_named_revisions(self) -> None:
         merged = "merged" + "@" + "private.test"
         detached = "detached" + "@" + "private.test"

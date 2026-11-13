@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 root=$(git rev-parse --show-toplevel)
-"$root/scripts/lint-plugin.sh"
+# lint-plugin must not consume the ref list git sends on stdin, which the leak scan reads below.
+"$root/scripts/lint-plugin.sh" </dev/null
 # git names each ref being sent on stdin: <local ref> <local sha> <remote ref> <remote sha>.
 # Scan the history of every commit being sent, so sending a branch other than the checked-out
 # one, or all branches and tags at once, is covered; a deletion sends no commit.
