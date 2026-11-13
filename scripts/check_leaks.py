@@ -84,6 +84,9 @@ def history(root: Path, revs: list[str] | None = None) -> list[tuple[str, str]]:
             # stamp the account's primary email there. Messages (trailers included) and patches are still scanned.
             "--format=%x1e%H%x1f%B",
             "--patch",
+            # A merge commit prints no diff by default; --cc prints what the merge itself introduced, such as a
+            # conflict resolution, which no parent commit carries.
+            "--cc",
             "--no-color",
             # A revision that looks like an option is never read as one.
             "--end-of-options",
@@ -100,6 +103,42 @@ def history(root: Path, revs: list[str] | None = None) -> list[tuple[str, str]]:
         commit, text = section.split("\x1f", 1)
         commits.append((commit.strip(), text))
     return commits
+
+
+def tag_texts(root: Path) -> list[tuple[str, str]]:
+    """Every tag's own text that git log never prints: an annotated tag's message, and the contents of a blob
+    a tag points at. Tags are repository-wide and public, so all of them are read whatever is checked out.
+    The tagger line is left out for the same reason author and committer identity are."""
+    refs = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "for-each-ref",
+            "refs/tags",
+            "--format=%(refname:short)%09%(objectname)%09%(objecttype)%09%(*objecttype)",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    texts: list[tuple[str, str]] = []
+    for line in refs.stdout.splitlines():
+        name, obj, kind, peeled = (line.split("\t") + ["", "", "", ""])[:4]
+        parts: list[str] = []
+        if kind == "tag":
+            body = cat_file(root, obj)
+            parts.append("\n".join(row for row in body.splitlines() if not row.startswith("tagger ")))
+        if kind == "blob" or peeled == "blob":
+            parts.append(cat_file(root, f"{obj}^{{}}"))
+        if parts:
+            texts.append((name, "\n".join(parts)))
+    return texts
+
+
+def cat_file(root: Path, obj: str) -> str:
+    result = subprocess.run(["git", "-C", str(root), "cat-file", "-p", obj], capture_output=True, check=True)
+    return result.stdout.decode("utf-8", errors="replace")
 
 
 def fingerprint(value: str) -> str:
@@ -184,6 +223,8 @@ def main() -> int:
 
     if not args.no_history:
         findings.extend(scan_history(history(root, args.revs), rules, load_history_baseline(root)))
+        for name, text in tag_texts(root):
+            findings.extend(scan_text(text, rules, f"git-tag:{name}"))
 
     if findings:
         print("FAIL: possible private data found", file=sys.stderr)

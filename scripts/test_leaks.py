@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.check_leaks import RULES, compile_private_pattern, fingerprint, history, scan_history, scan_text
+from scripts.check_leaks import RULES, compile_private_pattern, fingerprint, history, scan_history, scan_text, tag_texts
 
 
 class PrivatePatternTest(unittest.TestCase):
@@ -106,6 +106,48 @@ class HistoryTest(unittest.TestCase):
             subprocess.run([*git, "checkout", "-q", "main"], check=True)
             self.assertNotIn(detached, "".join(body for _, body in history(Path(tmp))))
             self.assertIn(detached, "".join(body for _, body in history(Path(tmp), [other])))
+
+    def test_merge_resolution_content_is_scanned(self) -> None:
+        resolved = "resolved" + "@" + "private.test"
+        with tempfile.TemporaryDirectory() as tmp:
+            author = "p" + "@" + "example.com"
+            git = ["git", "-C", tmp, "-c", "user.name=P", "-c", f"user.email={author}"]
+            subprocess.run(["git", "init", "-q", "-b", "main", tmp], check=True)
+            note = Path(tmp) / "note.txt"
+            note.write_text("base\n")
+            subprocess.run([*git, "add", "note.txt"], check=True)
+            subprocess.run([*git, "commit", "-q", "-m", "base"], check=True)
+            subprocess.run([*git, "checkout", "-q", "-b", "side"], check=True)
+            note.write_text("side\n")
+            subprocess.run([*git, "commit", "-q", "-am", "side"], check=True)
+            subprocess.run([*git, "checkout", "-q", "main"], check=True)
+            note.write_text("main\n")
+            subprocess.run([*git, "commit", "-q", "-am", "main"], check=True)
+            subprocess.run([*git, "merge", "-q", "side"], capture_output=True)
+            note.write_text(f"{resolved}\n")
+            subprocess.run([*git, "commit", "-q", "-am", "merge side"], check=True)
+            text = "".join(body for _, body in history(Path(tmp)))
+        self.assertIn(resolved, text)
+
+    def test_tag_messages_and_tagged_blobs_are_scanned_without_the_tagger(self) -> None:
+        in_message = "message" + "@" + "private.test"
+        in_blob = "blob" + "@" + "private.test"
+        tagger = "tagger" + "@" + "private.test"
+        with tempfile.TemporaryDirectory() as tmp:
+            git = ["git", "-C", tmp, "-c", "user.name=T", "-c", f"user.email={tagger}"]
+            subprocess.run(["git", "init", "-q", "-b", "main", tmp], check=True)
+            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", "base"], check=True)
+            subprocess.run([*git, "tag", "-a", "v1", "-m", f"release by {in_message}"], check=True)
+            blob = subprocess.run(
+                [*git, "hash-object", "-w", "--stdin"], input=f"{in_blob}\n", capture_output=True, text=True, check=True
+            ).stdout.strip()
+            subprocess.run([*git, "tag", "data", blob], check=True)
+            subprocess.run([*git, "tag", "plain"], check=True)
+            texts = dict(tag_texts(Path(tmp)))
+        self.assertIn(in_message, texts["v1"])
+        self.assertNotIn(tagger, texts["v1"])
+        self.assertIn(in_blob, texts["data"])
+        self.assertNotIn("plain", texts)
 
 if __name__ == "__main__":
     unittest.main()
