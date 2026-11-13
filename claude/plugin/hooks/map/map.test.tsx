@@ -280,6 +280,21 @@ test('sections: a call shows in one section only, repeats fold, model and app st
   expect(sections({ since: 0, entries: [e('m', { kind: 'model', status: 'run' })] })).toMatchObject({ now: undefined, thinking: true })
 })
 
+test('a failure counts as new by when it ended; a gated call never folds under an ungated one', async () => {
+  // Started before the message at 5, failed after it.
+  const late = e('late', { status: 'err', startedAt: 1, endedAt: 9 })
+  const model = e('model-fail', { kind: 'model', status: 'err', startedAt: 1, endedAt: 9 })
+  const s = sections({ since: 5, entries: [late, model] })
+  expect(s.failed.map(x => x.id)).toEqual(['model-fail', 'late'])
+  // An older failed model step still shows, in Recent.
+  expect(sections({ since: 50, entries: [model] }).recent.map(r => r.entry.id)).toEqual(['model-fail'])
+  // Trimming keeps it as a listed failure.
+  const many = [late, ...Array.from({ length: 10 }, (_, i) => e(`n${i}`, { startedAt: 20 + i }))]
+  expect(trimHistory(many, 5, 5).map(x => x.id)[0]).toBe('late')
+  const folded = sections({ since: 0, entries: [e('reset', { label: 'git', gate: 'hard reset' }), e('status', { label: 'git' })] })
+  expect(folded.recent.map(r => [r.entry.id, r.times])).toEqual([['status', 1], ['reset', 1]])
+})
+
 test('history trim keeps running calls and listed failures, dropping the oldest finished first', async () => {
   const entries = [e('run', { status: 'run', startedAt: 0 }), e('fail', { status: 'err', startedAt: 50 }), ...Array.from({ length: 100 }, (_, i) => e(String(i), { startedAt: i }))]
   const kept = trimHistory(entries, 80, 40)

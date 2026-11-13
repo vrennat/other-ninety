@@ -18,6 +18,12 @@ export const KIND_NAME: Record<Kind, string> = {
 
 export const isFault = (e: Entry): boolean => e.status === 'err' || e.status === 'block'
 
+/**
+ * A failure that happened since the person last typed: judged by when it ended, so a call that
+ * started before the message and failed after it still counts as new.
+ */
+const failedSince = (e: Entry, since: number): boolean => isFault(e) && (e.endedAt ?? e.startedAt) >= since
+
 /** What a failed row says at its end: the safe reason when there is one. */
 export const faultWord = (e: Entry): string => e.why ?? (e.status === 'block' ? 'blocked' : 'failed')
 
@@ -36,8 +42,8 @@ export type Sections = {
   recent: Row[]
 }
 
-/** App bookkeeping and model steps are not rows: they say nothing about the work. */
-const isRow = (e: Entry): boolean => e.kind !== 'app' && e.kind !== 'model'
+/** App bookkeeping and model steps are not rows: they say nothing about the work. A failed model step is. */
+const isRow = (e: Entry): boolean => e.kind !== 'app' && (e.kind !== 'model' || isFault(e))
 
 /**
  * The pane's four sections from the board. A call appears in one section only: a failure under
@@ -48,14 +54,17 @@ export function sections(board: Board, limits = { outside: 4, recent: 12 }): Sec
   const now = newestFirst.find(e => e.status === 'run' && e.kind !== 'model' && e.kind !== 'app')
   const thinking = newestFirst.some(e => e.status === 'run' && e.kind === 'model')
   // A model step that fails is a failure worth seeing; other model steps stay off the list.
-  const failed = newestFirst.filter(e => isFault(e) && e.kind !== 'app' && e.startedAt >= board.since)
+  const failed = newestFirst.filter(e => e.kind !== 'app' && failedSince(e, board.since))
   const outside = newestFirst.filter(e => isRow(e) && e.via !== undefined && e.status === 'ok').slice(0, limits.outside)
   const shown = new Set<Entry>([...failed, ...outside])
   const recent: Row[] = []
   for (const e of newestFirst) {
     if (!isRow(e) || e.status === 'run' || shown.has(e)) continue
     const prev = recent.at(-1)
-    if (prev && prev.entry.kind === e.kind && prev.entry.label === e.label && prev.entry.status === e.status) {
+    // Only the same call again folds: a different gate or status is a row of its own, so a gated
+    // call is never hidden under a later ungated one with the same label.
+    const p = prev?.entry
+    if (p && p.kind === e.kind && p.label === e.label && p.status === e.status && p.gate === e.gate && p.why === e.why) {
       prev.times++
       continue
     }
@@ -105,7 +114,7 @@ export function clockSvg(ageSeconds: number): string {
 export function trimHistory(entries: Entry[], keep: number, since: number): Entry[] {
   let excess = entries.length - keep
   if (excess <= 0) return entries
-  const listed = (e: Entry) => e.status === 'run' || (isFault(e) && e.startedAt >= since)
+  const listed = (e: Entry) => e.status === 'run' || failedSince(e, since)
   const drop = new Set<Entry>()
   for (const e of entries) {
     if (excess <= 0) break
