@@ -88,7 +88,7 @@ async function quietly<T>(work: () => Promise<T>): Promise<T | undefined> {
 const newId = (now: number): string => `${now.toString(36)}${Math.random().toString(36).slice(2, 7)}`
 const isFault = (s: Status): boolean => s === 'err' || s === 'block'
 
-type Begin = Pick<Entry, 'station' | 'label'> & Partial<Pick<Entry, 'from' | 'gate' | 'status'>>
+type Begin = Pick<Entry, 'station' | 'label'> & Partial<Pick<Entry, 'from' | 'gate' | 'status' | 'programs'>>
 
 async function begin($: EngineInterface, start: Begin): Promise<string | undefined> {
   return quietly(async () => {
@@ -103,6 +103,7 @@ async function begin($: EngineInterface, start: Begin): Promise<string | undefin
       status,
       ...(status !== 'run' ? { endedAt: now } : {}),
       ...(start.gate ? { gate: start.gate } : {}),
+      ...(start.programs?.length ? { programs: start.programs.map(clean) } : {}),
     }
     await updateBoard($, b => ({
       ...b,
@@ -285,6 +286,7 @@ export const register: Register = on => {
     const feed = rows.map(r => (
       <Text dimColor={r.mark === '·'}>
         {r.mark} {r.station.padEnd(8)} {r.label}
+        {r.programs && r.programs.join(', ') !== r.label ? ` · ${r.programs.join(', ')}` : ''}
         {r.more ? ` +${r.more}` : ''}
         {r.note ? ` (${r.note})` : ''}
       </Text>

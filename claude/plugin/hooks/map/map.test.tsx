@@ -441,3 +441,16 @@ test('a call that ends before its start is recorded still closes its entry', asy
   expect((await ui.find({ type: 'Text', text: /Run tests/ }))?.text).toMatch(/^· shell/)
   await ui.unmount()
 })
+
+test('a shell row names the programs its command runs', async ($, on) => {
+  engine(on)
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'cd /r && bun test && git status', description: 'Check the tree' })
+  await $.tool.call({ tool: 'Bash', command: 'ls -la' })
+  await settle()
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect((await ui.find({ type: 'Text', text: /Check the tree/ }))?.text).toMatch(/Check the tree · bun, git/)
+  // A label that already is the one program is not repeated.
+  expect((await ui.find({ type: 'Text', text: /files +ls/ }))?.text).toBe('· files    ls')
+  await ui.unmount()
+})
