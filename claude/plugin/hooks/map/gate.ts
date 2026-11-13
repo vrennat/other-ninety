@@ -23,7 +23,9 @@ const shell = (name: string, body: string): Gate => ({ name, pattern: new RegExp
  * `git -c core.hooksPath=/dev/null push` is still a push.
  */
 const GIT = String.raw`git(?:\s+(?:-[Cc]\s+\S+|--(?:git-dir|work-tree|namespace)(?:=|\s+)\S+|--no-pager|--paginate|--bare|--no-replace-objects|--no-optional-locks|--literal-pathspecs|-[pP]))*\s+`
-const WRANGLER = String.raw`(?:bunx\s+|npx\s+|pnpm\s+(?:dlx|exec)\s+)?wrangler(?:@\S+)?\s+`
+/** A package runner before wrangler, with its own options: `bunx --bun`, `npx --yes`, `npm exec --`, `pnpm dlx`. */
+const RUNNER = String.raw`(?:(?:bunx|npx|bun\s+x|npm\s+exec|pnpm\s+(?:dlx|exec)|yarn\s+dlx)(?:\s+-\S*)*\s+)`
+const WRANGLER = String.raw`${RUNNER}?wrangler(?:@\S+)?\s+`
 /** The rest of one simple command: `commandsOf` has already cut the line at `;`, `&`, `|` and newlines. */
 const REST = String.raw`[^;&|\n]*`
 /** An option or argument ends at whitespace or the end of the command. */
@@ -35,7 +37,8 @@ export const GATES: readonly Gate[] = [
   shell('force push', String.raw`${GIT}push\b${REST}\s(?:--force(?:-with-lease)?(?:=\S*)?|-[A-Za-z]*f[A-Za-z]*|\+\S+)${END}`),
   shell('git push', String.raw`${GIT}push\b`),
   shell('hard reset', String.raw`${GIT}reset\s+${REST}--hard\b`),
-  shell('branch delete', String.raw`${GIT}branch\s+${REST}(?:-D|--delete\s+--force)\b`),
+  // -D alone or in a cluster (-Dq), or --delete --force.
+  shell('branch delete', String.raw`${GIT}branch\s+(?:${REST}\s)?(?:-[A-Za-z]*D[A-Za-z]*|--delete\s+--force)${END}`),
   // Work in the tree or the stash thrown away: checkout of paths, clean -f, restore of the
   // worktree (not --staged alone), stash drop and clear.
   shell(
@@ -82,7 +85,19 @@ export function isWrapped(bare: string): boolean {
 }
 
 /** Words that may stand before a command's program without changing what it runs. */
-const PREFIX = /^(?:\w+=\S*|sudo|time|exec|nohup|command|builtin|env|xargs|do|then|else|elif|if|while|until|\{|\(|!)$/
+const PREFIX = /^(?:\w+=\S*|sudo|time|exec|nohup|command|builtin|env|xargs|timeout|nice|caffeinate|do|then|else|elif|if|while|until|\{|\(|!)$/
+
+/** Per prefix, its options that take the next word as their value (`sudo -u x`, `nice -n 10`). */
+const VALUE_OPTIONS: Record<string, string> = {
+  sudo: 'ughpUCrtD',
+  env: 'uCS',
+  nice: 'n',
+  xargs: 'nILPsdEa',
+  timeout: 'sk',
+  caffeinate: 'tw',
+  time: 'fo',
+}
+const DURATION = /^\d+(?:\.\d+)?[smhd]?$/
 
 /** The simple commands in a stripped line, each with its leading assignments and prefix words dropped. */
 export function commandsOf(bare: string): string[] {
@@ -90,7 +105,18 @@ export function commandsOf(bare: string): string[] {
   for (const part of bare.split(/&&|\|\||[;&|\n`(]|\$\(/)) {
     const words = part.trim().split(/\s+/)
     let k = 0
-    while (k < words.length - 1 && PREFIX.test(words[k]!)) k++
+    // Each word is looked at once: a prefix, then its options (and their values), then for
+    // `timeout` its duration.
+    while (k < words.length - 1 && PREFIX.test(words[k]!)) {
+      const prefix = words[k++]!
+      const takesValue = VALUE_OPTIONS[prefix] ?? ''
+      while (k < words.length - 1 && words[k]!.startsWith('-') && words[k] !== '--') {
+        const opt = words[k++]!
+        // `-u x` takes the next word; `-ux`, `--user=x` and `-n1` carry it.
+        if (opt.length === 2 && takesValue.includes(opt[1]!) && k < words.length - 1) k++
+      }
+      if (prefix === 'timeout' && k < words.length - 1 && DURATION.test(words[k]!)) k++
+    }
     const cmd = words.slice(k).join(' ')
     if (cmd) out.push(cmd)
   }

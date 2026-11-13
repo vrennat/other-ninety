@@ -126,7 +126,8 @@ other way (`update_…`, `put_…`, `send_…`). The table is the single source;
 Classification is linear and bounded, since every tool call waits on it: the map reads at most
 the first 16 KB of a command, blanks quoted text and heredoc bodies in one left-to-right pass,
 and tries each gate pattern once at the start of each simple command (after assignments and
-prefix words such as `sudo`, `env`, `xargs`), never at every word. A gated step past 16 KB goes
+prefix words such as `sudo`, `env`, `xargs`, `timeout`, `nice`, `caffeinate`, with their options
+and option values, and after a package runner such as `bunx --bun`, `npx --yes` or `npm exec`), never at every word. A gated step past 16 KB goes
 unmarked, and so does a gated program named as an argument (`echo git push`).
 
 **Labels: names, never content.** File: last two path parts. URL: host only. Bash: the call's

@@ -454,3 +454,35 @@ test('a shell row names the programs its command runs', async ($, on) => {
   expect((await ui.find({ type: 'Text', text: /files +ls/ }))?.text).toBe('· files    ls')
   await ui.unmount()
 })
+
+test('gates: runners, prefixes and their options do not hide a deploy', async () => {
+  const deploys = [
+    'bunx --bun wrangler deploy',
+    'npx --yes wrangler deploy',
+    'npm exec wrangler deploy',
+    'npm exec -- wrangler deploy',
+    'bunx wrangler@latest deploy',
+    'pnpm dlx wrangler deploy',
+    'sudo -E wrangler deploy',
+    'sudo -u deploy wrangler deploy',
+    'env -i PATH=/bin wrangler deploy',
+    'time -p wrangler deploy',
+    'xargs -n1 wrangler deploy',
+    'xargs -n 1 wrangler deploy',
+    'timeout 60 wrangler deploy',
+    'timeout -s KILL 5m wrangler deploy',
+    'nice wrangler deploy',
+    'nice -n 10 wrangler deploy',
+    'command -p wrangler deploy',
+    'caffeinate -i wrangler deploy',
+    'sudo -E timeout 60 nice -n 5 wrangler deploy',
+  ]
+  for (const command of deploys) expect([command, gateForCommand(command)]).toEqual([command, 'deploy'])
+  expect(gateForCommand('git branch -Dq old')).toBe('branch delete')
+  expect(gateForCommand('git branch -dq merged')).toBe(undefined)
+  expect(gateForCommand('timeout 60 wrangler dev')).toBe(undefined)
+  // Still linear: a long run of prefix words and options.
+  const t = Date.now()
+  gateForCommand('sudo -u x timeout 9 nice -n 1 '.repeat(20_000))
+  expect(Date.now() - t < 50).toBe(true)
+})
