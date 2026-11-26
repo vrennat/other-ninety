@@ -1,5 +1,11 @@
 # The Other Ninety
 
+> **Retired at v0.7.0.** We replaced our active o90 setup with a shared
+> 46-line `AGENTS.md` and four hooks that run outside the prompt. Late-2026
+> models and T3 Code's native orchestration took over enough of the work
+> to cut the maintained setup from 18,654 to 1,505 tracked lines (92%).
+> The code and install instructions below remain available for reference.
+
 **o90** is a small set of native rules, commands, and one specialist agent for
 Claude Code, plus a matching Pi configuration. It adds what the model's own
 system prompt cannot know about you, and nothing that it already does.
