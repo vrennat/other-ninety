@@ -950,3 +950,46 @@ What goes: the pane, `/map`, the "Show map" button, the auto-open, the hooks mod
 manifest's `types` entry. The plugin moves to 0.7.0 so an update removes the pane. Nothing else
 used the map's gate patterns, hooks or state. The spec moves to `docs/archive/`. The plugin again
 ships no hooks; D15's rule that it adds nothing to the conversation or system prompt stands.
+
+## D38. Cross-repo and session sweep 2026-11-24: autoMode environment, Playwright bunx, subagent guardrails, Codex hygiene — Resolved
+
+Tanner approved applying the four optimization workstreams from the 2026-11-24 read-only sweep
+across 71 primary repositories, 294 linked worktrees, 2,608 Claude Code transcripts
+(timestamp-bucketed), 1,171 Codex threads, 192 T3 Code threads, and 32 LaunchAgents on the primary
+macOS workstation.
+
+1. **D23 acceptance results (Oct 10–23 vs Oct 24–Nov 24):** `zsh_NOMATCH` 1 -> 0 (pass, down from
+   1,684 baseline); compactions/main 4.22 -> 2.40 (pass, -43%; W44–W46 dropped to 21–32/wk);
+   subagent Haiku+Sonnet share 4.4% -> 23.7% overall (peaked at 48.9% W44 / 38.4% W45, then dropped
+   to 7.2% in W46 from a single iOS asset-card workflow batch of ~400 Opus subagents reading 560
+   images each, consuming 971.9M input tokens / $263 and 6.08 GB of base64 JSONLs); browser MCP
+   errors rose 1.98 -> 2.79/main (+41%, fail); root `~/Developer` share rose 12.3% -> 57.2% (fail);
+   foreground `sleep` blocks rose 35 -> 153 (fail).
+2. **`autoMode.environment` replaced in the private overlay.** Commit `b85280f` froze an
+   auto-generated environment block naming a Claude Desktop scratch folder (`scratch-workspaces/...`,
+   0 tracked files, no remotes, no org/cloud providers) as the only trusted repository, contributing
+   to 321 permission/classifier errors in 30 days. Replaced in the private overlay with the actual
+   owned repository, cloud, and fleet boundaries while preserving baseline IaC, shared-branch (D21),
+   public-registry, bypass-flag (D33), deployment, and egress gates (checked by independent
+   adversarial review).
+3. **Playwright MCP off `npx` and workspace-scoped.** Both `~/.claude.json` and
+   `~/.codex/config.toml` invoked `npx @playwright/mcp`, hitting `~/.npmrc`'s external cache path
+   (the same hazard D21 avoided in `shots`) and producing 55+ disconnect errors plus 65+ temp-dir
+   file-access denials. Switched to `~/.bun/bin/bunx @playwright/mcp@0.0.83` and dropped
+   `--output-dir /private/tmp` so screenshots stay workspace-local without enabling
+   `--allow-unrestricted-file-access` (`file://`).
+4. **Subagent guardrails in `rules/agents.md`.** Added targeted lines for three measured failures in
+   Oct 24–Nov 24: (a) subagents never call `update_plan` (221 desktop PreToolUse blocks), (b) visual
+   triage batches (>~10 images) tile into contact sheets (`~/.claude/skills/shots/imgtool.py sheet`)
+   on `sonnet`/`haiku` rather than reading hundreds of individual images on `opus`, and (c) no
+   `sleep N && cat /private/tmp/...` polling of background outputs (153 blocks).
+5. **Codex overlay profile and live home cleanup.** `other-ninety.config.toml` moved from
+   `gpt-6.1-sol` / `ultra` / 200k compact cap to `gpt-6.2-sol` / `high` / default compact window;
+   live `~/.codex/hooks.json` repointed from nonexistent `session-intent.sh` and
+   `post-compact-rules.md` to `session-intent.py`; ~20 missing `claude-cowork` plugins and
+   Claude-only env vars removed from `~/.codex/config.toml`; 17 active repos trusted to curb root
+   `~/Developer` funneling (85.4% of Codex threads).
+
+Acceptance (14 days to 2026-12-08 via retro pipeline): browser MCP errors <1.0/main; `update_plan`
+subagent hook blocks near 0; `sleep` blocks <30; subagent Haiku+Sonnet share >25% sustained; Codex
+`codex_core_plugins::loader` WARNs and missing-hook errors at 0.
